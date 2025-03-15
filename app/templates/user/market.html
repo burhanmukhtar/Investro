@@ -1,0 +1,356 @@
+<!-- app/templates/user/market.html -->
+{% extends "base.html" %}
+
+{% block title %}Market | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Market Filter -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div class="flex border-b">
+            <button class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+                All
+            </button>
+            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Gainers
+            </button>
+            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Losers
+            </button>
+            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Volume
+            </button>
+        </div>
+        
+        <!-- app/templates/user/market.html (continued) -->
+        <div class="p-3 border-b">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" id="marketSearch" placeholder="Search" class="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Market Data -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="flex items-center p-3 border-b text-sm font-medium text-gray-500">
+            <div class="w-1/2 flex items-center">
+                <button class="flex items-center">
+                    Coin
+                    <i class="fas fa-sort ml-1"></i>
+                </button>
+            </div>
+            <div class="w-1/4 text-right">
+                <button class="flex items-center justify-end ml-auto">
+                    Price
+                    <i class="fas fa-sort ml-1"></i>
+                </button>
+            </div>
+            <div class="w-1/4 text-right">
+                <button class="flex items-center justify-end ml-auto">
+                    24h Change
+                    <i class="fas fa-sort ml-1"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div id="marketData" class="divide-y divide-gray-100 max-h-[calc(100vh-210px)] overflow-y-auto ios-scrolling">
+            <!-- Market data will be loaded here -->
+            <div class="p-6 text-center text-gray-500">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+                <p>Loading market data...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Coin Detail Modal -->
+<div id="coinDetailModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-4 border-b flex items-center justify-between">
+            <div class="flex items-center">
+                <div id="coinIcon" class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                    <span id="coinSymbolIcon" class="text-sm font-bold"></span>
+                </div>
+                <div>
+                    <h3 id="coinName" class="text-xl font-semibold"></h3>
+                    <div class="flex items-center">
+                        <span id="coinSymbol" class="text-sm text-gray-500 mr-2"></span>
+                        <span id="coinRank" class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full"></span>
+                    </div>
+                </div>
+            </div>
+            <button id="closeCoinDetail" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="px-4 py-3 border-b">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div id="coinPrice" class="text-2xl font-bold"></div>
+                    <div id="coinChange" class="text-sm"></div>
+                </div>
+                <div class="space-x-2">
+                    <a id="tradeCoinButton" href="#" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">Trade</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 flex-1 overflow-y-auto ios-scrolling">
+            <div id="coinChartContainer" class="mb-6 h-64">
+                <!-- Chart will be rendered here -->
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-1">Market Cap</h4>
+                    <div id="coinMarketCap" class="text-base font-semibold"></div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-1">Volume (24h)</h4>
+                    <div id="coinVolume" class="text-base font-semibold"></div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-1">Circulating Supply</h4>
+                    <div id="coinSupply" class="text-base font-semibold"></div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-1">All Time High</h4>
+                    <div id="coinATH" class="text-base font-semibold"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const marketData = document.getElementById('marketData');
+        const marketSearch = document.getElementById('marketSearch');
+        const coinDetailModal = document.getElementById('coinDetailModal');
+        const closeCoinDetail = document.getElementById('closeCoinDetail');
+        
+        // Load market data
+        loadMarketData();
+        
+        // Initialize search
+        if (marketSearch) {
+            marketSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = marketData.querySelectorAll('.market-row');
+                
+                rows.forEach(row => {
+                    const coinName = row.querySelector('.coin-name').textContent.toLowerCase();
+                    const coinSymbol = row.querySelector('.coin-symbol').textContent.toLowerCase();
+                    
+                    if (coinName.includes(searchTerm) || coinSymbol.includes(searchTerm)) {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+            });
+        }
+        
+        // Coin detail modal
+        if (closeCoinDetail) {
+            closeCoinDetail.addEventListener('click', function() {
+                coinDetailModal.classList.add('scale-0');
+            });
+            
+            coinDetailModal.addEventListener('click', function(e) {
+                if (e.target === coinDetailModal) {
+                    coinDetailModal.classList.add('scale-0');
+                }
+            });
+        }
+        
+        function loadMarketData() {
+            fetch('/market/data?limit=100')
+                .then(response => response.json())
+                .then(data => {
+                    // Clear loading indicator
+                    marketData.innerHTML = '';
+                    
+                    // Add market rows
+                    data.forEach(coin => {
+                        const row = document.createElement('div');
+                        row.className = 'market-row p-3 hover:bg-gray-50 cursor-pointer';
+                        row.dataset.coin = coin.symbol;
+                        
+                        const changeColor = coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600';
+                        
+                        row.innerHTML = `
+                            <div class="flex items-center justify-between">
+                                <div class="w-1/2 flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                                        <span class="text-xs font-bold">${coin.symbol.charAt(0)}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium coin-name">${coin.name}</div>
+                                        <div class="text-xs text-gray-500 coin-symbol">${coin.symbol}</div>
+                                    </div>
+                                </div>
+                                <div class="w-1/4 text-right">
+                                    <div class="text-sm font-medium">$${formatNumber(coin.current_price)}</div>
+                                </div>
+                                <div class="w-1/4 text-right">
+                                    <div class="text-sm font-medium ${changeColor}">
+                                        ${coin.price_change_percentage_24h >= 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}%
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        row.addEventListener('click', function() {
+                            showCoinDetail(coin.symbol);
+                        });
+                        
+                        marketData.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching market data:', error);
+                    marketData.innerHTML = '<div class="p-6 text-center text-red-500">Error loading market data. Please try again.</div>';
+                });
+        }
+        
+        function showCoinDetail(symbol) {
+            fetch(`/market/coin/${symbol}`)
+                .then(response => response.json())
+                .then(coin => {
+                    // Update modal with coin data
+                    document.getElementById('coinSymbolIcon').textContent = coin.symbol.charAt(0);
+                    document.getElementById('coinName').textContent = coin.name;
+                    document.getElementById('coinSymbol').textContent = coin.symbol;
+                    document.getElementById('coinRank').textContent = `Rank #${coin.market_cap_rank}`;
+                    document.getElementById('coinPrice').textContent = `$${formatNumber(coin.current_price)}`;
+                    
+                    const changeElement = document.getElementById('coinChange');
+                    changeElement.textContent = `${coin.price_change_percentage_24h >= 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}% (24h)`;
+                    changeElement.className = coin.price_change_percentage_24h >= 0 ? 'text-sm text-green-600' : 'text-sm text-red-600';
+                    
+                    document.getElementById('coinMarketCap').textContent = `$${formatNumber(coin.market_cap)}`;
+                    document.getElementById('coinVolume').textContent = `$${formatNumber(coin.total_volume)}`;
+                    document.getElementById('coinSupply').textContent = `${formatNumber(coin.circulating_supply)} ${coin.symbol}`;
+                    document.getElementById('coinATH').textContent = `$${formatNumber(coin.ath)} (${new Date(coin.ath_date).toLocaleDateString()})`;
+                    
+                    document.getElementById('tradeCoinButton').href = `/user/future?coin=${coin.symbol}/USDT`;
+                    
+                    // Load chart
+                    loadCoinChart(coin.symbol);
+                    
+                    // Show modal
+                    coinDetailModal.classList.remove('scale-0');
+                })
+                .catch(error => {
+                    console.error('Error fetching coin data:', error);
+                    alert('Error loading coin data. Please try again.');
+                });
+        }
+        
+        function loadCoinChart(symbol) {
+            fetch(`/market/chart/${symbol}?interval=1d&limit=30`)
+                .then(response => response.json())
+                .then(data => {
+                    const chartContainer = document.getElementById('coinChartContainer');
+                    chartContainer.innerHTML = '';
+                    
+                    const canvas = document.createElement('canvas');
+                    chartContainer.appendChild(canvas);
+                    
+                    // Format chart data
+                    const labels = data.map(item => new Date(item[0]).toLocaleDateString());
+                    const prices = data.map(item => item[4]); // Close price
+                    
+                    new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: `${symbol} Price`,
+                                data: prices,
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 1,
+                                pointHoverRadius: 5,
+                                pointBackgroundColor: '#0ea5e9'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            },
+                            scales: {
+                                x: {
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        maxTicksLimit: 6
+                                    }
+                                },
+                                y: {
+                                    position: 'right',
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)'
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '$' + formatNumber(value);
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `${symbol}: $${formatNumber(context.raw)}`;
+                                        }
+                                    }
+                                },
+                                legend: {
+                                    display: false
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching chart data:', error);
+                    document.getElementById('coinChartContainer').innerHTML = '<div class="p-6 text-center text-red-500">Error loading chart data.</div>';
+                });
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1e9) {
+                return (num / 1e9).toFixed(2) + 'B';
+            }
+            if (num >= 1e6) {
+                return (num / 1e6).toFixed(2) + 'M';
+            }
+            if (num >= 1e3) {
+                return (num / 1e3).toFixed(2) + 'K';
+            }
+            if (num >= 1) {
+                return num.toFixed(2);
+            }
+            return num.toFixed(6);
+        }
+    });
+</script>
+{% endblock %}

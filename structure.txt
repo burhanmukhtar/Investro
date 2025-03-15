@@ -1,0 +1,85 @@
+# Crypto Trading Platform Project Structure
+
+```
+crypto_trading_platform/
+│
+├── app/
+│   ├── __init__.py                 # Flask app initialization
+│   ├── config.py                   # Configuration settings
+│   ├── models/                     # Database models
+│   │   ├── __init__.py
+│   │   ├── user.py                 # User model
+│   │   ├── wallet.py               # Wallet model
+│   │   ├── transaction.py          # Transaction model
+│   │   ├── trade_signal.py         # Trade signals model
+│   │   └── announcement.py         # Announcements model
+│   │
+│   ├── routes/                     # API routes
+│   │   ├── __init__.py
+│   │   ├── auth.py                 # Authentication routes
+│   │   ├── user.py                 # User profile routes
+│   │   ├── wallet.py               # Wallet management routes
+│   │   ├── market.py               # Market data routes
+│   │   ├── trade.py                # Trading routes
+│   │   └── admin.py                # Admin routes
+│   │
+│   ├── services/                   # Business logic
+│   │   ├── __init__.py
+│   │   ├── auth_service.py         # Authentication service
+│   │   ├── user_service.py         # User management service
+│   │   ├── wallet_service.py       # Wallet operations service
+│   │   ├── market_service.py       # Market data service
+│   │   ├── notification_service.py # OTP and notification service
+│   │   └── admin_service.py        # Admin operations service
+│   │
+│   ├── utils/                      # Utility functions
+│   │   ├── __init__.py
+│   │   ├── validators.py           # Input validation
+│   │   ├── helpers.py              # Helper functions
+│   │   └── crypto_api.py           # Cryptocurrency API integration
+│   │
+│   ├── static/                     # Static assets
+│   │   ├── css/
+│   │   │   └── tailwind.css        # Compiled Tailwind CSS
+│   │   ├── js/
+│   │   │   ├── app.js              # Main JavaScript file
+│   │   │   ├── chart.js            # Chart functionality
+│   │   │   └── auth.js             # Authentication scripts
+│   │   └── images/
+│   │       └── logo.png            # App logo
+│   │
+│   └── templates/                  # HTML templates
+│       ├── base.html               # Base template
+│       ├── auth/
+│       │   ├── login.html          # Login page
+│       │   ├── signup.html         # Signup page
+│       │   └── verify_otp.html     # OTP verification
+│       ├── user/
+│       │   ├── home.html           # Home page
+│       │   ├── market.html         # Market page
+│       │   ├── future.html         # Futures page
+│       │   ├── assets.html         # Assets page
+│       │   └── profile.html        # User profile
+│       ├── transactions/
+│       │   ├── deposit.html        # Deposit page
+│       │   ├── withdraw.html       # Withdraw page
+│       │   ├── convert.html        # Convert page
+│       │   ├── transfer.html       # Transfer page
+│       │   └── pay.html            # Pay page
+│       └── admin/
+│           ├── dashboard.html      # Admin dashboard
+│           ├── users.html          # User management
+│           ├── verifications.html  # Verification requests
+│           ├── deposits.html       # Deposit management
+│           ├── withdrawals.html    # Withdrawal management
+│           └── trade_signals.html  # Trade signals management
+│
+├── migrations/                     # Database migrations
+├── tests/                          # Test cases
+├── .env                            # Environment variables
+├── .gitignore                      # Git ignore file
+├── package.json                    # Node.js dependencies
+├── tailwind.config.js              # Tailwind CSS configuration
+├── requirements.txt                # Python dependencies
+└── run.py                          # Application entry point
+```

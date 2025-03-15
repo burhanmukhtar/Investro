@@ -1,0 +1,541 @@
+<!-- app/templates/user/profile.html -->
+{% extends "base.html" %}
+
+{% block title %}Profile | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Profile Header -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 sm:p-6">
+            <div class="flex flex-col sm:flex-row items-center">
+                <div class="relative mb-4 sm:mb-0 sm:mr-6">
+                    <div class="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
+                        <img id="profileImage" src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-full h-full object-cover">
+                    </div>
+                    <label for="profilePictureUpload" class="absolute bottom-0 right-0 bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center cursor-pointer">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                    <input type="file" id="profilePictureUpload" class="hidden" accept="image/*">
+                </div>
+                
+                <div class="text-center sm:text-left flex-1">
+                    <div class="flex items-center justify-center sm:justify-start mb-1">
+                        <h1 class="text-xl font-bold">{{ current_user.username }}</h1>
+                        {% if current_user.is_verified %}
+                        <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500 mb-2">{{ current_user.email }}</div>
+                    <div class="text-sm bg-gray-100 px-2 py-1 rounded inline-block mb-2">{{ current_user.unique_id }}</div>
+                    
+                    <div class="mt-3">
+                        <div class="text-xs text-gray-500">Member since</div>
+                        <div class="text-sm">{{ current_user.created_at.strftime('%B %d, %Y') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="flex border-b">
+            <button id="accountTab" class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+                Account
+            </button>
+            <button id="securityTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Security
+            </button>
+            <button id="verificationTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Verification
+            </button>
+            <button id="referralTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Referral
+            </button>
+        </div>
+        
+        <!-- Account Tab Content -->
+        <div id="accountContent" class="p-4">
+            <form id="accountForm" action="{{ url_for('user.update_profile') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                        Username
+                    </label>
+                    <input type="text" id="username" name="username" value="{{ current_user.username }}" class="w-full ios-input" {{ 'disabled' if current_user.is_verified else '' }}>
+                    {% if current_user.is_verified %}
+                    <p class="mt-1 text-xs text-gray-500">
+                        Username cannot be changed after verification.
+                    </p>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                    </label>
+                    <input type="email" id="email" value="{{ current_user.email }}" class="w-full ios-input" disabled>
+                    <p class="mt-1 text-xs text-gray-500">
+                        Email cannot be changed. Contact support if you need to update your email.
+                    </p>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                    </label>
+                    <input type="tel" id="phone" value="{{ current_user.phone }}" class="w-full ios-input" disabled>
+                    <p class="mt-1 text-xs text-gray-500">
+                        Phone number cannot be changed. Contact support if you need to update your phone.
+                    </p>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Update Profile
+                </button>
+            </form>
+        </div>
+        
+        <!-- Security Tab Content -->
+        <div id="securityContent" class="p-4 hidden">
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-3">Change Password</h3>
+                <form id="passwordForm" action="{{ url_for('user.change_password') }}" method="POST">
+                    <div class="mb-4">
+                        <label for="current_password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Current Password
+                        </label>
+                        <input type="password" id="current_password" name="current_password" required class="w-full ios-input">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="new_password" class="block text-sm font-medium text-gray-700 mb-1">
+                            New Password
+                        </label>
+                        <input type="password" id="new_password" name="new_password" required class="w-full ios-input">
+                        <p class="mt-1 text-xs text-gray-500">
+                            Password must be at least 8 characters with a uppercase letter, lowercase letter, and a number.
+                        </p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">
+                            Confirm Password
+                        </label>
+                        <input type="password" id="confirm_password" name="confirm_password" required class="w-full ios-input">
+                    </div>
+                    
+                    <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Change Password
+                    </button>
+                </form>
+            </div>
+            
+            <div class="pt-6 border-t">
+                <h3 class="text-lg font-medium mb-3">Withdrawal PIN</h3>
+                <form id="pinForm" action="{{ url_for('user.set_withdrawal_pin') }}" method="POST">
+                    <div class="mb-4">
+                        <label for="pin" class="block text-sm font-medium text-gray-700 mb-1">
+                            6-Digit PIN
+                        </label>
+                        <input type="password" id="pin" name="pin" required maxlength="6" inputmode="numeric" pattern="[0-9]*" class="w-full ios-input text-center tracking-widest">
+                        <p class="mt-1 text-xs text-gray-500">
+                            You'll need this PIN to confirm withdrawals.
+                        </p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirm_pin" class="block text-sm font-medium text-gray-700 mb-1">
+                            Confirm PIN
+                        </label>
+                        <input type="password" id="confirm_pin" name="confirm_pin" required maxlength="6" inputmode="numeric" pattern="[0-9]*" class="w-full ios-input text-center tracking-widest">
+                    </div>
+                    
+                    <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        {{ 'Update PIN' if current_user.withdrawal_pin_hash else 'Set PIN' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Verification Tab Content -->
+        <div id="verificationContent" class="p-4 hidden">
+            <div class="mb-4 text-center">
+                <div class="inline-block w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                    <i class="fas {{ 'fa-check text-green-500' if current_user.is_verified else 'fa-id-card text-gray-400' }} text-4xl"></i>
+                </div>
+                <h3 class="text-lg font-medium">
+                    {% if current_user.is_verified %}
+                    Verified Account
+                    {% elif current_user.verification_status == 'pending' %}
+                    Verification Pending
+                    {% elif current_user.verification_status == 'rejected' %}
+                    Verification Rejected
+                    {% else %}
+                    Unverified Account
+                    {% endif %}
+                </h3>
+                <p class="text-sm text-gray-500 max-w-md mx-auto mt-1">
+                    {% if current_user.is_verified %}
+                    Your account is fully verified. You have access to all platform features.
+                    {% elif current_user.verification_status == 'pending' %}
+                    Your verification is pending review. This usually takes 1-2 business days.
+                    {% elif current_user.verification_status == 'rejected' %}
+                    Your verification was rejected. Please submit new documents.
+                    {% else %}
+                    Verify your identity to unlock all platform features including higher withdrawal limits.
+                    {% endif %}
+                </p>
+            </div>
+            
+            {% if not current_user.is_verified and current_user.verification_status != 'pending' %}
+            <div class="bg-white border rounded-lg p-4 mb-4">
+                <h4 class="font-medium mb-2">Submit Verification Documents</h4>
+                
+                <form id="verificationForm" action="{{ url_for('user.verification') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="document_type" class="block text-sm font-medium text-gray-700 mb-1">
+                            Document Type
+                        </label>
+                        <select id="document_type" name="document_type" required class="w-full ios-input">
+                            <option value="">Select document type</option>
+                            <option value="passport">Passport</option>
+                            <option value="id_card">ID Card</option>
+                            <option value="driver_license">Driver's License</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="document_file" class="block text-sm font-medium text-gray-700 mb-1">
+                            Upload Document
+                        </label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
+                            <input type="file" id="document_file" name="document_file" required class="hidden" accept=".jpg,.jpeg,.png,.pdf">
+                            <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm text-gray-500" id="fileLabel">Click or drag file to upload</p>
+                            <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, PDF</p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Submit for Verification
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+            
+            <div class="bg-white border rounded-lg p-4">
+                <h4 class="font-medium mb-2">Verification History</h4>
+                
+                <div id="verificationHistory" class="divide-y">
+                    <!-- Verification documents will be loaded here -->
+                    <div class="py-4 text-center text-gray-500">
+                        <p>No verification attempts yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Referral Tab Content -->
+        <div id="referralContent" class="p-4 hidden">
+            <div class="mb-6 text-center">
+                <div class="inline-block w-24 h-24 rounded-full bg-purple-100 flex items-center justify-center mb-2">
+                    <i class="fas fa-user-plus text-purple-600 text-4xl"></i>
+                </div>
+                <!-- app/templates/user/profile.html (continued) -->
+                <h3 class="text-lg font-medium">Referral Program</h3>
+                <p class="text-sm text-gray-500 max-w-md mx-auto mt-1">
+                    Invite friends and earn rewards when they join and trade.
+                </p>
+            </div>
+            
+            <div class="bg-white border rounded-lg p-4 mb-6">
+                <h4 class="font-medium mb-3">Your Referral Code</h4>
+                
+                <div class="bg-gray-50 p-3 rounded-lg mb-3 flex items-center justify-between">
+                    <div class="font-mono font-medium">{{ current_user.referral_code }}</div>
+                    <button id="copyReferralCode" class="text-primary-600 hover:text-primary-700 focus:outline-none">
+                        <i class="far fa-copy"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="referralLink" class="block text-sm font-medium text-gray-700 mb-1">
+                        Referral Link
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="referralLink" value="{{ request.host_url }}signup?ref={{ current_user.referral_code }}" readonly class="w-full ios-input pr-10">
+                        <button id="copyReferralLink" class="absolute right-3 top-2.5 text-primary-600 hover:text-primary-700 focus:outline-none">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-center space-x-4">
+                    <a href="#" class="text-gray-500 hover:text-blue-600">
+                        <i class="fab fa-twitter fa-lg"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-blue-800">
+                        <i class="fab fa-facebook fa-lg"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-green-600">
+                        <i class="fab fa-whatsapp fa-lg"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-blue-500">
+                        <i class="fab fa-telegram fa-lg"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="bg-white border rounded-lg p-4">
+                <h4 class="font-medium mb-3">Referred Users</h4>
+                
+                <div id="referredUsers" class="divide-y">
+                    <!-- Referred users will be loaded here -->
+                    <div class="py-4 text-center text-gray-500">
+                        <p>You haven't referred anyone yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Picture Upload Modal -->
+<div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-xl w-full max-w-md mx-4">
+        <div class="p-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Upload Profile Picture</h3>
+            <button id="closeUploadModal" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="p-4">
+            <form id="pictureUploadForm" action="{{ url_for('user.update_profile') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <div id="previewContainer" class="w-32 h-32 rounded-full bg-gray-200 mx-auto overflow-hidden mb-4">
+                        <img id="imagePreview" src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="Preview" class="w-full h-full object-cover">
+                    </div>
+                    
+                    <div class="text-center">
+                        <label for="profile_picture" class="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 cursor-pointer">
+                            Select Image
+                        </label>
+                        <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*">
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Upload Picture
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab switching
+        const tabs = {
+            account: {
+                tab: document.getElementById('accountTab'),
+                content: document.getElementById('accountContent')
+            },
+            security: {
+                tab: document.getElementById('securityTab'),
+                content: document.getElementById('securityContent')
+            },
+            verification: {
+                tab: document.getElementById('verificationTab'),
+                content: document.getElementById('verificationContent')
+            },
+            referral: {
+                tab: document.getElementById('referralTab'),
+                content: document.getElementById('referralContent')
+            }
+        };
+
+        for (const [key, value] of Object.entries(tabs)) {
+            value.tab.addEventListener('click', function() {
+                // Hide all content
+                for (const k of Object.keys(tabs)) {
+                    tabs[k].content.classList.add('hidden');
+                    tabs[k].tab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                    tabs[k].tab.classList.add('text-gray-500');
+                }
+                
+                // Show selected content
+                value.content.classList.remove('hidden');
+                value.tab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                value.tab.classList.remove('text-gray-500');
+                
+                // Load additional data if needed
+                if (key === 'verification') {
+                    loadVerificationHistory();
+                } else if (key === 'referral') {
+                    loadReferrals();
+                }
+            });
+        }
+        
+        // Profile picture upload handling
+        const profilePictureUpload = document.getElementById('profilePictureUpload');
+        const uploadModal = document.getElementById('uploadModal');
+        const closeUploadModal = document.getElementById('closeUploadModal');
+        const profilePicture = document.getElementById('profile_picture');
+        const imagePreview = document.getElementById('imagePreview');
+        
+        profilePictureUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                };
+                
+                reader.readAsDataURL(file);
+                profilePicture.files = profilePictureUpload.files;
+                
+                // Show upload modal
+                uploadModal.classList.remove('scale-0');
+            }
+        });
+        
+        closeUploadModal.addEventListener('click', function() {
+            uploadModal.classList.add('scale-0');
+        });
+        
+        uploadModal.addEventListener('click', function(e) {
+            if (e.target === uploadModal) {
+                uploadModal.classList.add('scale-0');
+            }
+        });
+        
+        // Document file upload handling
+        const documentFileInput = document.getElementById('document_file');
+        const fileLabel = document.getElementById('fileLabel');
+        
+        if (documentFileInput) {
+            const uploadArea = documentFileInput.parentElement;
+            
+            uploadArea.addEventListener('click', function() {
+                documentFileInput.click();
+            });
+            
+            documentFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    fileLabel.textContent = file.name;
+                }
+            });
+        }
+        
+        // Copy referral code
+        const copyReferralCode = document.getElementById('copyReferralCode');
+        if (copyReferralCode) {
+            copyReferralCode.addEventListener('click', function() {
+                const code = "{{ current_user.referral_code }}";
+                navigator.clipboard.writeText(code).then(function() {
+                    copyReferralCode.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(function() {
+                        copyReferralCode.innerHTML = '<i class="far fa-copy"></i>';
+                    }, 2000);
+                });
+            });
+        }
+        
+        // Copy referral link
+        const copyReferralLink = document.getElementById('copyReferralLink');
+        const referralLink = document.getElementById('referralLink');
+        
+        if (copyReferralLink && referralLink) {
+            copyReferralLink.addEventListener('click', function() {
+                navigator.clipboard.writeText(referralLink.value).then(function() {
+                    copyReferralLink.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(function() {
+                        copyReferralLink.innerHTML = '<i class="far fa-copy"></i>';
+                    }, 2000);
+                });
+            });
+        }
+        
+        // Password confirmation validation
+        const passwordForm = document.getElementById('passwordForm');
+        const newPassword = document.getElementById('new_password');
+        const confirmPassword = document.getElementById('confirm_password');
+        
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', function(e) {
+                if (newPassword.value !== confirmPassword.value) {
+                    e.preventDefault();
+                    alert('Passwords do not match.');
+                }
+            });
+        }
+        
+        // PIN confirmation validation
+        const pinForm = document.getElementById('pinForm');
+        const pin = document.getElementById('pin');
+        const confirmPin = document.getElementById('confirm_pin');
+        
+        if (pinForm) {
+            pinForm.addEventListener('submit', function(e) {
+                if (pin.value !== confirmPin.value) {
+                    e.preventDefault();
+                    alert('PINs do not match.');
+                }
+            });
+        }
+        
+        // Load verification history
+        function loadVerificationHistory() {
+            const verificationHistory = document.getElementById('verificationHistory');
+            
+            // For demonstration purposes, this would typically be an AJAX call
+            // to fetch the user's verification documents
+            
+            // Example HTML for a verification document
+            /*
+            verificationHistory.innerHTML = `
+                <div class="py-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">Passport</div>
+                        <div class="text-sm text-yellow-600">Pending</div>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Submitted on 2023-01-15
+                    </div>
+                </div>
+            `;
+            */
+        }
+        
+        // Load referrals
+        function loadReferrals() {
+            const referredUsers = document.getElementById('referredUsers');
+            
+            // For demonstration purposes, this would typically be an AJAX call
+            // to fetch the user's referred users
+            
+            // Example HTML for referred users
+            /*
+            referredUsers.innerHTML = `
+                <div class="py-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">user123</div>
+                        <div class="text-sm text-green-600">Verified</div>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Joined on 2023-01-15
+                    </div>
+                </div>
+            `;
+            */
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,243 @@
+<!-- app/templates/admin/announcements.html -->
+{% extends "base.html" %}
+
+{% block title %}Announcements Management | Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Announcements Management</h1>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('admin.create_announcement') }}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-plus mr-1"></i> Create Announcement
+            </a>
+            <a href="{{ url_for('admin.dashboard') }}" class="px-4 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <!-- Announcements List -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Title
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date Range
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Priority
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for announcement in announcements.items %}
+                    <tr>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900">{{ announcement.title }}</div>
+                            <div class="text-xs text-gray-500 truncate max-w-xs">{{ announcement.content|truncate(100) }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if announcement.is_active else 'bg-gray-100 text-gray-800' }}">
+                                {{ 'Active' if announcement.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div>Start: {{ announcement.start_date.strftime('%Y-%m-%d') }}</div>
+                            {% if announcement.end_date %}
+                            <div>End: {{ announcement.end_date.strftime('%Y-%m-%d') }}</div>
+                            {% else %}
+                            <div>End: No end date</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ announcement.priority }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="toggle-active-btn text-{{ 'red-600 hover:text-red-900' if announcement.is_active else 'green-600 hover:text-green-900' }} mr-3" data-announcement-id="{{ announcement.id }}">
+                                {{ 'Deactivate' if announcement.is_active else 'Activate' }}
+                            </button>
+                            <button class="delete-btn text-red-600 hover:text-red-900" data-announcement-id="{{ announcement.id }}">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if not announcements.items %}
+        <div class="p-6 text-center text-gray-500">
+            <p>No announcements found.</p>
+        </div>
+        {% endif %}
+        
+        <!-- Pagination -->
+        {% if announcements.pages > 1 %}
+        <div class="px-6 py-4 border-t">
+            <nav class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between">
+                    {% if announcements.has_prev %}
+                    <a href="{{ url_for('admin.announcements', page=announcements.prev_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% else %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                        Previous
+                    </span>
+                    {% endif %}
+                    
+                    <div class="text-sm text-gray-500">
+                        Page {{ announcements.page }} of {{ announcements.pages }}
+                    </div>
+                    
+                    {% if announcements.has_next %}
+                    <a href="{{ url_for('admin.announcements', page=announcements.next_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% else %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                        Next
+                    </span>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 id="modalTitle" class="text-lg font-semibold">Confirm Action</h3>
+        </div>
+        
+        <div class="p-4">
+            <p id="modalMessage" class="text-gray-700 mb-4"></p>
+            
+            <div class="flex space-x-3">
+                <button id="modalCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Cancel
+                </button>
+                <button id="modalConfirm" class="flex-1 py-2 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle active status buttons
+        const toggleButtons = document.querySelectorAll('.toggle-active-btn');
+        const deleteButtons = document.querySelectorAll('.delete-btn');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalConfirm = document.getElementById('modalConfirm');
+        
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const announcementId = this.dataset.announcementId;
+                const isActive = this.textContent.trim() === 'Deactivate';
+                
+                // Show confirmation modal
+                modalTitle.textContent = isActive ? 'Deactivate Announcement' : 'Activate Announcement';
+                modalMessage.textContent = isActive ? 
+                    'Are you sure you want to deactivate this announcement?' :
+                    'Are you sure you want to activate this announcement?';
+                
+                modalConfirm.className = `flex-1 py-2 bg-${isActive ? 'red' : 'green'}-600 text-white rounded-lg text-sm font-medium hover:bg-${isActive ? 'red' : 'green'}-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${isActive ? 'red' : 'green'}-500`;
+                modalConfirm.textContent = isActive ? 'Deactivate' : 'Activate';
+                modalConfirm.dataset.action = 'toggle_active';
+                modalConfirm.dataset.announcementId = announcementId;
+                
+                confirmationModal.classList.remove('scale-0');
+            });
+        });
+        
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const announcementId = this.dataset.announcementId;
+                
+                // Show confirmation modal
+                modalTitle.textContent = 'Delete Announcement';
+                modalMessage.textContent = 'Are you sure you want to delete this announcement? This action cannot be undone.';
+                
+                modalConfirm.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500';
+                modalConfirm.textContent = 'Delete';
+                modalConfirm.dataset.action = 'delete';
+                modalConfirm.dataset.announcementId = announcementId;
+                
+                confirmationModal.classList.remove('scale-0');
+            });
+        });
+        
+        // Modal cancel button
+        modalCancel.addEventListener('click', function() {
+            confirmationModal.classList.add('scale-0');
+        });
+        
+        // Modal confirm button
+        modalConfirm.addEventListener('click', function() {
+            const announcementId = this.dataset.announcementId;
+            const action = this.dataset.action;
+            
+            // Send request to update announcement
+            fetch(`/admin/update-announcement/${announcementId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    action: action
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    confirmationModal.classList.add('scale-0');
+                    
+                    // Show success message
+                    alert(data.message);
+                    
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Close modal when clicking outside
+        confirmationModal.addEventListener('click', function(e) {
+            if (e.target === confirmationModal) {
+                confirmationModal.classList.add('scale-0');
+            }
+        });
+    });
+</script>
+{% endblock %}

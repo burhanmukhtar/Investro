@@ -1,0 +1,268 @@
+<!-- app/templates/transactions/convert.html -->
+{% extends "base.html" %}
+
+{% block title %}Convert | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Convert</h2>
+            <p class="text-sm text-gray-500">Swap one cryptocurrency for another</p>
+        </div>
+        
+        <form id="convertForm" action="{{ url_for('wallet.convert') }}" method="POST">
+            <div class="p-4">
+                <!-- From Currency -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="from_currency" class="block text-sm font-medium text-gray-700">
+                            From
+                        </label>
+                        <div class="text-xs text-gray-500">
+                            Available: <span id="fromBalance">{{ balances.get(from_currency, 0) }}</span> <span id="fromCurrencyLabel">{{ from_currency }}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <div class="flex-1">
+                            <input type="number" id="amount" name="amount" placeholder="0.00" step="0.00000001" required class="w-full ios-input">
+                        </div>
+                        <div class="w-1/3">
+                            <select id="from_currency" name="from_currency" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% for currency in currencies %}
+                                <option value="{{ currency }}" {% if currency == from_currency %}selected{% endif %} data-balance="{{ balances.get(currency, 0) }}">{{ currency }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Swap Button -->
+                <div class="flex justify-center mb-4">
+                    <button type="button" id="swapButton" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center focus:outline-none">
+                        <i class="fas fa-exchange-alt text-gray-600"></i>
+                    </button>
+                </div>
+                
+                <!-- To Currency -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="to_currency" class="block text-sm font-medium text-gray-700">
+                            To
+                        </label>
+                        <div class="text-xs text-gray-500">
+                            Available: <span id="toBalance">{{ balances.get(to_currency, 0) }}</span> <span id="toCurrencyLabel">{{ to_currency }}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <div class="flex-1">
+                            <input type="text" id="convertedAmount" readonly class="w-full ios-input bg-gray-50" placeholder="0.00">
+                        </div>
+                        <div class="w-1/3">
+                            <select id="to_currency" name="to_currency" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% for currency in currencies %}
+                                <option value="{{ currency }}" {% if currency == to_currency %}selected{% endif %} data-balance="{{ balances.get(currency, 0) }}">{{ currency }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Exchange Rate -->
+                <div class="bg-gray-50 p-3 rounded-lg mb-6">
+                    <div class="flex justify-between text-sm">
+                        <div>Exchange Rate</div>
+                        <div id="exchangeRate">1 {{ from_currency }} ≈ <span id="rateValue">0.00</span> {{ to_currency }}</div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Convert
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Recent Conversions -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Conversions</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_conversions %}
+                {% for conversion in recent_conversions %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ conversion.amount }} {{ conversion.currency }}</div>
+                        <div class="text-sm text-green-600">
+                            {{ conversion.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ conversion.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        {{ conversion.notes }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent conversions</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const fromCurrencySelect = document.getElementById('from_currency');
+        const toCurrencySelect = document.getElementById('to_currency');
+        const amountInput = document.getElementById('amount');
+        const convertedAmountInput = document.getElementById('convertedAmount');
+        const swapButton = document.getElementById('swapButton');
+        const fromBalanceSpan = document.getElementById('fromBalance');
+        const toBalanceSpan = document.getElementById('toBalance');
+        const fromCurrencyLabel = document.getElementById('fromCurrencyLabel');
+        const toCurrencyLabel = document.getElementById('toCurrencyLabel');
+        const exchangeRateDiv = document.getElementById('exchangeRate');
+        const rateValueSpan = document.getElementById('rateValue');
+        
+        // Mock conversion rates (in a real app, these would come from an API)
+        const rates = {
+            'USDT_BTC': 0.000037,
+            'USDT_ETH': 0.00048,
+            'USDT_BNB': 0.0042,
+            'USDT_XRP': 2.3,
+            'BTC_USDT': 27000,
+            'BTC_ETH': 13,
+            'BTC_BNB': 113,
+            'BTC_XRP': 62000,
+            'ETH_USDT': 2080,
+            'ETH_BTC': 0.077,
+            'ETH_BNB': 8.7,
+            'ETH_XRP': 4800,
+            'BNB_USDT': 238,
+            'BNB_BTC': 0.0088,
+            'BNB_ETH': 0.115,
+            'BNB_XRP': 550,
+            'XRP_USDT': 0.435,
+            'XRP_BTC': 0.000016,
+            'XRP_ETH': 0.00021,
+            'XRP_BNB': 0.0018
+        };
+        
+        // Get conversion rate
+        function getRate(from, to) {
+            if (from === to) return 1;
+            
+            const key = `${from}_${to}`;
+            return rates[key] || 0;
+        }
+        
+        // Update conversion rate display
+        function updateRate() {
+            const fromCurrency = fromCurrencySelect.value;
+            const toCurrency = toCurrencySelect.value;
+            const rate = getRate(fromCurrency, toCurrency);
+            
+            rateValueSpan.textContent = rate.toFixed(8);
+            exchangeRateDiv.innerHTML = `1 ${fromCurrency} ≈ <span id="rateValue">${rate.toFixed(8)}</span> ${toCurrency}`;
+            
+            return rate;
+        }
+        
+        // Update converted amount
+        function updateConvertedAmount() {
+            const amount = parseFloat(amountInput.value) || 0;
+            const rate = updateRate();
+            const converted = amount * rate;
+            
+            convertedAmountInput.value = converted.toFixed(8);
+        }
+        
+        // Update balance display
+        function updateBalances() {
+            const fromCurrency = fromCurrencySelect.value;
+            const toCurrency = toCurrencySelect.value;
+            
+            const fromOption = fromCurrencySelect.querySelector(`option[value="${fromCurrency}"]`);
+            const toOption = toCurrencySelect.querySelector(`option[value="${toCurrency}"]`);
+            
+            const fromBalance = fromOption ? fromOption.dataset.balance : 0;
+            const toBalance = toOption ? toOption.dataset.balance : 0;
+            
+            fromBalanceSpan.textContent = fromBalance;
+            toBalanceSpan.textContent = toBalance;
+            fromCurrencyLabel.textContent = fromCurrency;
+            toCurrencyLabel.textContent = toCurrency;
+        }
+        
+        // Swap currencies
+        swapButton.addEventListener('click', function() {
+            const fromCurrency = fromCurrencySelect.value;
+            const toCurrency = toCurrencySelect.value;
+            
+            fromCurrencySelect.value = toCurrency;
+            toCurrencySelect.value = fromCurrency;
+            
+            updateBalances();
+            updateConvertedAmount();
+        });
+        
+        // Event listeners
+        fromCurrencySelect.addEventListener('change', function() {
+            updateBalances();
+            updateConvertedAmount();
+        });
+        
+        toCurrencySelect.addEventListener('change', function() {
+            updateBalances();
+            updateConvertedAmount();
+        });
+        
+        amountInput.addEventListener('input', updateConvertedAmount);
+        
+        // Form validation
+        const convertForm = document.getElementById('convertForm');
+        
+        convertForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fromCurrency = fromCurrencySelect.value;
+            const toCurrency = toCurrencySelect.value;
+            const amount = parseFloat(amountInput.value);
+            
+            if (fromCurrency === toCurrency) {
+                alert('Cannot convert to the same currency.');
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            const fromOption = fromCurrencySelect.querySelector(`option[value="${fromCurrency}"]`);
+            const fromBalance = parseFloat(fromOption ? fromOption.dataset.balance : 0);
+            
+            if (amount > fromBalance) {
+                alert('Insufficient balance.');
+                return;
+            }
+            
+            // Submit the form
+            this.submit();
+        });
+        
+        // Initialize
+        updateBalances();
+        updateRate();
+    });
+</script>
+{% endblock %}

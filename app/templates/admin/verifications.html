@@ -1,0 +1,279 @@
+<!-- app/templates/admin/verifications.html -->
+{% extends "base.html" %}
+
+{% block title %}Verifications | Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Verification Requests</h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="text-primary-600 hover:text-primary-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Status Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="flex">
+            <a href="{{ url_for('admin.verifications', status='pending') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'pending' else 'text-gray-500' }}">
+                Pending
+            </a>
+            <a href="{{ url_for('admin.verifications', status='approved') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'approved' else 'text-gray-500' }}">
+                Approved
+            </a>
+            <a href="{{ url_for('admin.verifications', status='rejected') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'rejected' else 'text-gray-500' }}">
+                Rejected
+            </a>
+        </div>
+    </div>
+    
+    <!-- Verification Requests -->
+    <div class="space-y-6">
+        {% if verifications.items %}
+            {% for verification in verifications.items %}
+            <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <div class="flex items-center">
+                        <div class="font-medium">Document ID #{{ verification.id }}</div>
+                        <div class="ml-3 px-2 py-0.5 text-xs rounded-full 
+                            {% if verification.status == 'pending' %}
+                                bg-yellow-100 text-yellow-800
+                            {% elif verification.status == 'approved' %}
+                                bg-green-100 text-green-800
+                            {% else %}
+                                bg-red-100 text-red-800
+                            {% endif %}">
+                            {{ verification.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Submitted: {{ verification.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <div class="grid grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <div class="text-sm font-medium text-gray-500 mb-1">User</div>
+                            <div class="font-medium">{{ verification.user.username }}</div>
+                            <div class="text-sm text-gray-500">{{ verification.user.email }}</div>
+                            <div class="text-sm text-gray-500">ID: {{ verification.user.id }}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-sm font-medium text-gray-500 mb-1">Document Type</div>
+                            <div class="font-medium">{{ verification.document_type }}</div>
+                            {% if verification.reviewed_at %}
+                            <div class="text-sm text-gray-500">Reviewed: {{ verification.reviewed_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Document Image</div>
+                        <div class="border rounded-lg overflow-hidden">
+                            <img src="{{ url_for('static', filename='uploads/verification_documents/' + verification.document_path) }}" alt="Verification Document" class="w-full h-auto max-h-96 object-contain">
+                        </div>
+                    </div>
+                    
+                    {% if verification.admin_notes %}
+                    <div class="mb-4">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Admin Notes</div>
+                        <div class="bg-gray-50 p-3 rounded-lg text-sm">{{ verification.admin_notes }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if verification.status == 'pending' %}
+                    <div class="border-t pt-4">
+                        <form id="verifyForm{{ verification.id }}" class="verify-form" data-document-id="{{ verification.id }}">
+                            <div class="mb-3">
+                                <label for="admin_notes{{ verification.id }}" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Admin Notes (optional)
+                                </label>
+                                <textarea id="admin_notes{{ verification.id }}" name="admin_notes" rows="2" class="w-full border-gray-300 rounded-lg resize-none focus:ring-primary-500 focus:border-primary-500"></textarea>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button type="button" class="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 approve-btn" data-document-id="{{ verification.id }}">
+                                    Approve
+                                </button>
+                                <button type="button" class="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 reject-btn" data-document-id="{{ verification.id }}">
+                                    Reject
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Pagination -->
+            {% if verifications.pages > 1 %}
+            <div class="flex justify-center mt-6">
+                <nav class="flex items-center space-x-2">
+                    {% if verifications.has_prev %}
+                    <a href="{{ url_for('admin.verifications', status=status, page=verifications.prev_num) }}" class="px-3 py-1 rounded-md bg-white border text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% else %}
+                    <span class="px-3 py-1 rounded-md bg-gray-100 border text-gray-400 cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i>
+                    </span>
+                    {% endif %}
+                    
+                    <span class="px-3 py-1 rounded-md bg-white border text-gray-600">
+                        {{ verifications.page }} of {{ verifications.pages }}
+                    </span>
+                    
+                    {% if verifications.has_next %}
+                    <a href="{{ url_for('admin.verifications', status=status, page=verifications.next_num) }}" class="px-3 py-1 rounded-md bg-white border text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <span class="px-3 py-1 rounded-md bg-gray-100 border text-gray-400 cursor-not-allowed">
+                        <i class="fas fa-chevron-right"></i>
+                    </span>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+                <div class="text-gray-500 mb-3">
+                    <i class="fas fa-search text-4xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-1">No verification requests found</h3>
+                <p class="text-gray-500">There are no {{ status }} verification requests at this time.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300 ease-in-out">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 id="modalTitle" class="text-lg font-semibold">Confirm Action</h3>
+        </div>
+        
+        <div class="p-4">
+            <p id="modalMessage" class="text-gray-700 mb-4"></p>
+            
+            <div class="flex space-x-3">
+                <button id="modalCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Cancel
+                </button>
+                <button id="modalConfirm" class="flex-1 py-2 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalConfirm = document.getElementById('modalConfirm');
+        
+        // Handle approve/reject buttons
+        const approveBtns = document.querySelectorAll('.approve-btn');
+        const rejectBtns = document.querySelectorAll('.reject-btn');
+        
+        approveBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const documentId = this.dataset.documentId;
+                const form = document.getElementById(`verifyForm${documentId}`);
+                const adminNotes = form.querySelector('textarea').value;
+                
+                // Show confirmation modal
+                modalTitle.textContent = 'Approve Verification';
+                modalMessage.textContent = 'Are you sure you want to approve this verification document?';
+                modalConfirm.className = 'flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500';
+                modalConfirm.textContent = 'Approve';
+                modalConfirm.dataset.action = 'approve';
+                modalConfirm.dataset.documentId = documentId;
+                modalConfirm.dataset.adminNotes = adminNotes;
+                
+                confirmationModal.classList.remove('scale-0');
+            });
+        });
+        
+        rejectBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const documentId = this.dataset.documentId;
+                const form = document.getElementById(`verifyForm${documentId}`);
+                const adminNotes = form.querySelector('textarea').value;
+                
+                // Show confirmation modal
+                modalTitle.textContent = 'Reject Verification';
+                modalMessage.textContent = 'Are you sure you want to reject this verification document?';
+                modalConfirm.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500';
+                modalConfirm.textContent = 'Reject';
+                modalConfirm.dataset.action = 'reject';
+                modalConfirm.dataset.documentId = documentId;
+                modalConfirm.dataset.adminNotes = adminNotes;
+                
+                confirmationModal.classList.remove('scale-0');
+            });
+        });
+        
+        // Modal cancel button
+        modalCancel.addEventListener('click', function() {
+            confirmationModal.classList.add('scale-0');
+        });
+        
+        // Modal confirm button
+        modalConfirm.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const documentId = this.dataset.documentId;
+            const adminNotes = this.dataset.adminNotes;
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('action', action);
+            formData.append('admin_notes', adminNotes);
+            
+            // Submit request
+            fetch(`/admin/verify-document/${documentId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    confirmationModal.classList.add('scale-0');
+                    
+                    // Show success message
+                    alert(data.message);
+                    
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Close modal when clicking outside
+        confirmationModal.addEventListener('click', function(e) {
+            if (e.target === confirmationModal) {
+                confirmationModal.classList.add('scale-0');
+            }
+        });
+    });
+</script>
+{% endblock %}

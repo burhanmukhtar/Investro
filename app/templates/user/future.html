@@ -1,0 +1,687 @@
+<!-- app/templates/user/future.html -->
+{% extends "base.html" %}
+
+{% block title %}Futures | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Coin Selector -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div class="p-3 border-b">
+            <select id="coinSelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                {% for coin in available_coins %}
+                <option value="{{ coin.symbol }}/USDT" {% if coin.symbol + '/USDT' == selected_coin %}selected{% endif %}>
+                    {{ coin.symbol }}/USDT
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    
+    <!-- Trading Chart -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div id="tradingViewChart" style="height: 400px;"></div>
+    </div>
+    
+    <!-- Trading Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div class="flex border-b">
+            <button id="positionsTab" class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+                Positions
+            </button>
+            <button id="ordersTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Open Orders
+            </button>
+            <button id="historyTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Order History
+            </button>
+            <button id="signalsTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Trade Signals
+            </button>
+        </div>
+        
+        <!-- Positions Tab Content -->
+        <div id="positionsContent" class="p-4">
+            <div id="positionsContainer">
+                <!-- Positions will be loaded here -->
+                <div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-chart-line text-3xl mb-2"></i>
+                    <p>No open positions</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Orders Tab Content -->
+        <div id="ordersContent" class="p-4 hidden">
+            <div id="ordersContainer">
+                <!-- Orders will be loaded here -->
+                <div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                    <p>No open orders</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- History Tab Content -->
+        <div id="historyContent" class="p-4 hidden">
+            <div id="historyContainer">
+                <!-- History will be loaded here -->
+                <div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-history text-3xl mb-2"></i>
+                    <p>No order history</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Signals Tab Content -->
+        <div id="signalsContent" class="p-4 hidden">
+            <div id="signalsContainer">
+                <!-- Signals will be loaded here -->
+                <div class="text-center text-gray-500 py-6">
+                    <i class="fas fa-broadcast-tower text-3xl mb-2"></i>
+                    <p>No active trade signals</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade Signal Modal -->
+<div id="tradeSignalModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-xl w-full max-w-md mx-4">
+        <div class="p-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Follow Trade Signal</h3>
+            <button id="closeTradeSignal" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="p-4">
+            <div id="signalDetails" class="mb-4">
+                <!-- Signal details will be shown here -->
+            </div>
+            
+            <form id="followSignalForm">
+                <input type="hidden" id="signalId" name="signal_id">
+                
+                <div class="mb-4">
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount (USDT)
+                    </label>
+                    <input type="number" id="amount" name="amount" min="10" step="1" class="w-full ios-input" required>
+                    <p class="mt-1 text-xs text-gray-500">
+                        Minimum amount: 10 USDT
+                    </p>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Follow Signal
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Close Position Modal -->
+<div id="closePositionModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-xl w-full max-w-md mx-4">
+        <div class="p-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Close Position</h3>
+            <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="p-4">
+            <div id="positionDetails" class="mb-4">
+                <!-- Position details will be shown here -->
+            </div>
+            
+            <form id="closePositionForm">
+                <input type="hidden" id="positionId" name="position_id">
+                
+                <div class="mb-4 text-sm">
+                    <p>Are you sure you want to close this position?</p>
+                    <p class="mt-2 text-gray-500">
+                        The position will be closed at the current market price.
+                    </p>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Close Position
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Trading view chart
+        new TradingView.widget({
+            "container_id": "tradingViewChart",
+            "symbol": "BINANCE:{{ selected_coin|replace('/', '') }}",
+            "interval": "60",
+            "timezone": "Etc/UTC",
+            "theme": "light",
+            "style": "1",
+            "locale": "en",
+            "toolbar_bg": "#f1f3f6",
+            "enable_publishing": false,
+            "hide_top_toolbar": true,
+            "hide_legend": false,
+            "save_image": false,
+            "studies": [
+                "RSI@tv-basicstudies",
+                "MASimple@tv-basicstudies"
+            ],
+            "show_popup_button": true,
+            "popup_width": "1000",
+            "popup_height": "650",
+            "autosize": true,
+        });
+
+        // Tab switching
+        const tabs = {
+            positions: {
+                tab: document.getElementById('positionsTab'),
+                content: document.getElementById('positionsContent')
+            },
+            orders: {
+                tab: document.getElementById('ordersTab'),
+                content: document.getElementById('ordersContent')
+            },
+            history: {
+                tab: document.getElementById('historyTab'),
+                content: document.getElementById('historyContent')
+            },
+            signals: {
+                tab: document.getElementById('signalsTab'),
+                content: document.getElementById('signalsContent')
+            }
+        };
+
+        for (const [key, value] of Object.entries(tabs)) {
+            value.tab.addEventListener('click', function() {
+                // Hide all content
+                for (const k of Object.keys(tabs)) {
+                    tabs[k].content.classList.add('hidden');
+                    tabs[k].tab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                    tabs[k].tab.classList.add('text-gray-500');
+                }
+                
+                // Show selected content
+                value.content.classList.remove('hidden');
+                value.tab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                value.tab.classList.remove('text-gray-500');
+                
+                // Load data for the tab
+                if (key === 'positions') {
+                    loadPositions();
+                } else if (key === 'orders') {
+                    // Load orders
+                } else if (key === 'history') {
+                    loadOrderHistory();
+                } else if (key === 'signals') {
+                    loadTradeSignals();
+                }
+            });
+        }
+        
+        // Coin selector
+        const coinSelector = document.getElementById('coinSelector');
+        coinSelector.addEventListener('change', function() {
+            window.location.href = `/user/future?coin=${this.value}`;
+        });
+        
+        // Modals
+        const tradeSignalModal = document.getElementById('tradeSignalModal');
+        const closeTradeSignal = document.getElementById('closeTradeSignal');
+        const closePositionModal = document.getElementById('closePositionModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        
+        if (closeTradeSignal) {
+            closeTradeSignal.addEventListener('click', function() {
+                tradeSignalModal.classList.add('scale-0');
+            });
+            
+            tradeSignalModal.addEventListener('click', function(e) {
+                if (e.target === tradeSignalModal) {
+                    tradeSignalModal.classList.add('scale-0');
+                }
+            });
+        }
+        
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                closePositionModal.classList.add('scale-0');
+            });
+            
+            closePositionModal.addEventListener('click', function(e) {
+                if (e.target === closePositionModal) {
+                    closePositionModal.classList.add('scale-0');
+                }
+            });
+        }
+        
+        // Forms
+        const followSignalForm = document.getElementById('followSignalForm');
+        if (followSignalForm) {
+            followSignalForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                
+                fetch('/trade/follow-signal', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        tradeSignalModal.classList.add('scale-0');
+                        
+                        // Reload positions
+                        loadPositions();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            });
+        }
+        
+        const closePositionForm = document.getElementById('closePositionForm');
+        if (closePositionForm) {
+            closePositionForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                
+                fetch('/trade/close-position', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        closePositionModal.classList.add('scale-0');
+                        
+                        // Reload positions
+                        loadPositions();
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            });
+        }
+        
+        // Load initial data
+        loadPositions();
+        
+        // Functions to load data
+        function loadPositions() {
+            fetch('/trade/positions')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('positionsContainer');
+                    
+                    if (data.positions.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center text-gray-500 py-6">
+                                <i class="fas fa-chart-line text-3xl mb-2"></i>
+                                <p>No open positions</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '<div class="space-y-4">';
+                    
+                    data.positions.forEach(position => {
+                        const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+                        
+                        html += `
+                            <div class="bg-white border rounded-lg p-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="font-medium">${position.currency_pair}</div>
+                                    <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                        ${position.signal_type}
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2 mb-3">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Amount</div>
+                                        <div class="text-sm">${position.amount} USDT</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Leverage</div>
+                                        <div class="text-sm">${position.leverage}x</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Entry Price</div>
+                                        <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
+                                    </div>
+                                    <!-- app/templates/user/future.html (continued) -->
+                                    <div>
+                                        <div class="text-xs text-gray-500">Current Price</div>
+                                        <div class="text-sm">$${position.current_price.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs text-gray-500">PNL</div>
+                                        <div class="text-sm ${profitClass}">
+                                            ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
+                                            (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
+                                        </div>
+                                    </div>
+                                    <button class="close-position-btn px-3 py-1 bg-red-600 text-white text-sm rounded-lg" data-position='${JSON.stringify(position)}'>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                    
+                    // Add event listeners to close buttons
+                    const closeButtons = document.querySelectorAll('.close-position-btn');
+                    closeButtons.forEach(button => {
+                        button.addEventListener('click', function() {
+                            const position = JSON.parse(this.dataset.position);
+                            showClosePositionModal(position);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading positions:', error);
+                    document.getElementById('positionsContainer').innerHTML = `
+                        <div class="text-center text-red-500 py-6">
+                            <p>Error loading positions. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function loadOrderHistory() {
+            fetch('/trade/history')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('historyContainer');
+                    
+                    if (data.history.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center text-gray-500 py-6">
+                                <i class="fas fa-history text-3xl mb-2"></i>
+                                <p>No order history</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '<div class="space-y-4">';
+                    
+                    data.history.forEach(item => {
+                        const profitClass = item.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+                        
+                        html += `
+                            <div class="bg-white border rounded-lg p-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="font-medium">${item.currency_pair}</div>
+                                    <div class="${item.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                        ${item.signal_type}
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2 mb-3">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Amount</div>
+                                        <div class="text-sm">${item.amount} USDT</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Leverage</div>
+                                        <div class="text-sm">${item.leverage}x</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Entry Price</div>
+                                        <div class="text-sm">$${item.entry_price.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Close Price</div>
+                                        <div class="text-sm">$${item.close_price.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs text-gray-500">PNL</div>
+                                        <div class="text-sm ${profitClass}">
+                                            ${item.profit_loss >= 0 ? '+' : ''}${item.profit_loss.toFixed(2)} USDT 
+                                            (${item.profit_loss_percentage >= 0 ? '+' : ''}${item.profit_loss_percentage.toFixed(2)}%)
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        ${new Date(item.closed_at).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading history:', error);
+                    document.getElementById('historyContainer').innerHTML = `
+                        <div class="text-center text-red-500 py-6">
+                            <p>Error loading order history. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function loadTradeSignals() {
+            fetch('/trade/signals')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('signalsContainer');
+                    
+                    if (data.signals.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center text-gray-500 py-6">
+                                <i class="fas fa-broadcast-tower text-3xl mb-2"></i>
+                                <p>No active trade signals</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '<div class="space-y-4">';
+                    
+                    data.signals.forEach(signal => {
+                        const expiryTime = new Date(signal.expiry_time);
+                        const now = new Date();
+                        const timeLeft = Math.max(0, Math.floor((expiryTime - now) / 1000 / 60)); // minutes left
+                        
+                        html += `
+                            <div class="bg-white border rounded-lg p-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="font-medium">${signal.currency_pair}</div>
+                                    <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                        ${signal.signal_type}
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2 mb-3">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Entry Price</div>
+                                        <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Target Price</div>
+                                        <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Stop Loss</div>
+                                        <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500">Leverage</div>
+                                        <div class="text-sm">${signal.leverage}x</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-xs text-gray-500 mb-3">
+                                    ${signal.description || 'No description provided.'}
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Expires in</div>
+                                        <div class="text-sm">${timeLeft} minutes</div>
+                                    </div>
+                                    <button class="follow-signal-btn px-3 py-1 bg-primary-600 text-white text-sm rounded-lg" data-signal='${JSON.stringify(signal)}'>
+                                        Follow
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                    
+                    // Add event listeners to follow buttons
+                    const followButtons = document.querySelectorAll('.follow-signal-btn');
+                    followButtons.forEach(button => {
+                        button.addEventListener('click', function() {
+                            const signal = JSON.parse(this.dataset.signal);
+                            showFollowSignalModal(signal);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading signals:', error);
+                    document.getElementById('signalsContainer').innerHTML = `
+                        <div class="text-center text-red-500 py-6">
+                            <p>Error loading trade signals. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function showFollowSignalModal(signal) {
+            const modal = document.getElementById('tradeSignalModal');
+            const details = document.getElementById('signalDetails');
+            const signalId = document.getElementById('signalId');
+            
+            // Update modal content
+            details.innerHTML = `
+                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="font-medium">${signal.currency_pair}</div>
+                        <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                            ${signal.signal_type}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <div class="text-xs text-gray-500">Entry Price</div>
+                            <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Target Price</div>
+                            <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Stop Loss</div>
+                            <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Leverage</div>
+                            <div class="text-sm">${signal.leverage}x</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Set signal ID
+            signalId.value = signal.id;
+            
+            // Show modal
+            modal.classList.remove('scale-0');
+        }
+        
+        function showClosePositionModal(position) {
+            const modal = document.getElementById('closePositionModal');
+            const details = document.getElementById('positionDetails');
+            const positionId = document.getElementById('positionId');
+            
+            const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+            
+            // Update modal content
+            details.innerHTML = `
+                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="font-medium">${position.currency_pair}</div>
+                        <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                            ${position.signal_type}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <div class="text-xs text-gray-500">Amount</div>
+                            <div class="text-sm">${position.amount} USDT</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Leverage</div>
+                            <div class="text-sm">${position.leverage}x</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Entry Price</div>
+                            <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Current Price</div>
+                            <div class="text-sm">$${position.current_price.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-gray-500">Current PNL</div>
+                        <div class="text-sm ${profitClass}">
+                            ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
+                            (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Set position ID
+            positionId.value = position.id;
+            
+            // Show modal
+            modal.classList.remove('scale-0');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,307 @@
+<!-- app/templates/transactions/pay.html -->
+{% extends "base.html" %}
+
+{% block title %}Pay | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Pay</h2>
+            <p class="text-sm text-gray-500">Send funds to another user</p>
+        </div>
+        
+        <form id="payForm" action="{{ url_for('wallet.pay') }}" method="POST">
+            <div class="p-4">
+                <!-- Currency Selector -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="currency" class="block text-sm font-medium text-gray-700">
+                            Coin
+                        </label>
+                        <div class="text-xs text-gray-500">
+                            Available: <span id="availableBalance">{{ balances.get(selected_currency, 0) }}</span> <span id="selectedCurrency">{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <select id="currency" name="currency" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        {% for currency in currencies %}
+                        <option value="{{ currency }}" {% if currency == selected_currency %}selected{% endif %}>{{ currency }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Recipient -->
+                <div class="mb-4">
+                    <label for="recipient_id" class="block text-sm font-medium text-gray-700 mb-1">
+                        Recipient ID
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="recipient_id" name="recipient_id" placeholder="Enter recipient's unique ID" required class="w-full ios-input">
+                        <div id="recipientVerification" class="absolute right-3 top-2.5 hidden">
+                            <i id="verificationIcon" class="fas fa-spinner fa-spin text-primary-500"></i>
+                        </div>
+                    </div>
+                    <div id="recipientInfo" class="mt-2 text-sm hidden">
+                        <div class="flex items-center">
+                            <span id="recipientName" class="font-medium"></span>
+                            <span id="recipientVerified" class="ml-1 text-blue-500 hidden"><i class="fas fa-check-circle"></i></span>
+                        </div>
+                        <div id="recipientId" class="text-xs text-gray-500"></div>
+                    </div>
+                    <div id="recipientError" class="mt-2 text-sm text-red-600 hidden">
+                        Recipient not found
+                    </div>
+                </div>
+                
+                <!-- Amount -->
+                <div class="mb-6">
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount
+                    </label>
+                    <div class="relative">
+                        <input type="number" id="amount" name="amount" placeholder="0.00" step="0.00000001" required class="w-full ios-input pr-24">
+                        <div class="absolute inset-y-0 right-0 flex items-center">
+                            <span class="pr-3 text-gray-500">{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <button type="button" id="maxAmount" class="text-xs text-primary-600">MAX</button>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6">
+                    <h3 class="font-semibold text-sm mb-2">Note:</h3>
+                    <p class="text-xs">Make sure you have entered the correct recipient ID. Payments cannot be reversed once completed.</p>
+                </div>
+                
+                <button type="submit" id="submitButton" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500" disabled>
+                    Pay
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Recent Payments -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Payments</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_payments %}
+                {% for payment in recent_payments %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium {% if payment.amount < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                            {% if payment.amount > 0 %}+{% endif %}{{ payment.amount }} {{ payment.currency }}
+                        </div>
+                        <div class="text-sm text-green-600">
+                            {{ payment.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ payment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        {% if payment.amount < 0 %}
+                        To: {{ payment.address }}
+                        {% else %}
+                        From: {{ payment.address }}
+                        {% endif %}
+                    </div>
+                    {% if payment.notes %}
+                    <div class="text-xs text-gray-500">
+                        {{ payment.notes }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent payments</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const currencySelect = document.getElementById('currency');
+        const recipientIdInput = document.getElementById('recipient_id');
+        const recipientVerification = document.getElementById('recipientVerification');
+        const verificationIcon = document.getElementById('verificationIcon');
+        const recipientInfo = document.getElementById('recipientInfo');
+        const recipientError = document.getElementById('recipientError');
+        const recipientName = document.getElementById('recipientName');
+        const recipientId = document.getElementById('recipientId');
+        const recipientVerified = document.getElementById('recipientVerified');
+        const amountInput = document.getElementById('amount');
+        const maxAmountBtn = document.getElementById('maxAmount');
+        const availableBalanceSpan = document.getElementById('availableBalance');
+        const selectedCurrencySpan = document.getElementById('selectedCurrency');
+        const submitButton = document.getElementById('submitButton');
+        
+        // Balances
+        const balances = {
+            {% for currency, balance in balances.items() %}
+            '{{ currency }}': {{ balance }},
+            {% endfor %}
+        };
+        
+        // Recipient verification
+        let verificationTimeout;
+        let verifiedRecipient = null;
+        
+        recipientIdInput.addEventListener('input', function() {
+            // Clear previous timeout
+            clearTimeout(verificationTimeout);
+            
+            const recipientId = this.value.trim();
+            
+            if (recipientId.length >= 4) {
+                // Show verification indicator
+                recipientVerification.classList.remove('hidden');
+                verificationIcon.className = 'fas fa-spinner fa-spin text-primary-500';
+                
+                // Hide previous results
+                recipientInfo.classList.add('hidden');
+                recipientError.classList.add('hidden');
+                
+                // Disable submit button
+                submitButton.disabled = true;
+                
+                // Set timeout to verify recipient
+                verificationTimeout = setTimeout(function() {
+                    verifyRecipient(recipientId);
+                }, 500);
+            } else {
+                // Hide verification indicator and results
+                recipientVerification.classList.add('hidden');
+                recipientInfo.classList.add('hidden');
+                recipientError.classList.add('hidden');
+                
+                // Disable submit button
+                submitButton.disabled = true;
+                verifiedRecipient = null;
+            }
+        });
+        
+        function verifyRecipient(id) {
+            const formData = new FormData();
+            formData.append('recipient_id', id);
+            
+            fetch('/wallet/verify-recipient', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update verification indicator
+                recipientVerification.classList.remove('hidden');
+                
+                if (data.success) {
+                    // Show recipient info
+                    recipientInfo.classList.remove('hidden');
+                    recipientError.classList.add('hidden');
+                    
+                    // Update recipient details
+                    recipientName.textContent = data.recipient.username;
+                    recipientId.textContent = data.recipient.unique_id;
+                    
+                    // Show verified badge if user is verified
+                    if (data.recipient.is_verified) {
+                        recipientVerified.classList.remove('hidden');
+                    } else {
+                        recipientVerified.classList.add('hidden');
+                    }
+                    
+                    // Update verification icon
+                    verificationIcon.className = 'fas fa-check text-green-500';
+                    
+                    // Enable submit button
+                    submitButton.disabled = false;
+                    verifiedRecipient = data.recipient;
+                } else {
+                    // Show error
+                    recipientInfo.classList.add('hidden');
+                    recipientError.classList.remove('hidden');
+                    recipientError.textContent = data.message;
+                    
+                    // Update verification icon
+                    verificationIcon.className = 'fas fa-times text-red-500';
+                    
+                    // Disable submit button
+                    submitButton.disabled = true;
+                    verifiedRecipient = null;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Show error
+                recipientInfo.classList.add('hidden');
+                recipientError.classList.remove('hidden');
+                recipientError.textContent = 'Error verifying recipient.';
+                
+                // Update verification icon
+                verificationIcon.className = 'fas fa-times text-red-500';
+                
+                // Disable submit button
+                submitButton.disabled = true;
+                verifiedRecipient = null;
+            });
+        }
+        
+        // Currency selection
+        currencySelect.addEventListener('change', function() {
+            selectedCurrencySpan.textContent = this.value;
+            availableBalanceSpan.textContent = balances[this.value] || 0;
+            window.location.href = `/wallet/pay?currency=${this.value}`;
+        });
+        
+        // Max amount
+        maxAmountBtn.addEventListener('click', function() {
+            const currency = currencySelect.value;
+            const balance = balances[currency] || 0;
+            
+            amountInput.value = balance;
+        });
+        
+        // Form validation
+        const payForm = document.getElementById('payForm');
+        
+        payForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!verifiedRecipient) {
+                alert('Please verify the recipient first.');
+                return;
+            }
+            
+            const currency = currencySelect.value;
+            const amount = parseFloat(amountInput.value);
+            const balance = balances[currency] || 0;
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            if (amount > balance) {
+                alert('Insufficient balance.');
+                return;
+            }
+            
+            // Confirm payment
+            if (confirm(`Are you sure you want to send ${amount} ${currency} to ${verifiedRecipient.username}?`)) {
+                // Submit the form
+                this.submit();
+            }
+        });
+    });
+</script>
+{% endblock %}

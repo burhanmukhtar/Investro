@@ -1,0 +1,148 @@
+<!-- app/templates/auth/verify_otp.html -->
+{% extends "base.html" %}
+{% set hide_bottom_nav = True %}
+
+{% block title %}Verify OTP | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Verification Code
+        </h2>
+        <p class="mt-2 text-center text-sm text-gray-600">
+            {% if source == 'signup' %}
+            We've sent a code to your email and phone
+            {% else %}
+            Enter the code sent to your registered email or phone
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <form class="space-y-6" action="{{ url_for('auth.verify_otp', source=source) }}" method="POST">
+                <div>
+                    <label for="otp" class="block text-sm font-medium text-gray-700">
+                        Verification Code
+                    </label>
+                    <div class="mt-1">
+                        <input id="otp" name="otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" required class="ios-input w-full text-center text-2xl tracking-widest font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Verify
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">
+                    Didn't receive a code?
+                </p>
+                <button id="resendOtp" class="mt-2 text-sm font-medium text-primary-600 hover:text-primary-500 focus:outline-none">
+                    Resend code
+                </button>
+                <div id="resendTimer" class="mt-1 text-xs text-gray-500">
+                    Resend available in <span id="countdown">60</span> seconds
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const resendButton = document.getElementById('resendOtp');
+        const resendTimer = document.getElementById('resendTimer');
+        const countdownElement = document.getElementById('countdown');
+        
+        // Initially disable the resend button
+        resendButton.disabled = true;
+        resendButton.classList.add('opacity-50');
+        
+        // Start countdown
+        let countdown = 60;
+        const countdownInterval = setInterval(function() {
+            countdown -= 1;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                resendButton.disabled = false;
+                resendButton.classList.remove('opacity-50');
+                resendTimer.classList.add('hidden');
+            }
+        }, 1000);
+        
+        // Handle resend
+        resendButton.addEventListener('click', function() {
+            if (resendButton.disabled) return;
+            
+            // Disable the button
+            resendButton.disabled = true;
+            resendButton.classList.add('opacity-50');
+            resendTimer.classList.remove('hidden');
+            
+            // Send request to resend OTP
+            fetch('{{ url_for("auth.resend_otp") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert('Verification code has been resent.');
+                    
+                    // Reset countdown
+                    countdown = 60;
+                    countdownElement.textContent = countdown;
+                    
+                    // Start countdown again
+                    const newCountdownInterval = setInterval(function() {
+                        countdown -= 1;
+                        countdownElement.textContent = countdown;
+                        
+                        if (countdown <= 0) {
+                            clearInterval(newCountdownInterval);
+                            resendButton.disabled = false;
+                            resendButton.classList.remove('opacity-50');
+                            resendTimer.classList.add('hidden');
+                        }
+                    }, 1000);
+                } else {
+                    // Show error message
+                    alert('Failed to resend verification code. Please try again later.');
+                    resendButton.disabled = false;
+                    resendButton.classList.remove('opacity-50');
+                    resendTimer.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again later.');
+                resendButton.disabled = false;
+                resendButton.classList.remove('opacity-50');
+                resendTimer.classList.add('hidden');
+            });
+        });
+        
+        // OTP auto-focus and auto-submit
+        const otpInput = document.getElementById('otp');
+        otpInput.addEventListener('input', function() {
+            // Auto-submit when all 6 digits are entered
+            if (this.value.length === 6) {
+                this.form.submit();
+            }
+        });
+    });
+</script>
+{% endblock %}

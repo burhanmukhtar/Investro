@@ -1,0 +1,175 @@
+<!-- app/templates/admin/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+        <div class="text-sm text-gray-500">{{ current_user.username }} (Admin)</div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="text-sm text-gray-500 mb-1">Total Users</div>
+            <div class="text-2xl font-bold">{{ total_users }}</div>
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="text-sm text-gray-500 mb-1">Verified Users</div>
+            <div class="text-2xl font-bold">{{ verified_users }}</div>
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="text-sm text-gray-500 mb-1">Pending Verifications</div>
+            <div class="text-2xl font-bold text-yellow-600">{{ pending_verifications }}</div>
+            {% if pending_verifications > 0 %}
+            <a href="{{ url_for('admin.verifications', status='pending') }}" class="text-xs text-primary-600">View</a>
+            {% endif %}
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="text-sm text-gray-500 mb-1">Active Signals</div>
+            <div class="text-2xl font-bold text-green-600">{{ active_signals }}</div>
+            <a href="{{ url_for('admin.trade_signals') }}" class="text-xs text-primary-600">Manage</a>
+        </div>
+    </div>
+    
+    <!-- Transaction Stats -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="flex justify-between items-center mb-3">
+                <div class="text-lg font-semibold">Pending Deposits</div>
+                <div class="text-2xl font-bold text-yellow-600">{{ pending_deposits }}</div>
+            </div>
+            {% if pending_deposits > 0 %}
+            <a href="{{ url_for('admin.deposits', status='pending') }}" class="block w-full py-2 text-center bg-primary-100 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-200">
+                Process Deposits
+            </a>
+            {% else %}
+            <div class="w-full py-2 text-center bg-gray-100 text-gray-400 rounded-lg text-sm">
+                No Pending Deposits
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+            <div class="flex justify-between items-center mb-3">
+                <div class="text-lg font-semibold">Pending Withdrawals</div>
+                <div class="text-2xl font-bold text-yellow-600">{{ pending_withdrawals }}</div>
+            </div>
+            {% if pending_withdrawals > 0 %}
+            <a href="{{ url_for('admin.withdrawals', status='pending') }}" class="block w-full py-2 text-center bg-primary-100 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-200">
+                Process Withdrawals
+            </a>
+            {% else %}
+            <div class="w-full py-2 text-center bg-gray-100 text-gray-400 rounded-lg text-sm">
+                No Pending Withdrawals
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <a href="{{ url_for('admin.users') }}" class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center hover:bg-gray-50">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                <i class="fas fa-users text-blue-600"></i>
+            </div>
+            <div class="text-sm font-medium">User Management</div>
+        </a>
+        
+        <a href="{{ url_for('admin.verifications') }}" class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center hover:bg-gray-50">
+            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                <i class="fas fa-id-card text-green-600"></i>
+            </div>
+            <div class="text-sm font-medium">Verifications</div>
+        </a>
+        
+        <a href="{{ url_for('admin.trade_signals') }}" class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center hover:bg-gray-50">
+            <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mb-2">
+                <i class="fas fa-broadcast-tower text-purple-600"></i>
+            </div>
+            <div class="text-sm font-medium">Trade Signals</div>
+        </a>
+        
+        <a href="{{ url_for('admin.announcements') }}" class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center hover:bg-gray-50">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mb-2">
+                <i class="fas fa-bullhorn text-yellow-600"></i>
+            </div>
+            <div class="text-sm font-medium">Announcements</div>
+        </a>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Users</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_users %}
+                {% for user in recent_users %}
+                <div class="p-4 flex justify-between items-center">
+                    <div>
+                        <div class="font-medium flex items-center">
+                            {{ user.username }}
+                            {% if user.is_verified %}
+                            <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                            {% endif %}
+                            {% if user.is_admin %}
+                            <span class="ml-1 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Admin</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-gray-500">{{ user.email }}</div>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent users</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Transactions</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_transactions %}
+                {% for tx in recent_transactions %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ tx.transaction_type|capitalize }}: {{ tx.amount }} {{ tx.currency }}</div>
+                        <div class="text-sm {% if tx.status == 'completed' %}text-green-600{% elif tx.status == 'pending' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            {{ tx.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        User ID: {{ tx.user_id }}
+                        {% if tx.blockchain_txid %}
+                         | TxID: {{ tx.blockchain_txid[:10] }}...
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent transactions</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

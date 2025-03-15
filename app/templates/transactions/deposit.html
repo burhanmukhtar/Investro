@@ -1,0 +1,143 @@
+<!-- app/templates/transactions/deposit.html -->
+{% extends "base.html" %}
+
+{% block title %}Deposit | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Deposit</h2>
+            <p class="text-sm text-gray-500">Select a coin to deposit</p>
+        </div>
+        
+        <div class="p-4 border-b bg-gray-50">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Coin Selector -->
+                <div>
+                    <label for="coinSelector" class="block text-sm font-medium text-gray-700 mb-1">Coin</label>
+                    <select id="coinSelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        {% for currency in currencies %}
+                        <option value="{{ currency }}" {% if currency == selected_currency %}selected{% endif %}>{{ currency }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Network Selector -->
+                <div>
+                    <label for="networkSelector" class="block text-sm font-medium text-gray-700 mb-1">Network</label>
+                    <select id="networkSelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="TRC20" {% if selected_chain == 'TRC20' %}selected{% endif %}>TRC20</option>
+                        <option value="ERC20" {% if selected_chain == 'ERC20' %}selected{% endif %}>ERC20</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4">
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-sm font-medium text-gray-700">Deposit Address</div>
+                    <button id="copyAddress" class="text-sm text-primary-600 hover:text-primary-700 focus:outline-none">
+                        <i class="far fa-copy mr-1"></i> Copy
+                    </button>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg break-all font-mono text-sm">{{ deposit_address }}</div>
+            </div>
+            
+            <div class="flex justify-center mb-6">
+                <div id="qrCodeContainer" class="bg-white p-4 rounded-lg shadow-sm inline-block"></div>
+            </div>
+            
+            <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6">
+                <h3 class="font-semibold text-sm mb-2">Important Notes:</h3>
+                <ul class="text-xs space-y-1 pl-5 list-disc">
+                    <li>Send only {{ selected_currency }} to this deposit address.</li>
+                    <li>Ensure you're sending on the {{ selected_chain }} network.</li>
+                    <li>Minimum deposit amount: 10 {{ selected_currency }}</li>
+                    <li>Deposits will be credited after {{ '1' if selected_chain == 'TRC20' else '12' }} network confirmations.</li>
+                    <li>Deposits may take up to {{ '15 minutes' if selected_chain == 'TRC20' else '1 hour' }} to be processed.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Deposits -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Deposits</h2>
+        </div>
+        
+        <div class="divide-y">
+            <!-- app/templates/transactions/deposit.html (continued) -->
+            {% if recent_deposits %}
+                {% for deposit in recent_deposits %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ deposit.amount }} {{ deposit.currency }}</div>
+                        <div class="text-sm {% if deposit.status == 'completed' %}text-green-600{% elif deposit.status == 'pending' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            {{ deposit.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ deposit.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    {% if deposit.blockchain_txid %}
+                    <div class="text-xs text-gray-500 truncate">
+                        <span class="font-medium">TxID:</span> {{ deposit.blockchain_txid }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent deposits</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // QR Code generation
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        new QRCode(qrCodeContainer, {
+            text: "{{ deposit_address }}",
+            width: 160,
+            height: 160,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        // Copy address to clipboard
+        const copyAddress = document.getElementById('copyAddress');
+        copyAddress.addEventListener('click', function() {
+            const address = "{{ deposit_address }}";
+            navigator.clipboard.writeText(address).then(function() {
+                copyAddress.innerHTML = '<i class="fas fa-check mr-1"></i> Copied';
+                setTimeout(function() {
+                    copyAddress.innerHTML = '<i class="far fa-copy mr-1"></i> Copy';
+                }, 2000);
+            });
+        });
+        
+        // Currency and network selection
+        const coinSelector = document.getElementById('coinSelector');
+        const networkSelector = document.getElementById('networkSelector');
+        
+        coinSelector.addEventListener('change', function() {
+            window.location.href = `/wallet/deposit?currency=${this.value}&chain=${networkSelector.value}`;
+        });
+        
+        networkSelector.addEventListener('change', function() {
+            window.location.href = `/wallet/deposit?currency=${coinSelector.value}&chain=${this.value}`;
+        });
+    });
+</script>
+{% endblock %}

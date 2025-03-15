@@ -1,0 +1,347 @@
+<!-- app/templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Crypto Trading Platform{% endblock %}</title>
+    
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        secondary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        },
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#111827',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'SF Pro Text', 'SF Pro Icons', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        .ios-scrolling {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: scroll;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* iOS style toggle */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+        
+        /* iOS style inputs */
+        .ios-input {
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            font-size: 16px;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        
+        .ios-input:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 1px #0ea5e9;
+        }
+        
+        /* iOS style buttons */
+        .ios-button {
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .ios-button:active {
+            transform: scale(0.98);
+        }
+        
+        /* Chart styles */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        
+        /* Loading animation */
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- TradingView widget -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- Block for additional head content -->
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-0 left-0 right-0 z-50 p-4 space-y-2">
+                {% for category, message in messages %}
+                    {% set alert_color = 'bg-green-500' if category == 'success' else 'bg-red-500' if category == 'danger' else 'bg-yellow-500' if category == 'warning' else 'bg-blue-500' %}
+                    <div class="flash-message {{ alert_color }} text-white p-3 rounded-lg shadow-lg flex justify-between items-center transition-all duration-300 ease-in-out">
+                        <span>{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200 focus:outline-none">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+            <script>
+                // Auto-hide flash messages after 5 seconds
+                setTimeout(function() {
+                    const messages = document.querySelectorAll('.flash-message');
+                    messages.forEach(message => {
+                        message.style.opacity = '0';
+                        setTimeout(function() {
+                            message.remove();
+                        }, 300);
+                    });
+                }, 5000);
+            </script>
+        {% endif %}
+    {% endwith %}
+    
+    {% if not hide_header %}
+    <!-- Header -->
+    <header class="bg-white shadow-sm fixed top-0 left-0 right-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center">
+                <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="text-xl font-bold text-primary-600">
+                    CryptoTrader
+                </a>
+            </div>
+            
+            <!-- Profile/Login -->
+            <div class="flex items-center">
+                {% if current_user.is_authenticated %}
+                    <button id="profileButton" class="flex items-center space-x-2 text-gray-700 hover:text-primary-600 focus:outline-none">
+                        <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-8 h-8 rounded-full object-cover border-2 border-primary-500">
+                        {% if current_user.is_verified %}
+                            <span class="text-blue-500"><i class="fas fa-check-circle"></i></span>
+                        {% endif %}
+                    </button>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="ios-button bg-primary-500 text-white hover:bg-primary-600">
+                        Login
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    {% endif %}
+    
+    <!-- Sidebar (mobile) -->
+    {% if current_user.is_authenticated %}
+    <div id="sidebar" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
+        <div class="bg-white h-full w-3/4 max-w-xs shadow-xl flex flex-col">
+            <!-- Sidebar header -->
+            <div class="p-4 border-b">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-10 h-10 rounded-full object-cover border-2 border-primary-500">
+                        <div>
+                            <div class="font-semibold text-gray-800 flex items-center">
+                                {{ current_user.username }}
+                                {% if current_user.is_verified %}
+                                    <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500">{{ current_user.unique_id }}</div>
+                        </div>
+                    </div>
+                    <button id="closeSidebar" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sidebar content -->
+            <div class="flex-1 overflow-y-auto ios-scrolling">
+                <nav class="py-4">
+                    <a href="{{ url_for('user.profile') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-user-circle w-6 text-gray-600"></i>
+                        <span class="ml-3">Profile</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.transaction_history') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-history w-6 text-gray-600"></i>
+                        <span class="ml-3">Transaction History</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.referral') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-user-plus w-6 text-gray-600"></i>
+                        <span class="ml-3">Referral</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.support') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-headset w-6 text-gray-600"></i>
+                        <span class="ml-3">Support Center</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.about') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-info-circle w-6 text-gray-600"></i>
+                        <span class="ml-3">About Us</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.settings') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-cog w-6 text-gray-600"></i>
+                        <span class="ml-3">Settings</span>
+                    </a>
+                    
+                    {% if current_user.is_admin %}
+                    <div class="border-t border-gray-200 my-2 pt-2">
+                        <a href="{{ url_for('admin.dashboard') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                            <i class="fas fa-user-shield w-6 text-gray-600"></i>
+                            <span class="ml-3 text-primary-600 font-medium">Admin Panel</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </nav>
+            </div>
+            
+            <!-- Sidebar footer -->
+            <div class="border-t p-4">
+                <a href="{{ url_for('auth.logout') }}" class="block w-full py-2 px-4 rounded-md bg-gray-200 text-gray-700 text-center hover:bg-gray-300">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main content -->
+    <main class="{% if not hide_header %}pt-14{% endif %} {% if not hide_bottom_nav %}pb-16{% endif %} min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Bottom navigation -->
+    {% if current_user.is_authenticated and not hide_bottom_nav %}
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+        <div class="grid grid-cols-4 h-16">
+            <a href="{{ url_for('user.home') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.home') }}">
+                <i class="fas fa-home text-lg"></i>
+                <span class="text-xs mt-1">Home</span>
+            </a>
+            
+            <a href="{{ url_for('user.market') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.market') }}">
+                <i class="fas fa-chart-line text-lg"></i>
+                <span class="text-xs mt-1">Market</span>
+            </a>
+            
+            <a href="{{ url_for('user.future') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.future') }}">
+                <i class="fas fa-chart-bar text-lg"></i>
+                <span class="text-xs mt-1">Futures</span>
+            </a>
+            
+            <a href="{{ url_for('user.assets') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.assets') }}">
+                <i class="fas fa-wallet text-lg"></i>
+                <span class="text-xs mt-1">Assets</span>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Scripts -->
+    <script>
+        // Sidebar toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const profileButton = document.getElementById('profileButton');
+            const sidebar = document.getElementById('sidebar');
+            const closeSidebar = document.getElementById('closeSidebar');
+            
+            if (profileButton && sidebar && closeSidebar) {
+                profileButton.addEventListener('click', function() {
+                    sidebar.classList.remove('-translate-x-full');
+                });
+                
+                closeSidebar.addEventListener('click', function() {
+                    sidebar.classList.add('-translate-x-full');
+                });
+                
+                // Close sidebar when clicking outside
+                sidebar.addEventListener('click', function(e) {
+                    if (e.target === sidebar) {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <!-- Block for additional scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

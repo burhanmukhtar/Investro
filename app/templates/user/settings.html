@@ -1,0 +1,259 @@
+<!-- app/templates/user/settings.html -->
+{% extends "base.html" %}
+{% block title %}Settings | Crypto Trading Platform{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-4 pb-16">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b">
+            <h1 class="text-xl font-bold">App Settings</h1>
+        </div>
+        
+        <div class="divide-y">
+            <!-- Theme Settings -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Dark Mode</h2>
+                        <p class="text-sm text-gray-500">Switch between light and dark theme</p>
+                    </div>
+                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                        <input type="checkbox" id="themeToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
+                        <label for="themeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Language Settings -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Language</h2>
+                        <p class="text-sm text-gray-500">Select your preferred language</p>
+                    </div>
+                    <select id="languageSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="zh">中文</option>
+                        <option value="ja">日本語</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Notification Settings -->
+            <div class="p-4">
+                <h2 class="text-base font-medium mb-3">Notifications</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Price Alerts</p>
+                            <p class="text-xs text-gray-500">Get notified when prices change significantly</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="priceAlertsToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="priceAlertsToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Trade Confirmations</p>
+                            <p class="text-xs text-gray-500">Receive notifications when trades execute</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="tradeConfirmToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="tradeConfirmToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">News Updates</p>
+                            <p class="text-xs text-gray-500">Get crypto market news alerts</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="newsUpdatesToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
+                            <label for="newsUpdatesToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Currency Settings -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Display Currency</h2>
+                        <p class="text-sm text-gray-500">Select your preferred fiat currency</p>
+                    </div>
+                    <select id="currencySelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="AUD">AUD ($)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Time Format Settings -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Time Format</h2>
+                        <p class="text-sm text-gray-500">Choose your preferred time format</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="timeFormat" value="12h" class="form-radio h-4 w-4 text-primary-500" checked>
+                            <span class="ml-2 text-sm">12-hour</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="timeFormat" value="24h" class="form-radio h-4 w-4 text-primary-500">
+                            <span class="ml-2 text-sm">24-hour</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Settings -->
+            <div class="p-4">
+                <h2 class="text-base font-medium mb-3">Security</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Two-Factor Authentication</p>
+                            <p class="text-xs text-gray-500">Add an extra layer of security</p>
+                        </div>
+                        <button class="bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition-colors">
+                            Enable
+                        </button>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Session Timeout</p>
+                            <p class="text-xs text-gray-500">Automatically log out after inactivity</p>
+                        </div>
+                        <select id="timeoutSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="15">15 minutes</option>
+                            <option value="30" selected>30 minutes</option>
+                            <option value="60">1 hour</option>
+                            <option value="120">2 hours</option>
+                            <option value="0">Never</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trading Settings -->
+            <div class="p-4">
+                <h2 class="text-base font-medium mb-3">Trading Preferences</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Trade Confirmations</p>
+                            <p class="text-xs text-gray-500">Require confirmation before executing trades</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="tradeConfirmationsToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="tradeConfirmationsToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Default Chart Timeframe</p>
+                            <p class="text-xs text-gray-500">Set your preferred chart view</p>
+                        </div>
+                        <select id="chartTimeframeSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="1h">1 hour</option>
+                            <option value="4h">4 hours</option>
+                            <option value="1d" selected>1 day</option>
+                            <option value="1w">1 week</option>
+                            <option value="1m">1 month</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Save Button -->
+    <div class="flex justify-end">
+        <button id="saveSettings" class="bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors">
+            Save Changes
+        </button>
+    </div>
+</div>
+
+<style>
+    /* Toggle switch styles */
+    .toggle-checkbox:checked {
+        right: 0;
+        border-color: #3b82f6;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+        background-color: #3b82f6;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('themeToggle');
+        
+        // Check for saved theme preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+            themeToggle.checked = true;
+        }
+        
+        themeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('darkMode', 'true');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('darkMode', 'false');
+            }
+        });
+        
+        // Save settings button
+        const saveButton = document.getElementById('saveSettings');
+        saveButton.addEventListener('click', function() {
+            // Show save confirmation
+            const confirmation = document.createElement('div');
+            confirmation.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg';
+            confirmation.textContent = 'Settings saved successfully!';
+            document.body.appendChild(confirmation);
+            
+            // Remove confirmation after 3 seconds
+            setTimeout(() => {
+                confirmation.remove();
+            }, 3000);
+            
+            // Here you would normally send the settings to the server
+            const settings = {
+                darkMode: themeToggle.checked,
+                language: document.getElementById('languageSelect').value,
+                currency: document.getElementById('currencySelect').value,
+                timeFormat: document.querySelector('input[name="timeFormat"]:checked').value,
+                notifications: {
+                    priceAlerts: document.getElementById('priceAlertsToggle').checked,
+                    tradeConfirmations: document.getElementById('tradeConfirmToggle').checked,
+                    newsUpdates: document.getElementById('newsUpdatesToggle').checked
+                },
+                security: {
+                    sessionTimeout: document.getElementById('timeoutSelect').value
+                },
+                trading: {
+                    confirmations: document.getElementById('tradeConfirmationsToggle').checked,
+                    defaultChartTimeframe: document.getElementById('chartTimeframeSelect').value
+                }
+            };
+            
+            console.log('Settings to save:', settings);
+            // In a real app: fetch('/api/settings', { method: 'POST', body: JSON.stringify(settings) });
+        });
+    });
+</script>
+{% endblock %}

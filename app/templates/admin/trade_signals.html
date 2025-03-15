@@ -1,0 +1,371 @@
+<!-- app/templates/admin/trade_signals.html -->
+{% extends "base.html" %}
+
+{% block title %}Trade Signals Management | Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Trade Signals Management</h1>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('admin.create_signal') }}" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-plus mr-1"></i> Create Signal
+            </a>
+            <a href="{{ url_for('admin.dashboard') }}" class="px-4 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+    
+    <!-- Status Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="flex">
+            <a href="{{ url_for('admin.trade_signals', status='active') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'active' else 'text-gray-500' }}">
+                Active
+            </a>
+            <a href="{{ url_for('admin.trade_signals', status='expired') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'expired' else 'text-gray-500' }}">
+                Expired
+            </a>
+            <a href="{{ url_for('admin.trade_signals', status='all') }}" class="flex-1 py-3 text-center text-sm font-medium {{ 'text-primary-600 border-b-2 border-primary-600' if status == 'all' else 'text-gray-500' }}">
+                All
+            </a>
+        </div>
+    </div>
+    
+    <!-- Signals Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {% for signal in signals.items %}
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <div class="flex items-center">
+                    <div class="font-medium">{{ signal.currency_pair }}</div>
+                    <div class="ml-2 px-2 py-0.5 text-xs rounded-full {{ 'bg-green-100 text-green-800' if signal.signal_type == 'buy' else 'bg-red-100 text-red-800' }}">
+                        {{ signal.signal_type|upper }}
+                    </div>
+                </div>
+                <div>
+                    {% if signal.is_active %}
+                    <span class="px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
+                    {% else %}
+                    <span class="px-2 py-0.5 text-xs bg-gray-100 text-gray-800 rounded-full">Expired</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <div class="text-xs text-gray-500">Entry Price</div>
+                        <div class="text-sm font-medium">${{ signal.entry_price }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Target Price</div>
+                        <div class="text-sm font-medium">${{ signal.target_price }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Stop Loss</div>
+                        <div class="text-sm font-medium">${{ signal.stop_loss }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Leverage</div>
+                        <div class="text-sm font-medium">{{ signal.leverage }}x</div>
+                    </div>
+                </div>
+                
+                {% if signal.description %}
+                <div class="mb-3">
+                    <div class="text-xs text-gray-500">Description</div>
+                    <div class="text-sm">{{ signal.description }}</div>
+                </div>
+                {% endif %}
+                
+                <div class="flex justify-between text-sm">
+                    <div>
+                        <div class="text-xs text-gray-500">Created</div>
+                        <div>{{ signal.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Expires</div>
+                        <div>{{ signal.expiry_time.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                </div>
+                
+                {% if signal.result %}
+                <div class="mt-3 pt-3 border-t">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-500">Result</div>
+                            <div class="text-sm font-medium {{ 'text-green-600' if signal.result == 'profit' else 'text-red-600' }}">
+                                {{ signal.result|capitalize }}: {{ signal.profit_percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-3 pt-3 border-t flex justify-end space-x-3">
+                    {% if signal.is_active %}
+                    <button class="update-signal-btn px-3 py-1 border text-green-600 border-green-600 rounded-lg hover:bg-green-50" data-signal-id="{{ signal.id }}" data-action="update_result">
+                        Update Result
+                    </button>
+                    <button class="update-signal-btn px-3 py-1 border text-red-600 border-red-600 rounded-lg hover:bg-red-50" data-signal-id="{{ signal.id }}" data-action="deactivate">
+                        Deactivate
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- app/templates/admin/trade_signals.html (continued) -->
+    {% if not signals.items %}
+    <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div class="text-gray-500 mb-3">
+            <i class="fas fa-broadcast-tower text-4xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-1">No signals found</h3>
+        <p class="text-gray-500">There are no {{ status }} trade signals at this time.</p>
+    </div>
+    {% endif %}
+    
+    <!-- Pagination -->
+    {% if signals.pages > 1 %}
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <nav class="flex items-center justify-between">
+            <div class="flex-1 flex justify-between">
+                {% if signals.has_prev %}
+                <a href="{{ url_for('admin.trade_signals', status=status, page=signals.prev_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Previous
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                    Previous
+                </span>
+                {% endif %}
+                
+                <div class="text-sm text-gray-500">
+                    Page {{ signals.page }} of {{ signals.pages }}
+                </div>
+                
+                {% if signals.has_next %}
+                <a href="{{ url_for('admin.trade_signals', status=status, page=signals.next_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Next
+                </a>
+                {% else %}
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                    Next
+                </span>
+                {% endif %}
+            </div>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Update Result Modal -->
+<div id="resultModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 class="text-lg font-semibold">Update Signal Result</h3>
+        </div>
+        
+        <div class="p-4">
+            <form id="resultForm">
+                <input type="hidden" id="signalId" name="signal_id">
+                
+                <div class="mb-4">
+                    <label for="result" class="block text-sm font-medium text-gray-700 mb-1">
+                        Result
+                    </label>
+                    <select id="result" name="result" class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500" required>
+                        <option value="">Select result</option>
+                        <option value="profit">Profit</option>
+                        <option value="loss">Loss</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="profitPercentage" class="block text-sm font-medium text-gray-700 mb-1">
+                        Profit/Loss Percentage
+                    </label>
+                    <div class="relative">
+                        <input type="number" id="profitPercentage" name="profit_percentage" step="0.01" min="0" class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 pr-8" required>
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">
+                        Enter the percentage value regardless of profit or loss.
+                    </p>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button type="button" id="resultCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 class="text-lg font-semibold">Deactivate Signal</h3>
+        </div>
+        
+        <div class="p-4">
+            <p class="text-gray-700 mb-4">Are you sure you want to deactivate this signal? This will prevent users from opening new positions, but will not affect existing positions.</p>
+            
+            <div class="flex space-x-3">
+                <button id="confirmCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Cancel
+                </button>
+                <button id="confirmDeactivate" class="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Deactivate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update signal buttons
+        const updateButtons = document.querySelectorAll('.update-signal-btn');
+        const resultModal = document.getElementById('resultModal');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const resultCancel = document.getElementById('resultCancel');
+        const confirmCancel = document.getElementById('confirmCancel');
+        const confirmDeactivate = document.getElementById('confirmDeactivate');
+        const resultForm = document.getElementById('resultForm');
+        const signalId = document.getElementById('signalId');
+        
+        updateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.dataset.signalId;
+                const action = this.dataset.action;
+                
+                if (action === 'update_result') {
+                    // Show result modal
+                    signalId.value = id;
+                    resultModal.classList.remove('scale-0');
+                } else if (action === 'deactivate') {
+                    // Show confirmation modal
+                    confirmDeactivate.dataset.signalId = id;
+                    confirmationModal.classList.remove('scale-0');
+                }
+            });
+        });
+        
+        // Result modal cancel button
+        resultCancel.addEventListener('click', function() {
+            resultModal.classList.add('scale-0');
+        });
+        
+        // Confirmation modal cancel button
+        confirmCancel.addEventListener('click', function() {
+            confirmationModal.classList.add('scale-0');
+        });
+        
+        // Deactivate signal
+        confirmDeactivate.addEventListener('click', function() {
+            const id = this.dataset.signalId;
+            
+            // Send request to deactivate signal
+            fetch(`/admin/update-signal/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    action: 'deactivate'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    confirmationModal.classList.add('scale-0');
+                    
+                    // Show success message
+                    alert(data.message);
+                    
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Update result form
+        resultForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const id = signalId.value;
+            const result = document.getElementById('result').value;
+            const profitPercentage = document.getElementById('profitPercentage').value;
+            
+            // Send request to update result
+            fetch(`/admin/update-signal/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    action: 'update_result',
+                    result: result,
+                    profit_percentage: profitPercentage
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    resultModal.classList.add('scale-0');
+                    
+                    // Show success message
+                    alert(data.message);
+                    
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Close modals when clicking outside
+        resultModal.addEventListener('click', function(e) {
+            if (e.target === resultModal) {
+                resultModal.classList.add('scale-0');
+            }
+        });
+        
+        confirmationModal.addEventListener('click', function(e) {
+            if (e.target === confirmationModal) {
+                confirmationModal.classList.add('scale-0');
+            }
+        });
+    });
+</script>
+{% endblock %}

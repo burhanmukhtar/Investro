@@ -1,0 +1,249 @@
+<!-- app/templates/admin/users.html -->
+{% extends "base.html" %}
+
+{% block title %}User Management | Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">User Management</h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="text-primary-600 hover:text-primary-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Search and Filter -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4">
+            <form action="{{ url_for('admin.users') }}" method="GET" class="flex space-x-3">
+                <div class="flex-1">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" name="search" value="{{ search }}" placeholder="Search by username, email, or ID" class="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                    </div>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Search
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Users List -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Joined
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for user in users.items %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full overflow-hidden">
+                                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + user.profile_image) }}" alt="{{ user.username }}" class="h-10 w-10 object-cover">
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900 flex items-center">
+                                        {{ user.username }}
+                                        {% if user.is_verified %}
+                                        <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                                        {% endif %}
+                                        {% if user.is_admin %}
+                                        <span class="ml-1 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Admin</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                    <div class="text-xs text-gray-400">ID: {{ user.unique_id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if user.is_verified %}
+                                    bg-green-100 text-green-800
+                                {% elif user.verification_status == 'pending' %}
+                                    bg-yellow-100 text-yellow-800
+                                {% elif user.verification_status == 'rejected' %}
+                                    bg-red-100 text-red-800
+                                {% else %}
+                                    bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {% if user.is_verified %}
+                                    Verified
+                                {% elif user.verification_status == 'pending' %}
+                                    Pending Verification
+                                {% elif user.verification_status == 'rejected' %}
+                                    Verification Rejected
+                                {% else %}
+                                    Unverified
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="text-primary-600 hover:text-primary-900 mr-3">
+                                View
+                            </a>
+                            {% if current_user.id == 1 %} <!-- Super admin check -->
+                            <button class="toggle-admin-btn text-{{ 'red-600 hover:text-red-900' if user.is_admin else 'green-600 hover:text-green-900' }}" data-user-id="{{ user.id }}">
+                                {{ 'Remove Admin' if user.is_admin else 'Make Admin' }}
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if users.pages > 1 %}
+        <div class="px-6 py-4 border-t">
+            <nav class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between">
+                    {% if users.has_prev %}
+                    <a href="{{ url_for('admin.users', page=users.prev_num, search=search) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% else %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                        Previous
+                    </span>
+                    {% endif %}
+                    
+                    <div class="text-sm text-gray-500">
+                        Page {{ users.page }} of {{ users.pages }}
+                    </div>
+                    
+                    {% if users.has_next %}
+                    <a href="{{ url_for('admin.users', page=users.next_num, search=search) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% else %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-300 bg-gray-50 cursor-not-allowed">
+                        Next
+                    </span>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 id="modalTitle" class="text-lg font-semibold">Confirm Action</h3>
+        </div>
+        
+        <div class="p-4">
+            <p id="modalMessage" class="text-gray-700 mb-4"></p>
+            
+            <div class="flex space-x-3">
+                <button id="modalCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Cancel
+                </button>
+                <button id="modalConfirm" class="flex-1 py-2 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle admin status
+        const toggleButtons = document.querySelectorAll('.toggle-admin-btn');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalConfirm = document.getElementById('modalConfirm');
+        
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                const isAdmin = this.textContent.trim() === 'Remove Admin';
+                
+                // Show confirmation modal
+                modalTitle.textContent = isAdmin ? 'Remove Admin Status' : 'Grant Admin Status';
+                modalMessage.textContent = isAdmin ? 
+                    'Are you sure you want to remove admin privileges from this user?' :
+                    'Are you sure you want to grant admin privileges to this user?';
+                
+                modalConfirm.className = `flex-1 py-2 bg-${isAdmin ? 'red' : 'green'}-600 text-white rounded-lg text-sm font-medium hover:bg-${isAdmin ? 'red' : 'green'}-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${isAdmin ? 'red' : 'green'}-500`;
+                modalConfirm.textContent = isAdmin ? 'Remove Admin' : 'Make Admin';
+                modalConfirm.dataset.userId = userId;
+                
+                confirmationModal.classList.remove('scale-0');
+            });
+        });
+        
+        // Modal cancel button
+        modalCancel.addEventListener('click', function() {
+            confirmationModal.classList.add('scale-0');
+        });
+        
+        // Modal confirm button
+        modalConfirm.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            
+            // Send request to toggle admin status
+            fetch(`/admin/toggle-admin/${userId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    confirmationModal.classList.add('scale-0');
+                    
+                    // Reload page to reflect changes
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Close modal when clicking outside
+        confirmationModal.addEventListener('click', function(e) {
+            if (e.target === confirmationModal) {
+                confirmationModal.classList.add('scale-0');
+            }
+        });
+    });
+</script>
+{% endblock %}

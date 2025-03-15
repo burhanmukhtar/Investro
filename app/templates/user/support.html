@@ -1,0 +1,210 @@
+<!-- app/templates/user/support.html -->
+{% extends "base.html" %}
+
+{% block title %}Support Center | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4 pb-16">
+    <div class="flex items-center mb-4">
+        <a href="{{ url_for('user.home') }}" class="mr-2 text-gray-500">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-xl font-bold">Support Center</h1>
+    </div>
+    
+    <!-- Contact Support Form -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Contact Support</h2>
+            <p class="text-sm text-gray-500 mt-1">We're here to help! Submit a ticket and we'll respond as soon as possible.</p>
+        </div>
+        
+        <form id="supportForm" class="p-4 space-y-4">
+            <div>
+                <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <select id="subject" name="subject" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="" disabled selected>Select a topic</option>
+                    <option value="account">Account Issues</option>
+                    <option value="deposit">Deposit/Withdrawal</option>
+                    <option value="trading">Trading Problems</option>
+                    <option value="verification">Identity Verification</option>
+                    <option value="security">Security Concerns</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <textarea id="message" name="message" rows="4" required class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+            </div>
+            
+            <div>
+                <label for="attachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (Optional)</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
+                    <input type="file" id="attachment" name="attachment" class="hidden">
+                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-500" id="fileLabel">Click or drag file to upload</p>
+                    <p class="text-xs text-gray-400 mt-1">Max size: 5MB (JPG, PNG, PDF)</p>
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                Submit Ticket
+            </button>
+        </form>
+    </div>
+    
+    <!-- FAQs -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Frequently Asked Questions</h2>
+        </div>
+        
+        <div class="divide-y">
+            <div class="p-4">
+                <button class="faq-toggle flex justify-between items-center w-full text-left" aria-expanded="false">
+                    <span class="font-medium">How do I reset my password?</span>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform"></i>
+                </button>
+                <div class="faq-content hidden mt-2 text-sm text-gray-600">
+                    <p>To reset your password, go to the login page and click on "Forgot Password". Enter your email address and we'll send you a verification code to reset your password.</p>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <button class="faq-toggle flex justify-between items-center w-full text-left" aria-expanded="false">
+                    <span class="font-medium">How long does identity verification take?</span>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform"></i>
+                </button>
+                <div class="faq-content hidden mt-2 text-sm text-gray-600">
+                    <p>Identity verification typically takes 1-2 business days. You'll receive a notification once your verification is complete. If your verification is rejected, you'll be notified of the reason and can resubmit your documents.</p>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <button class="faq-toggle flex justify-between items-center w-full text-left" aria-expanded="false">
+                    <span class="font-medium">How do I deposit funds?</span>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform"></i>
+                </button>
+                <div class="faq-content hidden mt-2 text-sm text-gray-600">
+                    <p>To deposit funds, go to the Deposit page from the Home screen or Assets page. Select your preferred cryptocurrency and network (TRC20 or ERC20), then send your funds to the displayed address. Your deposit will be credited after confirmation.</p>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <button class="faq-toggle flex justify-between items-center w-full text-left" aria-expanded="false">
+                    <span class="font-medium">What are the withdrawal fees?</span>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform"></i>
+                </button>
+                <div class="faq-content hidden mt-2 text-sm text-gray-600">
+                    <p>Withdrawal fees are 7% of the withdrawal amount. The fee is automatically calculated and displayed when you enter your withdrawal amount.</p>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <button class="faq-toggle flex justify-between items-center w-full text-left" aria-expanded="false">
+                    <span class="font-medium">How do I follow a trade signal?</span>
+                    <i class="fas fa-chevron-down text-gray-500 transition-transform"></i>
+                </button>
+                <div class="faq-content hidden mt-2 text-sm text-gray-600">
+                    <p>To follow a trade signal, go to the Futures page and select the Trade Signals tab. Find a signal you want to follow and click the "Follow" button. Enter the amount you want to invest and confirm your decision.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Tickets -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">My Tickets</h2>
+        </div>
+        
+        <div class="divide-y">
+            <!-- Placeholder for when no tickets exist -->
+            <div class="p-6 text-center text-gray-500">
+                <i class="fas fa-ticket-alt text-3xl mb-2"></i>
+                <p>You haven't submitted any tickets yet.</p>
+            </div>
+            
+            <!-- Example ticket (would be populated from backend) -->
+            <!--
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-1">
+                    <div class="font-medium">Account Verification Issue</div>
+                    <div class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">In Progress</div>
+                </div>
+                <div class="text-sm text-gray-500 mb-1">
+                    Ticket #12345 • Submitted on 2023-05-15
+                </div>
+                <div class="text-sm text-gray-600 truncate">
+                    I submitted my verification documents but they were rejected...
+                </div>
+            </div>
+            -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // File upload handling
+        const attachmentInput = document.getElementById('attachment');
+        const fileLabel = document.getElementById('fileLabel');
+        const uploadArea = attachmentInput.parentElement;
+        
+        uploadArea.addEventListener('click', function() {
+            attachmentInput.click();
+        });
+        
+        attachmentInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileLabel.textContent = file.name;
+            }
+        });
+        
+        // Support form submission
+        const supportForm = document.getElementById('supportForm');
+        
+        supportForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // In a real implementation, this would send the form data to the server
+            // For now, just show a success message
+            
+            alert('Your ticket has been submitted. We\'ll respond as soon as possible.');
+            
+            // Reset form
+            this.reset();
+            fileLabel.textContent = 'Click or drag file to upload';
+        });
+        
+        // FAQ toggles
+        const faqToggles = document.querySelectorAll('.faq-toggle');
+        
+        faqToggles.forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const icon = this.querySelector('i');
+                
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                
+                // Toggle aria-expanded
+                this.setAttribute('aria-expanded', !isExpanded);
+                
+                // Toggle content visibility
+                content.classList.toggle('hidden');
+                
+                // Rotate icon
+                if (isExpanded) {
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

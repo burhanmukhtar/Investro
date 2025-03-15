@@ -1,0 +1,235 @@
+<!-- app/templates/transactions/transfer.html -->
+{% extends "base.html" %}
+
+{% block title %}Transfer | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Transfer</h2>
+            <p class="text-sm text-gray-500">Move funds between your wallets</p>
+        </div>
+        
+        <form id="transferForm" action="{{ url_for('wallet.transfer') }}" method="POST">
+            <div class="p-4">
+                <!-- Currency Selector -->
+                <div class="mb-4">
+                    <label for="currency" class="block text-sm font-medium text-gray-700 mb-1">
+                        Coin
+                    </label>
+                    <select id="currency" name="currency" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        {% for currency in currencies %}
+                        <option value="{{ currency }}" {% if currency == selected_currency %}selected{% endif %}>{{ currency }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- From Wallet -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="from_wallet" class="block text-sm font-medium text-gray-700">
+                            From
+                        </label>
+                        <div class="text-xs text-gray-500">
+                            Available: <span id="fromBalance">{{ balances.get(selected_currency, {}).get('spot', 0) }}</span> <span id="selectedCurrency">{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <select id="from_wallet" name="from_wallet" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="spot">Spot Wallet</option>
+                        <option value="funding">Funding Wallet</option>
+                    </select>
+                </div>
+                
+                <!-- Amount -->
+                <div class="mb-4">
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount
+                    </label>
+                    <div class="relative">
+                        <input type="number" id="amount" name="amount" placeholder="0.00" step="0.00000001" required class="w-full ios-input pr-24">
+                        <div class="absolute inset-y-0 right-0 flex items-center">
+                            <span class="pr-3 text-gray-500">{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-1">
+                        <button type="button" id="maxAmount" class="text-xs text-primary-600">MAX</button>
+                    </div>
+                </div>
+                
+               <!-- app/templates/transactions/transfer.html (continued) -->
+                <!-- To Wallet -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="to_wallet" class="block text-sm font-medium text-gray-700">
+                            To
+                        </label>
+                        <div class="text-xs text-gray-500">
+                            Available: <span id="toBalance">{{ balances.get(selected_currency, {}).get('funding', 0) }}</span> <span>{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <select id="to_wallet" name="to_wallet" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="funding">Funding Wallet</option>
+                        <option value="spot">Spot Wallet</option>
+                    </select>
+                </div>
+                
+                <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6">
+                    <h3 class="font-semibold text-sm mb-2">Note:</h3>
+                    <p class="text-xs">There are no fees for transferring between your wallets.</p>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Transfer
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Recent Transfers -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Transfers</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_transfers %}
+                {% for transfer in recent_transfers %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ transfer.amount }} {{ transfer.currency }}</div>
+                        <div class="text-sm text-green-600">
+                            {{ transfer.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ transfer.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        From {{ transfer.from_wallet|capitalize }} Wallet to {{ transfer.to_wallet|capitalize }} Wallet
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent transfers</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const currencySelect = document.getElementById('currency');
+        const fromWalletSelect = document.getElementById('from_wallet');
+        const toWalletSelect = document.getElementById('to_wallet');
+        const amountInput = document.getElementById('amount');
+        const maxAmountBtn = document.getElementById('maxAmount');
+        const fromBalanceSpan = document.getElementById('fromBalance');
+        const toBalanceSpan = document.getElementById('toBalance');
+        const selectedCurrencySpan = document.getElementById('selectedCurrency');
+        
+        // Wallet balances
+        const balances = {
+            {% for currency, wallet_balances in balances.items() %}
+            '{{ currency }}': {
+                'spot': {{ wallet_balances.get('spot', 0) }},
+                'funding': {{ wallet_balances.get('funding', 0) }}
+            },
+            {% endfor %}
+        };
+        
+        // Update balance display
+        function updateBalances() {
+            const currency = currencySelect.value;
+            const fromWallet = fromWalletSelect.value;
+            const toWallet = toWalletSelect.value;
+            
+            // Get balances
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const fromBalance = currencyBalances[fromWallet] || 0;
+            const toBalance = currencyBalances[toWallet] || 0;
+            
+            // Update display
+            fromBalanceSpan.textContent = fromBalance;
+            toBalanceSpan.textContent = toBalance;
+            selectedCurrencySpan.textContent = currency;
+        }
+        
+        // Swap from/to wallets when they're the same
+        function updateWalletSelections() {
+            const fromWallet = fromWalletSelect.value;
+            const toWallet = toWalletSelect.value;
+            
+            if (fromWallet === toWallet) {
+                // Switch the "to" wallet
+                toWalletSelect.value = fromWallet === 'spot' ? 'funding' : 'spot';
+            }
+            
+            updateBalances();
+        }
+        
+        // Event listeners
+        currencySelect.addEventListener('change', function() {
+            updateBalances();
+            window.location.href = `/wallet/transfer?currency=${this.value}`;
+        });
+        
+        fromWalletSelect.addEventListener('change', updateWalletSelections);
+        toWalletSelect.addEventListener('change', updateWalletSelections);
+        
+        maxAmountBtn.addEventListener('click', function() {
+            const currency = currencySelect.value;
+            const fromWallet = fromWalletSelect.value;
+            
+            // Get balance
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const fromBalance = currencyBalances[fromWallet] || 0;
+            
+            // Set max amount
+            amountInput.value = fromBalance;
+        });
+        
+        // Form validation
+        const transferForm = document.getElementById('transferForm');
+        
+        transferForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const currency = currencySelect.value;
+            const fromWallet = fromWalletSelect.value;
+            const toWallet = toWalletSelect.value;
+            const amount = parseFloat(amountInput.value);
+            
+            if (fromWallet === toWallet) {
+                alert('From and To wallets cannot be the same.');
+                return;
+            }
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            // Get balance
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const fromBalance = currencyBalances[fromWallet] || 0;
+            
+            if (amount > fromBalance) {
+                alert('Insufficient balance.');
+                return;
+            }
+            
+            // Submit the form
+            this.submit();
+        });
+        
+        // Initialize
+        updateBalances();
+    });
+</script>
+{% endblock %}

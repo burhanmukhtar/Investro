@@ -1,0 +1,17 @@
+{
+    "name": "crypto-trading-platform",
+    "version": "1.0.0",
+    "description": "Crypto Trading Platform with mobile-first design",
+    "scripts": {
+      "build:css": "tailwindcss -i ./app/static/css/tailwind.src.css -o ./app/static/css/tailwind.css",
+      "watch:css": "tailwindcss -i ./app/static/css/tailwind.src.css -o ./app/static/css/tailwind.css --watch",
+      "minify:css": "tailwindcss -i ./app/static/css/tailwind.src.css -o ./app/static/css/tailwind.css --minify"
+    },
+    "dependencies": {},
+    "devDependencies": {
+      "autoprefixer": "^10.4.14",
+      "postcss": "^8.4.23",
+      "tailwindcss": "^3.3.2",
+      "@tailwindcss/forms": "^0.5.3"
+    }
+  }

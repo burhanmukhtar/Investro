@@ -1,0 +1,231 @@
+<!-- app/templates/transactions/withdraw.html -->
+{% extends "base.html" %}
+
+{% block title %}Withdraw | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Withdraw</h2>
+            <p class="text-sm text-gray-500">Select a coin to withdraw</p>
+        </div>
+        
+        <form id="withdrawForm" action="{{ url_for('wallet.withdraw') }}" method="POST">
+            <div class="p-4 border-b bg-gray-50">
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Coin Selector -->
+                    <div>
+                        <label for="currency" class="block text-sm font-medium text-gray-700 mb-1">Coin</label>
+                        <select id="currency" name="currency" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            {% for currency in currencies %}
+                            <option value="{{ currency }}" {% if currency == selected_currency %}selected{% endif %}>{{ currency }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Network Selector -->
+                    <div>
+                        <label for="chain" class="block text-sm font-medium text-gray-700 mb-1">Network</label>
+                        <select id="chain" name="chain" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="TRC20" {% if selected_chain == 'TRC20' %}selected{% endif %}>TRC20</option>
+                            <option value="ERC20" {% if selected_chain == 'ERC20' %}selected{% endif %}>ERC20</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <!-- Withdrawal Address -->
+                <div class="mb-4">
+                    <label for="address" class="block text-sm font-medium text-gray-700 mb-1">
+                        Withdrawal Address
+                    </label>
+                    <input type="text" id="address" name="address" placeholder="Enter withdrawal address" required class="w-full ios-input">
+                    <p class="mt-1 text-xs text-gray-500">
+                        Please double-check the address before submitting
+                    </p>
+                </div>
+                
+                <!-- Amount -->
+                <div class="mb-4">
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount
+                    </label>
+                    <div class="relative">
+                        <input type="number" id="amount" name="amount" placeholder="0.00" step="0.00000001" required class="w-full ios-input pr-24">
+                        <div class="absolute inset-y-0 right-0 flex items-center">
+                            <span id="selectedCurrency" class="pr-3 text-gray-500">{{ selected_currency }}</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <p class="text-xs text-gray-500">
+                            Available: <span id="availableBalance">{{ balance }}</span> {{ selected_currency }}
+                        </p>
+                        <button type="button" id="maxAmount" class="text-xs text-primary-600">MAX</button>
+                    </div>
+                </div>
+                
+                <!-- Fee Information -->
+                <div class="mb-4 bg-gray-50 p-3 rounded-lg">
+                    <div class="flex justify-between text-sm mb-1">
+                        <div>Withdrawal Amount</div>
+                        <div id="withdrawalAmount">0.00 {{ selected_currency }}</div>
+                    </div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <div>Network Fee (7%)</div>
+                        <div id="networkFee">0.00 {{ selected_currency }}</div>
+                    </div>
+                    <div class="border-t border-gray-200 my-1"></div>
+                    <div class="flex justify-between text-sm font-medium">
+                        <div>You Will Receive</div>
+                        <div id="receiveAmount">0.00 {{ selected_currency }}</div>
+                    </div>
+                </div>
+                
+                <!-- Withdrawal PIN -->
+                <div class="mb-4">
+                    <label for="withdrawal_pin" class="block text-sm font-medium text-gray-700 mb-1">
+                        Withdrawal PIN
+                    </label>
+                    <input type="password" id="withdrawal_pin" name="withdrawal_pin" placeholder="Enter 6-digit PIN" required maxlength="6" inputmode="numeric" pattern="[0-9]*" class="w-full ios-input text-center tracking-widest">
+                </div>
+                
+                <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6">
+                    <h3 class="font-semibold text-sm mb-2">Important Notes:</h3>
+                    <ul class="text-xs space-y-1 pl-5 list-disc">
+                        <li>Make sure you are withdrawing to a {{ selected_currency }} address on the {{ selected_chain }} network.</li>
+                        <li>Withdrawals cannot be canceled once submitted.</li>
+                        <li>Minimum withdrawal amount: 10 {{ selected_currency }}</li>
+                        <li>Processing time: {{ '15 minutes' if selected_chain == 'TRC20' else '30-60 minutes' }} after approval.</li>
+                    </ul>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Submit Withdrawal
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Recent Withdrawals -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Recent Withdrawals</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if recent_withdrawals %}
+                {% for withdrawal in recent_withdrawals %}
+                <div class="p-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ withdrawal.amount }} {{ withdrawal.currency }}</div>
+                        <div class="text-sm {% if withdrawal.status == 'completed' %}text-green-600{% elif withdrawal.status == 'pending' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            {{ withdrawal.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        {{ withdrawal.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="text-xs text-gray-500 truncate">
+                        <span class="font-medium">To:</span> {{ withdrawal.address }}
+                    </div>
+                    {% if withdrawal.blockchain_txid %}
+                    <div class="text-xs text-gray-500 truncate">
+                        <span class="font-medium">TxID:</span> {{ withdrawal.blockchain_txid }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <p>No recent withdrawals</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Currency and network selection
+        const currencySelect = document.getElementById('currency');
+        const chainSelect = document.getElementById('chain');
+        const selectedCurrency = document.getElementById('selectedCurrency');
+        
+        currencySelect.addEventListener('change', function() {
+            selectedCurrency.textContent = this.value;
+            window.location.href = `/wallet/withdraw?currency=${this.value}&chain=${chainSelect.value}`;
+        });
+        
+        chainSelect.addEventListener('change', function() {
+            window.location.href = `/wallet/withdraw?currency=${currencySelect.value}&chain=${this.value}`;
+        });
+        
+        // Amount calculations
+        const amountInput = document.getElementById('amount');
+        const maxAmountBtn = document.getElementById('maxAmount');
+        const availableBalance = document.getElementById('availableBalance');
+        const withdrawalAmount = document.getElementById('withdrawalAmount');
+        const networkFee = document.getElementById('networkFee');
+        const receiveAmount = document.getElementById('receiveAmount');
+        
+        function updateAmounts() {
+            const amount = parseFloat(amountInput.value) || 0;
+            const fee = amount * 0.07;
+            const receive = amount - fee;
+            
+            withdrawalAmount.textContent = `${amount.toFixed(8)} ${currencySelect.value}`;
+            networkFee.textContent = `${fee.toFixed(8)} ${currencySelect.value}`;
+            receiveAmount.textContent = `${Math.max(0, receive).toFixed(8)} ${currencySelect.value}`;
+        }
+        
+        amountInput.addEventListener('input', updateAmounts);
+        
+        maxAmountBtn.addEventListener('click', function() {
+            const max = parseFloat(availableBalance.textContent);
+            if (max > 0) {
+                // Set to 93% of available balance to account for the 7% fee
+                amountInput.value = (max * 0.93).toFixed(8);
+                updateAmounts();
+            }
+        });
+        
+        // Form validation
+        const withdrawForm = document.getElementById('withdrawForm');
+        
+        withdrawForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const amount = parseFloat(amountInput.value);
+            const max = parseFloat(availableBalance.textContent);
+            const withdrawalPin = document.getElementById('withdrawal_pin').value;
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            if (amount > max) {
+                alert('Insufficient balance. Please enter a smaller amount.');
+                return;
+            }
+            
+            if (amount < 10) {
+                alert('Minimum withdrawal amount is 10 ' + currencySelect.value);
+                return;
+            }
+            
+            if (!/^\d{6}$/.test(withdrawalPin)) {
+                alert('Please enter a valid 6-digit withdrawal PIN.');
+                return;
+            }
+            
+            // Submit the form
+            this.submit();
+        });
+    });
+</script>
+{% endblock %}
