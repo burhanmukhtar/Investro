@@ -1,5 +1,5 @@
 # app/models/user.py
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import random
 import string
@@ -72,7 +72,7 @@ class User(db.Model, UserMixin):
     
     def generate_otp(self):
         self.otp = ''.join(random.choices(string.digits, k=6))
-        self.otp_expiry = datetime.utcnow() + datetime.timedelta(minutes=10)
+        self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
         return self.otp
     
     def verify_otp(self, otp):

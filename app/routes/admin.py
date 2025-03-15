@@ -108,178 +108,7 @@ def toggle_admin(user_id):
     
     # Only super admin can toggle admin status
     if not current_user.id == 1:  # Assuming user ID 1 is super admin
-        return jsonify({'success': False, 'message': 'Invalid action.'})
-
-@admin.route('/announcements')
-@login_required
-@admin_required
-def announcements():
-    page = request.args.get('page', 1, type=int)
-    
-    # Get announcements
-    announcements = Announcement.query.order_by(Announcement.created_at.desc()).paginate(page=page, per_page=20)
-    
-    return render_template('admin/announcements.html', 
-                          title='Announcements Management',
-                          announcements=announcements)
-
-@admin.route('/create-announcement', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def create_announcement():
-    if request.method == 'POST':
-        title = request.form.get('title')
-        content = request.form.get('content')
-        priority = request.form.get('priority', 0)
-        start_date = request.form.get('start_date')
-        end_date = request.form.get('end_date', '')
-        
-        # Validate input
-        if not title or not content:
-            flash('Title and content are required.', 'danger')
-            return redirect(url_for('admin.create_announcement'))
-        
-        try:
-            priority = int(priority)
-            start_date = datetime.strptime(start_date, '%Y-%m-%d')
-            end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
-        except ValueError:
-            flash('Invalid input. Please check your values.', 'danger')
-            return redirect(url_for('admin.create_announcement'))
-        
-        # Create new announcement
-        announcement = Announcement(
-            title=title,
-            content=content,
-            priority=priority,
-            start_date=start_date,
-            end_date=end_date,
-            created_by=current_user.id
-        )
-        
-        db.session.add(announcement)
-        db.session.commit()
-        
-        flash('Announcement created successfully!', 'success')
-        return redirect(url_for('admin.announcements'))
-    
-    return render_template('admin/create_announcement.html', title='Create Announcement')
-
-@admin.route('/update-announcement/<int:announcement_id>', methods=['POST'])
-@login_required
-@admin_required
-def update_announcement(announcement_id):
-    announcement = Announcement.query.get_or_404(announcement_id)
-    action = request.form.get('action')
-    
-    if action == 'toggle_active':
-        announcement.is_active = not announcement.is_active
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': f"Announcement {'activated' if announcement.is_active else 'deactivated'}.",
-            'is_active': announcement.is_active
-        })
-    
-    elif action == 'delete':
-        db.session.delete(announcement)
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': 'Announcement deleted.'
-        })
-    
-    return jsonify({'success': False, 'message': 'Invalid action.'})
-
-@admin.route('/reports')
-@login_required
-@admin_required
-def reports():
-    report_type = request.args.get('type', 'users')
-    period = request.args.get('period', 'week')
-    
-    # Generate report data based on type and period
-    data = {}
-    
-    if report_type == 'users':
-        if period == 'week':
-            # Get user registrations for the last 7 days
-            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7, 0, -1)]
-            data['values'] = []
-            
-            for date in data['labels']:
-                start_date = datetime.strptime(date, '%Y-%m-%d')
-                end_date = start_date + timedelta(days=1)
-                count = User.query.filter(User.created_at >= start_date, User.created_at < end_date).count()
-                data['values'].append(count)
-        
-        elif period == 'month':
-            # Get user registrations for the last 30 days
-            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, 0, -1)]
-            data['values'] = []
-            
-            for date in data['labels']:
-                start_date = datetime.strptime(date, '%Y-%m-%d')
-                end_date = start_date + timedelta(days=1)
-                count = User.query.filter(User.created_at >= start_date, User.created_at < end_date).count()
-                data['values'].append(count)
-    
-    elif report_type == 'transactions':
-        if period == 'week':
-            # Get transactions for the last 7 days
-            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7, 0, -1)]
-            data['deposits'] = []
-            data['withdrawals'] = []
-            
-            for date in data['labels']:
-                start_date = datetime.strptime(date, '%Y-%m-%d')
-                end_date = start_date + timedelta(days=1)
-                
-                deposits = Transaction.query.filter(
-                    Transaction.transaction_type == 'deposit',
-                    Transaction.created_at >= start_date,
-                    Transaction.created_at < end_date
-                ).count()
-                
-                withdrawals = Transaction.query.filter(
-                    Transaction.transaction_type == 'withdrawal',
-                    Transaction.created_at >= start_date,
-                    Transaction.created_at < end_date
-                ).count()
-                
-                data['deposits'].append(deposits)
-                data['withdrawals'].append(withdrawals)
-        
-        elif period == 'month':
-            # Get transactions for the last 30 days
-            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, 0, -1)]
-            data['deposits'] = []
-            data['withdrawals'] = []
-            
-            for date in data['labels']:
-                start_date = datetime.strptime(date, '%Y-%m-%d')
-                end_date = start_date + timedelta(days=1)
-                
-                deposits = Transaction.query.filter(
-                    Transaction.transaction_type == 'deposit',
-                    Transaction.created_at >= start_date,
-                    Transaction.created_at < end_date
-                ).count()
-                
-                withdrawals = Transaction.query.filter(
-                    Transaction.transaction_type == 'withdrawal',
-                    Transaction.created_at >= start_date,
-                    Transaction.created_at < end_date
-                ).count()
-                
-                data['deposits'].append(deposits)
-                data['withdrawals'].append(withdrawals)
-    
-    return render_template('admin/reports.html', 
-                          title='Reports',
-                          report_type=report_type,
-                          period=period,
-                          data=data)': 'Only super admin can perform this action.'})
+        return jsonify({'success': False, 'message': 'Only super admin can perform this action.'})
     
     user.is_admin = not user.is_admin
     db.session.commit()
@@ -564,4 +393,175 @@ def update_signal(signal_id):
             'profit_percentage': signal.profit_percentage
         })
     
-    return jsonify({'success': False, 'message
+    return jsonify({'success': False, 'message': 'Invalid action.'})
+
+@admin.route('/announcements')
+@login_required
+@admin_required
+def announcements():
+    page = request.args.get('page', 1, type=int)
+    
+    # Get announcements
+    announcements = Announcement.query.order_by(Announcement.created_at.desc()).paginate(page=page, per_page=20)
+    
+    return render_template('admin/announcements.html', 
+                          title='Announcements Management',
+                          announcements=announcements)
+
+@admin.route('/create-announcement', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def create_announcement():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        priority = request.form.get('priority', 0)
+        start_date = request.form.get('start_date')
+        end_date = request.form.get('end_date', '')
+        
+        # Validate input
+        if not title or not content:
+            flash('Title and content are required.', 'danger')
+            return redirect(url_for('admin.create_announcement'))
+        
+        try:
+            priority = int(priority)
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+        except ValueError:
+            flash('Invalid input. Please check your values.', 'danger')
+            return redirect(url_for('admin.create_announcement'))
+        
+        # Create new announcement
+        announcement = Announcement(
+            title=title,
+            content=content,
+            priority=priority,
+            start_date=start_date,
+            end_date=end_date,
+            created_by=current_user.id
+        )
+        
+        db.session.add(announcement)
+        db.session.commit()
+        
+        flash('Announcement created successfully!', 'success')
+        return redirect(url_for('admin.announcements'))
+    
+    return render_template('admin/create_announcement.html', title='Create Announcement')
+
+@admin.route('/update-announcement/<int:announcement_id>', methods=['POST'])
+@login_required
+@admin_required
+def update_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    action = request.form.get('action')
+    
+    if action == 'toggle_active':
+        announcement.is_active = not announcement.is_active
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f"Announcement {'activated' if announcement.is_active else 'deactivated'}.",
+            'is_active': announcement.is_active
+        })
+    
+    elif action == 'delete':
+        db.session.delete(announcement)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Announcement deleted.'
+        })
+    
+    return jsonify({'success': False, 'message': 'Invalid action.'})
+
+@admin.route('/reports')
+@login_required
+@admin_required
+def reports():
+    report_type = request.args.get('type', 'users')
+    period = request.args.get('period', 'week')
+    
+    # Generate report data based on type and period
+    data = {}
+    
+    if report_type == 'users':
+        if period == 'week':
+            # Get user registrations for the last 7 days
+            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7, 0, -1)]
+            data['values'] = []
+            
+            for date in data['labels']:
+                start_date = datetime.strptime(date, '%Y-%m-%d')
+                end_date = start_date + timedelta(days=1)
+                count = User.query.filter(User.created_at >= start_date, User.created_at < end_date).count()
+                data['values'].append(count)
+        
+        elif period == 'month':
+            # Get user registrations for the last 30 days
+            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, 0, -1)]
+            data['values'] = []
+            
+            for date in data['labels']:
+                start_date = datetime.strptime(date, '%Y-%m-%d')
+                end_date = start_date + timedelta(days=1)
+                count = User.query.filter(User.created_at >= start_date, User.created_at < end_date).count()
+                data['values'].append(count)
+    
+    elif report_type == 'transactions':
+        if period == 'week':
+            # Get transactions for the last 7 days
+            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7, 0, -1)]
+            data['deposits'] = []
+            data['withdrawals'] = []
+            
+            for date in data['labels']:
+                start_date = datetime.strptime(date, '%Y-%m-%d')
+                end_date = start_date + timedelta(days=1)
+                
+                deposits = Transaction.query.filter(
+                    Transaction.transaction_type == 'deposit',
+                    Transaction.created_at >= start_date,
+                    Transaction.created_at < end_date
+                ).count()
+                
+                withdrawals = Transaction.query.filter(
+                    Transaction.transaction_type == 'withdrawal',
+                    Transaction.created_at >= start_date,
+                    Transaction.created_at < end_date
+                ).count()
+                
+                data['deposits'].append(deposits)
+                data['withdrawals'].append(withdrawals)
+        
+        elif period == 'month':
+            # Get transactions for the last 30 days
+            data['labels'] = [(datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, 0, -1)]
+            data['deposits'] = []
+            data['withdrawals'] = []
+            
+            for date in data['labels']:
+                start_date = datetime.strptime(date, '%Y-%m-%d')
+                end_date = start_date + timedelta(days=1)
+                
+                deposits = Transaction.query.filter(
+                    Transaction.transaction_type == 'deposit',
+                    Transaction.created_at >= start_date,
+                    Transaction.created_at < end_date
+                ).count()
+                
+                withdrawals = Transaction.query.filter(
+                    Transaction.transaction_type == 'withdrawal',
+                    Transaction.created_at >= start_date,
+                    Transaction.created_at < end_date
+                ).count()
+                
+                data['deposits'].append(deposits)
+                data['withdrawals'].append(withdrawals)
+    
+    return render_template('admin/reports.html', 
+                          title='Reports',
+                          report_type=report_type,
+                          period=period,
+                          data=data)

@@ -146,9 +146,9 @@ def convert():
     # Get available currencies
     currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP']  # TODO: Get from DB or API
     
-    # Default currencies
-    from_currency = request.args.get('from', 'USDT')
-    to_currency = request.args.get('to', 'BTC')
+    # Default currencies - Fix: change 'from' to 'from_curr'
+    from_currency = request.args.get('from_curr', 'USDT')
+    to_currency = request.args.get('to_curr', 'BTC')
     
     # Get user's wallet balances
     wallets = Wallet.query.filter_by(user_id=current_user.id).all()
@@ -162,19 +162,22 @@ def convert():
         # Validate input
         if not from_currency or not to_currency or not amount:
             flash('All fields are required.', 'danger')
-            return redirect(url_for('wallet.convert', from=from_currency, to=to_currency))
+            # Fix: change 'from' to 'from_curr'
+            return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         try:
             amount = float(amount)
         except ValueError:
             flash('Invalid amount.', 'danger')
-            return redirect(url_for('wallet.convert', from=from_currency, to=to_currency))
+            # Fix: change 'from' to 'from_curr'
+            return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # Check if user has enough balance
         from_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=from_currency).first()
         if not from_wallet or from_wallet.spot_balance < amount:
             flash('Insufficient balance.', 'danger')
-            return redirect(url_for('wallet.convert', from=from_currency, to=to_currency))
+            # Fix: change 'from' to 'from_curr'
+            return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # TODO: Get conversion rate from API
         # For now, use dummy rates
@@ -206,7 +209,8 @@ def convert():
             rate = rates[rate_key]
         else:
             flash('Conversion rate not available for the selected pair.', 'danger')
-            return redirect(url_for('wallet.convert', from=from_currency, to=to_currency))
+            # Fix: change 'from' to 'from_curr'
+            return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # Calculate converted amount
         converted_amount = amount * rate
@@ -239,7 +243,8 @@ def convert():
         db.session.commit()
         
         flash(f'Successfully converted {amount} {from_currency} to {converted_amount:.8f} {to_currency}!', 'success')
-        return redirect(url_for('wallet.convert', from=from_currency, to=to_currency))
+        # Fix: change 'from' to 'from_curr'
+        return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
     
     # Get recent conversions
     recent_conversions = Transaction.query.filter_by(

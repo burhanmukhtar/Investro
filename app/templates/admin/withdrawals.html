@@ -154,6 +154,7 @@
             <form id="processForm">
                 <input type="hidden" id="withdrawalId" name="withdrawal_id">
                 <input type="hidden" id="action" name="action">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div id="txidField" class="mb-4 hidden">
                     <label for="blockchainTxid" class="block text-sm font-medium text-gray-700 mb-1">

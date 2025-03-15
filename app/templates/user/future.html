@@ -103,6 +103,7 @@
             
             <form id="followSignalForm">
                 <input type="hidden" id="signalId" name="signal_id">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="mb-4">
                     <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">

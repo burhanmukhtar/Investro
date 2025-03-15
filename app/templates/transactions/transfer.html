@@ -12,6 +12,7 @@
         </div>
         
         <form id="transferForm" action="{{ url_for('wallet.transfer') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="p-4">
                 <!-- Currency Selector -->
                 <div class="mb-4">

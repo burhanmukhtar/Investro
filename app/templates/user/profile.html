@@ -58,6 +58,7 @@
         <!-- Account Tab Content -->
         <div id="accountContent" class="p-4">
             <form id="accountForm" action="{{ url_for('user.update_profile') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-4">
                     <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
                         Username

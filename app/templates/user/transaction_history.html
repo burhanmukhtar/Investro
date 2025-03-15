@@ -315,5 +315,267 @@
             }
         });
         
-        exportButton.addEventListener('click');
-    )
+        if (exportButton) {
+            exportButton.addEventListener('click', function() {
+                // Export functionality can be implemented here
+                alert('Export feature will be implemented soon.');
+            });
+        }
+        
+        // Function to load transactions
+        function loadTransactions() {
+            // Show loading state
+            transactionsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-spinner fa-spin text-4xl mb-3"></i>
+                        <p>Loading transactions...</p>
+                    </td>
+                </tr>
+            `;
+            
+            // Get filter values
+            const type = document.getElementById('type').value;
+            const status = document.getElementById('status').value;
+            const currency = document.getElementById('currency').value;
+            const dateRange = document.getElementById('dateRange').value;
+            
+            // In a real app, this would be an API call
+            // For demonstration, we'll use mock data
+            setTimeout(() => {
+                const mockData = getMockTransactions(type, status, currency, dateRange);
+                transactions = mockData.transactions;
+                totalPages = mockData.totalPages;
+                
+                // Update pagination
+                currentPageSpan.textContent = currentPage;
+                totalPagesSpan.textContent = totalPages;
+                
+                // Enable/disable pagination buttons
+                prevPageBtn.disabled = currentPage <= 1;
+                prevPageBtn.className = `relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    prevPageBtn.disabled ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'
+                }`;
+                
+                nextPageBtn.disabled = currentPage >= totalPages;
+                nextPageBtn.className = `relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    nextPageBtn.disabled ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50'
+                }`;
+                
+                // Render transactions
+                renderTransactions(transactions);
+            }, 500);
+        }
+        
+        function renderTransactions(transactions) {
+            if (transactions.length === 0) {
+                transactionsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            <p>No transactions found.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            transactions.forEach(tx => {
+                const statusClass = tx.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                   tx.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                   'bg-red-100 text-red-800';
+                
+                html += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${formatDate(tx.created_at)}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${capitalizeFirstLetter(tx.transaction_type)}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${tx.amount} ${tx.currency}</div>
+                            ${tx.fee ? `<div class="text-xs text-gray-500">Fee: ${tx.fee} ${tx.currency}</div>` : ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                                ${capitalizeFirstLetter(tx.status)}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="view-transaction-btn text-primary-600 hover:text-primary-900" data-transaction='${JSON.stringify(tx)}'>
+                                View
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            transactionsTableBody.innerHTML = html;
+            
+            // Add event listeners to view buttons
+            const viewButtons = document.querySelectorAll('.view-transaction-btn');
+            viewButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const transaction = JSON.parse(this.dataset.transaction);
+                    showTransactionDetails(transaction);
+                });
+            });
+        }
+        
+        function showTransactionDetails(transaction) {
+            // Update modal content
+            txId.textContent = transaction.transaction_id;
+            txDate.textContent = formatDate(transaction.created_at);
+            txType.textContent = capitalizeFirstLetter(transaction.transaction_type);
+            txAmount.textContent = `${transaction.amount} ${transaction.currency}`;
+            txStatus.textContent = capitalizeFirstLetter(transaction.status);
+            
+            // From wallet
+            if (transaction.from_wallet) {
+                txFromContainer.classList.remove('hidden');
+                txFrom.textContent = capitalizeFirstLetter(transaction.from_wallet);
+            } else {
+                txFromContainer.classList.add('hidden');
+            }
+            
+            // To wallet
+            if (transaction.to_wallet) {
+                txToContainer.classList.remove('hidden');
+                txTo.textContent = capitalizeFirstLetter(transaction.to_wallet);
+            } else {
+                txToContainer.classList.add('hidden');
+            }
+            
+            // Fee
+            if (transaction.fee) {
+                txFeeContainer.classList.remove('hidden');
+                txFee.textContent = `${transaction.fee} ${transaction.currency}`;
+            } else {
+                txFeeContainer.classList.add('hidden');
+            }
+            
+            // Blockchain TxID
+            if (transaction.blockchain_txid) {
+                txBlockchainContainer.classList.remove('hidden');
+                txBlockchainId.textContent = transaction.blockchain_txid;
+            } else {
+                txBlockchainContainer.classList.add('hidden');
+            }
+            
+            // Notes
+            if (transaction.notes) {
+                txNotesContainer.classList.remove('hidden');
+                txNotes.textContent = transaction.notes;
+            } else {
+                txNotesContainer.classList.add('hidden');
+            }
+            
+            // Show modal
+            transactionDetailsModal.classList.remove('scale-0');
+        }
+        
+        // Helper functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // Mock data generator (for demonstration)
+        function getMockTransactions(type, status, currency, dateRange) {
+            const transactions = [];
+            const now = new Date();
+            
+            // Generate random transactions
+            for (let i = 0; i < 10; i++) {
+                const txTypes = ['deposit', 'withdrawal', 'transfer', 'convert', 'pay'];
+                const statuses = ['completed', 'pending', 'failed'];
+                const currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP'];
+                
+                const txType = type === 'all' ? txTypes[Math.floor(Math.random() * txTypes.length)] : type;
+                const txStatus = status === 'all' ? statuses[Math.floor(Math.random() * statuses.length)] : status;
+                const txCurrency = currency === 'all' ? currencies[Math.floor(Math.random() * currencies.length)] : currency;
+                
+                // Random amount based on currency
+                let amount;
+                if (txCurrency === 'BTC') {
+                    amount = (Math.random() * 0.1).toFixed(8);
+                } else if (txCurrency === 'ETH') {
+                    amount = (Math.random() * 2).toFixed(6);
+                } else if (txCurrency === 'BNB') {
+                    amount = (Math.random() * 5).toFixed(4);
+                } else if (txCurrency === 'XRP') {
+                    amount = (Math.random() * 100).toFixed(2);
+                } else {
+                    amount = (Math.random() * 1000).toFixed(2);
+                }
+                
+                // Random date based on date range
+                let date;
+                if (dateRange === 'today') {
+                    date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(Math.random() * 24), Math.floor(Math.random() * 60));
+                } else if (dateRange === 'week') {
+                    date = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+                } else if (dateRange === 'month') {
+                    date = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+                } else if (dateRange === 'quarter') {
+                    date = new Date(now.getTime() - Math.random() * 90 * 24 * 60 * 60 * 1000);
+                } else if (dateRange === 'year') {
+                    date = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
+                } else {
+                    date = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
+                }
+                
+                // Create transaction object
+                const transaction = {
+                    transaction_id: `TX${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+                    transaction_type: txType,
+                    status: txStatus,
+                    currency: txCurrency,
+                    amount: parseFloat(amount),
+                    created_at: date.toISOString(),
+                    updated_at: date.toISOString()
+                };
+                
+                // Add transaction-specific fields
+                if (txType === 'deposit' || txType === 'withdrawal') {
+                    transaction.fee = (parseFloat(amount) * 0.01).toFixed(txCurrency === 'BTC' ? 8 : txCurrency === 'ETH' ? 6 : 2);
+                    transaction.from_wallet = txType === 'deposit' ? 'external' : 'spot';
+                    transaction.to_wallet = txType === 'deposit' ? 'spot' : 'external';
+                    transaction.blockchain_txid = '0x' + Math.random().toString(36).substring(2, 34);
+                } else if (txType === 'transfer') {
+                    transaction.from_wallet = Math.random() > 0.5 ? 'spot' : 'funding';
+                    transaction.to_wallet = transaction.from_wallet === 'spot' ? 'funding' : 'spot';
+                } else if (txType === 'convert') {
+                    transaction.from_wallet = 'spot';
+                    transaction.to_wallet = 'spot';
+                    transaction.notes = `Converted ${amount} ${txCurrency} to ${(parseFloat(amount) * (txCurrency === 'BTC' ? 20000 : 1000)).toFixed(2)} USDT`;
+                } else if (txType === 'pay') {
+                    transaction.from_wallet = 'spot';
+                    transaction.to_wallet = 'external';
+                    transaction.notes = `Payment to USER${Math.floor(Math.random() * 1000)}`;
+                }
+                
+                // Add transaction if it matches all filters
+                if (
+                    (type === 'all' || txType === type) &&
+                    (status === 'all' || txStatus === status) &&
+                    (currency === 'all' || txCurrency === currency)
+                ) {
+                    transactions.push(transaction);
+                }
+            }
+            
+            return {
+                transactions: transactions,
+                totalPages: 3 // Mock total pages
+            };
+        }
+    });
+</script>
+{% endblock %}

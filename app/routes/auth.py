@@ -16,7 +16,7 @@ def login():
     if request.method == 'POST':
         data = request.form
         
-        # Determine if email or username was provided
+        # Get email/username and password
         login_identifier = data.get('login_identifier')
         password = data.get('password')
         
@@ -27,15 +27,12 @@ def login():
             user = User.query.filter_by(username=login_identifier).first()
         
         if user and user.check_password(password):
-            # Generate OTP for 2FA
+            # Generate OTP for verification
             otp = user.generate_otp()
             db.session.commit()
             
-            # Send OTP via email or SMS
-            if '@' in login_identifier:
-                send_otp_email(user.email, otp)
-            else:
-                send_otp_sms(user.phone, otp)
+            # Send OTP via email
+            send_otp_email(user.email, otp)
             
             # Store user ID in session for OTP verification
             session['user_id_for_otp'] = user.id
@@ -111,7 +108,7 @@ def signup():
         
         # Send OTP via email and SMS
         send_otp_email(email, otp)
-        send_otp_sms(phone, otp)
+        
         
         # Store user ID in session for OTP verification
         session['user_id_for_otp'] = user.id
@@ -176,11 +173,10 @@ def resend_otp():
     otp = user.generate_otp()
     db.session.commit()
     
-    # Send OTP via email and SMS
+    # Send OTP via email only
     send_otp_email(user.email, otp)
-    send_otp_sms(user.phone, otp)
     
-    return jsonify({'success': True, 'message': 'OTP has been resent.'})
+    return jsonify({'success': True, 'message': 'OTP has been resent to your email.'})
 
 @auth.route('/logout')
 @login_required

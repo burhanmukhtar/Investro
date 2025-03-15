@@ -12,6 +12,7 @@
         </div>
         
         <form id="withdrawForm" action="{{ url_for('wallet.withdraw') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="p-4 border-b bg-gray-50">
                 <div class="grid grid-cols-2 gap-4">
                     <!-- Coin Selector -->

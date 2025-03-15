@@ -1,0 +1,489 @@
+<!-- app/templates/admin/user_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}User Details | Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">User Details</h1>
+        <a href="{{ url_for('admin.users') }}" class="text-primary-600 hover:text-primary-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Users
+        </a>
+    </div>
+    
+    <!-- User Profile -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 border-b flex items-center">
+            <div class="flex-shrink-0 mr-4">
+                <div class="h-20 w-20 bg-gray-200 rounded-full overflow-hidden">
+                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + user.profile_image) }}" alt="{{ user.username }}" class="h-20 w-20 object-cover">
+                </div>
+            </div>
+            <div>
+                <div class="text-xl font-semibold flex items-center">
+                    {{ user.username }}
+                    {% if user.is_verified %}
+                    <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                    {% endif %}
+                    {% if user.is_admin %}
+                    <span class="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Admin</span>
+                    {% endif %}
+                </div>
+                <div class="text-gray-500">{{ user.email }}</div>
+                <div class="text-gray-500">{{ user.phone }}</div>
+                <div class="text-sm text-gray-400">{{ user.unique_id }}</div>
+            </div>
+        </div>
+        
+        <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Account Status</h3>
+                <div class="font-medium">
+                    {% if user.is_verified %}
+                    <span class="text-green-600">Verified</span>
+                    {% elif user.verification_status == 'pending' %}
+                    <span class="text-yellow-600">Pending Verification</span>
+                    {% elif user.verification_status == 'rejected' %}
+                    <span class="text-red-600">Verification Rejected</span>
+                    {% else %}
+                    <span class="text-gray-600">Unverified</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Referral Code</h3>
+                <div class="font-medium">{{ user.referral_code }}</div>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Joined</h3>
+                <div class="font-medium">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            
+            {% if user.referred_by %}
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Referred By</h3>
+                <div class="font-medium">{{ user.referred_by }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="flex border-b">
+            <button id="walletsTab" class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+                Wallets
+            </button>
+            <button id="transactionsTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Transactions
+            </button>
+            <button id="verificationTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
+                Verification
+            </button>
+        </div>
+        
+        <!-- Wallets Tab Content -->
+        <div id="walletsContent" class="p-4">
+            {% if wallets %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Currency
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Spot Balance
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Funding Balance
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for wallet in wallets %}
+                        <tr>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                                {{ wallet.currency }}
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-right">
+                                {{ wallet.spot_balance }}
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-right">
+                                {{ wallet.funding_balance }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <p>No wallets found for this user.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Transactions Tab Content -->
+        <div id="transactionsContent" class="p-4 hidden">
+            {% if transactions %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for tx in transactions %}
+                        <tr>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium">{{ tx.transaction_type|capitalize }}</div>
+                                <div class="text-xs text-gray-500">{{ tx.transaction_id }}</div>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium">{{ tx.amount }} {{ tx.currency }}</div>
+                                {% if tx.fee > 0 %}
+                                <div class="text-xs text-gray-500">Fee: {{ tx.fee }} {{ tx.currency }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if tx.status == 'completed' %}
+                                        bg-green-100 text-green-800
+                                    {% elif tx.status == 'pending' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-red-100 text-red-800
+                                    {% endif %}">
+                                    {{ tx.status|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <p>No transactions found for this user.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Verification Tab Content -->
+        <div id="verificationContent" class="p-4 hidden">
+            {% if verification_documents %}
+            <div class="space-y-4">
+                {% for doc in verification_documents %}
+                <div class="border rounded-lg overflow-hidden">
+                    <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                        <div>
+                            <div class="font-medium">{{ doc.document_type|capitalize }}</div>
+                            <div class="text-xs text-gray-500">Submitted: {{ doc.submitted_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                            {% if doc.status == 'approved' %}
+                                bg-green-100 text-green-800
+                            {% elif doc.status == 'pending' %}
+                                bg-yellow-100 text-yellow-800
+                            {% else %}
+                                bg-red-100 text-red-800
+                            {% endif %}">
+                            {{ doc.status|capitalize }}
+                        </span>
+                    </div>
+                    
+                    <div class="p-4">
+                        <div class="mb-4">
+                            <img src="{{ url_for('static', filename='uploads/verification_documents/' + doc.document_path) }}" 
+                                 alt="Verification Document" class="max-w-full h-auto max-h-64 mx-auto">
+                        </div>
+                        
+                        {% if doc.status == 'pending' %}
+                        <div class="flex justify-end space-x-3">
+                            <button class="verify-doc-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700" 
+                                    data-document-id="{{ doc.id }}" data-action="approve">
+                                Approve
+                            </button>
+                            <button class="verify-doc-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700" 
+                                    data-document-id="{{ doc.id }}" data-action="reject">
+                                Reject
+                            </button>
+                        </div>
+                        {% elif doc.admin_notes %}
+                        <div class="mt-2">
+                            <h4 class="text-sm font-medium">Admin Notes:</h4>
+                            <p class="text-sm text-gray-700 mt-1">{{ doc.admin_notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <p>No verification documents found for this user.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Admin Actions -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Admin Actions</h2>
+        </div>
+        
+        <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if current_user.id == 1 %}
+            <!-- Toggle Admin Status (Super admin only) -->
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium mb-2">Admin Status</h3>
+                <p class="text-sm text-gray-500 mb-3">
+                    {% if user.is_admin %}
+                    This user currently has admin privileges.
+                    {% else %}
+                    This user does not have admin privileges.
+                    {% endif %}
+                </p>
+                
+                <button id="toggleAdminBtn" class="px-4 py-2 rounded-lg text-sm font-medium text-white {{ 'bg-red-600 hover:bg-red-700' if user.is_admin else 'bg-green-600 hover:bg-green-700' }}">
+                    {{ 'Remove Admin Status' if user.is_admin else 'Grant Admin Status' }}
+                </button>
+            </div>
+            {% endif %}
+            
+            <!-- Account Status -->
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium mb-2">Account Status</h3>
+                <p class="text-sm text-gray-500 mb-3">
+                    User's verification status: <strong>{{ user.verification_status|capitalize }}</strong>
+                </p>
+                
+                <div class="flex space-x-3">
+                    <button id="verifyUserBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700" {{ 'disabled' if user.is_verified }}>
+                        Verify User
+                    </button>
+                    <button id="blockUserBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
+                        Block User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Verification Modal -->
+<div id="verificationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 id="modalTitle" class="text-lg font-semibold">Process Verification</h3>
+        </div>
+        
+        <div class="p-4">
+            <form id="verificationForm">
+                <input type="hidden" id="documentId" name="document_id">
+                <input type="hidden" id="action" name="action">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-4">
+                    <label for="adminNotes" class="block text-sm font-medium text-gray-700 mb-1">
+                        Admin Notes (optional)
+                    </label>
+                    <textarea id="adminNotes" name="admin_notes" rows="3" class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"></textarea>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button type="button" id="modalCancel" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modalConfirm" class="flex-1 py-2 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2">
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab switching
+        const walletsTab = document.getElementById('walletsTab');
+        const transactionsTab = document.getElementById('transactionsTab');
+        const verificationTab = document.getElementById('verificationTab');
+        
+        const walletsContent = document.getElementById('walletsContent');
+        const transactionsContent = document.getElementById('transactionsContent');
+        const verificationContent = document.getElementById('verificationContent');
+        
+        walletsTab.addEventListener('click', function() {
+            walletsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            walletsTab.classList.remove('text-gray-500');
+            transactionsTab.classList.add('text-gray-500');
+            transactionsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            verificationTab.classList.add('text-gray-500');
+            verificationTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            
+            walletsContent.classList.remove('hidden');
+            transactionsContent.classList.add('hidden');
+            verificationContent.classList.add('hidden');
+        });
+        
+        transactionsTab.addEventListener('click', function() {
+            transactionsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            transactionsTab.classList.remove('text-gray-500');
+            walletsTab.classList.add('text-gray-500');
+            walletsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            verificationTab.classList.add('text-gray-500');
+            verificationTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            
+            transactionsContent.classList.remove('hidden');
+            walletsContent.classList.add('hidden');
+            verificationContent.classList.add('hidden');
+        });
+        
+        verificationTab.addEventListener('click', function() {
+            verificationTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            verificationTab.classList.remove('text-gray-500');
+            walletsTab.classList.add('text-gray-500');
+            walletsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            transactionsTab.classList.add('text-gray-500');
+            transactionsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            
+            verificationContent.classList.remove('hidden');
+            walletsContent.classList.add('hidden');
+            transactionsContent.classList.add('hidden');
+        });
+        
+        // Verification document buttons
+        const verifyDocButtons = document.querySelectorAll('.verify-doc-btn');
+        const verificationModal = document.getElementById('verificationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalConfirm = document.getElementById('modalConfirm');
+        const modalCancel = document.getElementById('modalCancel');
+        const documentId = document.getElementById('documentId');
+        const action = document.getElementById('action');
+        const verificationForm = document.getElementById('verificationForm');
+        
+        verifyDocButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const docId = this.dataset.documentId;
+                const actionType = this.dataset.action;
+                
+                // Set modal properties based on action
+                if (actionType === 'approve') {
+                    modalTitle.textContent = 'Approve Verification';
+                    modalConfirm.className = 'flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500';
+                    modalConfirm.textContent = 'Approve';
+                } else {
+                    modalTitle.textContent = 'Reject Verification';
+                    modalConfirm.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500';
+                    modalConfirm.textContent = 'Reject';
+                }
+                
+                // Set form values
+                documentId.value = docId;
+                action.value = actionType;
+                
+                // Show modal
+                verificationModal.classList.remove('scale-0');
+            });
+        });
+        
+        // Modal cancel button
+        modalCancel.addEventListener('click', function() {
+            verificationModal.classList.add('scale-0');
+        });
+        
+        // Verification form submission
+        verificationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Send request to verify document
+            fetch(`/admin/verify-document/${documentId.value}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    verificationModal.classList.add('scale-0');
+                    
+                    // Show success message
+                    alert(data.message);
+                    
+                    // Reload page
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'An error occurred.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+        
+        // Toggle admin status button
+        const toggleAdminBtn = document.getElementById('toggleAdminBtn');
+        if (toggleAdminBtn) {
+            toggleAdminBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to change this user\'s admin status?')) {
+                    fetch(`/admin/toggle-admin/{{ user.id }}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            window.location.reload();
+                        } else {
+                            alert(data.message || 'An error occurred.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                }
+            });
+        }
+        
+        // Close modal when clicking outside
+        verificationModal.addEventListener('click', function(e) {
+            if (e.target === verificationModal) {
+                verificationModal.classList.add('scale-0');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -86,6 +86,7 @@
                     {% if verification.status == 'pending' %}
                     <div class="border-t pt-4">
                         <form id="verifyForm{{ verification.id }}" class="verify-form" data-document-id="{{ verification.id }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-3">
                                 <label for="admin_notes{{ verification.id }}" class="block text-sm font-medium text-gray-700 mb-1">
                                     Admin Notes (optional)
