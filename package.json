@@ -1,7 +1,7 @@
 {
-    "name": "crypto-trading-platform",
+    "name": "Investro",
     "version": "1.0.0",
-    "description": "Crypto Trading Platform with mobile-first design",
+    "description": "Trade Invest Grow",
     "scripts": {
       "build:css": "tailwindcss -i ./app/static/css/tailwind.src.css -o ./app/static/css/tailwind.css",
       "watch:css": "tailwindcss -i ./app/static/css/tailwind.src.css -o ./app/static/css/tailwind.css --watch",

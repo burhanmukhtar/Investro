@@ -102,6 +102,7 @@
             <div class="mb-6">
                 <h3 class="text-lg font-medium mb-3">Change Password</h3>
                 <form id="passwordForm" action="{{ url_for('user.change_password') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="current_password" class="block text-sm font-medium text-gray-700 mb-1">
                             Current Password
@@ -135,6 +136,7 @@
             <div class="pt-6 border-t">
                 <h3 class="text-lg font-medium mb-3">Withdrawal PIN</h3>
                 <form id="pinForm" action="{{ url_for('user.set_withdrawal_pin') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="pin" class="block text-sm font-medium text-gray-700 mb-1">
                             6-Digit PIN
@@ -194,6 +196,7 @@
                 <h4 class="font-medium mb-2">Submit Verification Documents</h4>
                 
                 <form id="verificationForm" action="{{ url_for('user.verification') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="document_type" class="block text-sm font-medium text-gray-700 mb-1">
                             Document Type
@@ -314,6 +317,7 @@
         
         <div class="p-4">
             <form id="pictureUploadForm" action="{{ url_for('user.update_profile') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-4">
                     <div id="previewContainer" class="w-32 h-32 rounded-full bg-gray-200 mx-auto overflow-hidden mb-4">
                         <img id="imagePreview" src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="Preview" class="w-full h-full object-cover">

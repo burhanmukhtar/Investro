@@ -39,6 +39,56 @@ def deposit():
                           deposit_address=deposit_address,
                           recent_deposits=recent_deposits)
 
+
+@wallet.route('/submit-deposit', methods=['POST'])
+@login_required
+def submit_deposit():
+    """Handle user deposit submission"""
+    currency = request.form.get('currency')
+    chain = request.form.get('chain')
+    amount = request.form.get('amount')
+    blockchain_txid = request.form.get('blockchain_txid')
+    
+    # Validate input
+    if not currency or not chain or not amount or not blockchain_txid:
+        flash('All fields are required.', 'danger')
+        return redirect(url_for('wallet.deposit', currency=currency, chain=chain))
+    
+    try:
+        amount = float(amount)
+        if amount < 10:
+            flash(f'Minimum deposit amount is 10 {currency}.', 'danger')
+            return redirect(url_for('wallet.deposit', currency=currency, chain=chain))
+    except ValueError:
+        flash('Invalid amount.', 'danger')
+        return redirect(url_for('wallet.deposit', currency=currency, chain=chain))
+    
+    # Check if transaction ID has already been used
+    existing_tx = Transaction.query.filter_by(blockchain_txid=blockchain_txid).first()
+    if existing_tx:
+        flash('This transaction ID has already been submitted.', 'danger')
+        return redirect(url_for('wallet.deposit', currency=currency, chain=chain))
+    
+    # Create deposit transaction
+    transaction = Transaction(
+        user_id=current_user.id,
+        transaction_type='deposit',
+        status='pending',  # Will be updated to 'completed' after admin verification
+        currency=currency,
+        amount=amount,
+        fee=0,  # No fee for deposits
+        from_wallet='external',
+        to_wallet='spot',
+        chain=chain,
+        blockchain_txid=blockchain_txid
+    )
+    
+    db.session.add(transaction)
+    db.session.commit()
+    
+    flash('Deposit submitted successfully! It will be processed after admin verification.', 'success')
+    return redirect(url_for('wallet.deposit', currency=currency, chain=chain))
+
 @wallet.route('/withdraw', methods=['GET', 'POST'])
 @login_required
 def withdraw():

@@ -165,6 +165,8 @@ def get_withdrawals_by_status(status, page=1, per_page=20):
     query = Transaction.query.filter_by(transaction_type='withdrawal', status=status)
     return query.order_by(Transaction.created_at.desc()).paginate(page=page, per_page=per_page)
 
+# Updated process_deposit function in app/services/admin_service.py
+
 def process_deposit(transaction_id, action, admin_notes=None):
     """
     Process a deposit transaction.
@@ -202,6 +204,9 @@ def process_deposit(transaction_id, action, admin_notes=None):
                 db.session.add(wallet)
             
             wallet.spot_balance += transaction.amount
+            
+            # Log the wallet update
+            logger.info(f"Updated user {transaction.user_id} wallet balance: +{transaction.amount} {transaction.currency}")
         
         db.session.commit()
         

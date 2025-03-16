@@ -192,6 +192,8 @@ def close_position():
     if not position:
         return jsonify({'success': False, 'message': 'Position not found or already closed.'})
     
+    # Rest of the function...
+    
     # Get signal
     signal = TradeSignal.query.get(position.signal_id)
     if not signal:

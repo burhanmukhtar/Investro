@@ -8,15 +8,15 @@
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <div class="p-4 border-b">
             <h2 class="text-lg font-semibold">Deposit</h2>
-            <p class="text-sm text-gray-500">Select a coin to deposit</p>
+            <p class="text-sm text-gray-500">Send funds to the address below, then submit your deposit details</p>
         </div>
         
         <div class="p-4 border-b bg-gray-50">
             <div class="grid grid-cols-2 gap-4">
                 <!-- Coin Selector -->
                 <div>
-                    <label for="coinSelector" class="block text-sm font-medium text-gray-700 mb-1">Coin</label>
-                    <select id="coinSelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <label for="currencySelector" class="block text-sm font-medium text-gray-700 mb-1">Coin</label>
+                    <select id="currencySelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         {% for currency in currencies %}
                         <option value="{{ currency }}" {% if currency == selected_currency %}selected{% endif %}>{{ currency }}</option>
                         {% endfor %}
@@ -34,6 +34,7 @@
             </div>
         </div>
         
+        <!-- Deposit Address Section -->
         <div class="p-4">
             <div class="mb-6">
                 <div class="flex justify-between items-center mb-2">
@@ -57,8 +58,48 @@
                     <li>Ensure you're sending on the {{ selected_chain }} network.</li>
                     <li>Minimum deposit amount: 10 {{ selected_currency }}</li>
                     <li>Deposits will be credited after {{ '1' if selected_chain == 'TRC20' else '12' }} network confirmations.</li>
-                    <li>Deposits may take up to {{ '15 minutes' if selected_chain == 'TRC20' else '1 hour' }} to be processed.</li>
                 </ul>
+            </div>
+        </div>
+        
+        <!-- Deposit Form Section -->
+        <div class="border-t border-gray-200">
+            <div class="p-4">
+                <h3 class="text-base font-medium mb-4">Submit Deposit Details</h3>
+                
+                <form id="depositForm" action="{{ url_for('wallet.submit_deposit') }}" method="POST">
+                    <input type="hidden" name="currency" id="currency" value="{{ selected_currency }}">
+                    <input type="hidden" name="chain" id="chain" value="{{ selected_chain }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <!-- Amount Field -->
+                    <div class="mb-4">
+                        <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                            Amount Sent
+                        </label>
+                        <input type="number" id="amount" name="amount" step="0.00000001" required min="0" 
+                            class="w-full border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <p class="mt-1 text-xs text-gray-500">
+                            Enter the exact amount you have sent
+                        </p>
+                    </div>
+                    
+                    <!-- Transaction ID Field -->
+                    <div class="mb-6">
+                        <label for="blockchain_txid" class="block text-sm font-medium text-gray-700 mb-1">
+                            Transaction ID
+                        </label>
+                        <input type="text" id="blockchain_txid" name="blockchain_txid" required
+                            class="w-full border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <p class="mt-1 text-xs text-gray-500">
+                            Enter the transaction ID from your wallet or exchange
+                        </p>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-2 px-4 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Submit Deposit
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -70,7 +111,6 @@
         </div>
         
         <div class="divide-y">
-            <!-- app/templates/transactions/deposit.html (continued) -->
             {% if recent_deposits %}
                 {% for deposit in recent_deposits %}
                 <div class="p-4">
@@ -128,15 +168,37 @@
         });
         
         // Currency and network selection
-        const coinSelector = document.getElementById('coinSelector');
+        const currencySelector = document.getElementById('currencySelector');
         const networkSelector = document.getElementById('networkSelector');
+        const hiddenCurrency = document.getElementById('currency');
+        const hiddenChain = document.getElementById('chain');
         
-        coinSelector.addEventListener('change', function() {
+        currencySelector.addEventListener('change', function() {
             window.location.href = `/wallet/deposit?currency=${this.value}&chain=${networkSelector.value}`;
         });
         
         networkSelector.addEventListener('change', function() {
-            window.location.href = `/wallet/deposit?currency=${coinSelector.value}&chain=${this.value}`;
+            window.location.href = `/wallet/deposit?currency=${currencySelector.value}&chain=${this.value}`;
+        });
+        
+        // Form validation
+        const depositForm = document.getElementById('depositForm');
+        const amountInput = document.getElementById('amount');
+        
+        depositForm.addEventListener('submit', function(e) {
+            const amount = parseFloat(amountInput.value);
+            
+            if (isNaN(amount) || amount <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            if (amount < 10) {
+                e.preventDefault();
+                alert('Minimum deposit amount is 10 ' + hiddenCurrency.value);
+                return;
+            }
         });
     });
 </script>

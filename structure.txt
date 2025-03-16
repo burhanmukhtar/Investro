@@ -20,7 +20,7 @@ crypto_trading_platform/
 │   │   ├── user.py                 # User profile routes
 │   │   ├── wallet.py               # Wallet management routes
 │   │   ├── market.py               # Market data routes
-│   │   ├── trade.py                # Trading routes
+│   │   ├── trade.py                # Trading routes                     pending
 │   │   └── admin.py                # Admin routes
 │   │
 │   ├── services/                   # Business logic
