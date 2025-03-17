@@ -190,13 +190,22 @@ def withdraw():
                           balance=balance,
                           recent_withdrawals=recent_withdrawals)
 
+# In app/routes/wallet.py, update the convert route to correctly handle wallet types:
+
 @wallet.route('/convert', methods=['GET', 'POST'])
 @login_required
 def convert():
-    # Get available currencies
-    currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP']  # TODO: Get from DB or API
+    # Get available currencies from existing wallets in the system
+    available_currencies = db.session.query(Wallet.currency).distinct().all()
+    currencies = [c[0] for c in available_currencies]
     
-    # Default currencies - Fix: change 'from' to 'from_curr'
+    # Ensure we have at least the major currencies available
+    default_currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP']
+    for currency in default_currencies:
+        if currency not in currencies:
+            currencies.append(currency)
+    
+    # Default currencies
     from_currency = request.args.get('from_curr', 'USDT')
     to_currency = request.args.get('to_curr', 'BTC')
     
@@ -212,63 +221,64 @@ def convert():
         # Validate input
         if not from_currency or not to_currency or not amount:
             flash('All fields are required.', 'danger')
-            # Fix: change 'from' to 'from_curr'
             return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         try:
             amount = float(amount)
         except ValueError:
             flash('Invalid amount.', 'danger')
-            # Fix: change 'from' to 'from_curr'
             return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # Check if user has enough balance
         from_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=from_currency).first()
         if not from_wallet or from_wallet.spot_balance < amount:
             flash('Insufficient balance.', 'danger')
-            # Fix: change 'from' to 'from_curr'
             return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
-        # TODO: Get conversion rate from API
-        # For now, use dummy rates
-        rates = {
-            'USDT_BTC': 0.000037,
-            'USDT_ETH': 0.00048,
-            'USDT_BNB': 0.0042,
-            'USDT_XRP': 2.3,
-            'BTC_USDT': 27000,
-            'BTC_ETH': 13,
-            'BTC_BNB': 113,
-            'BTC_XRP': 62000,
-            'ETH_USDT': 2080,
-            'ETH_BTC': 0.077,
-            'ETH_BNB': 8.7,
-            'ETH_XRP': 4800,
-            'BNB_USDT': 238,
-            'BNB_BTC': 0.0088,
-            'BNB_ETH': 0.115,
-            'BNB_XRP': 550,
-            'XRP_USDT': 0.435,
-            'XRP_BTC': 0.000016,
-            'XRP_ETH': 0.00021,
-            'XRP_BNB': 0.0018
-        }
+        # Get real-time conversion rate from the crypto API
+        from app.utils.crypto_api import get_exchange_rates
         
-        rate_key = f"{from_currency}_{to_currency}"
-        if rate_key in rates:
-            rate = rates[rate_key]
-        else:
-            flash('Conversion rate not available for the selected pair.', 'danger')
-            # Fix: change 'from' to 'from_curr'
+        try:
+            # For direct conversion, we need the rate from from_currency to to_currency
+            if from_currency == 'USDT':
+                # USDT to other currency
+                rates = get_exchange_rates('USDT', [to_currency])
+                rate = rates.get(to_currency, 0)
+            elif to_currency == 'USDT':
+                # Other currency to USDT
+                rates = get_exchange_rates(from_currency, ['USDT'])
+                rate = rates.get('USDT', 0)
+            else:
+                # Cross-currency conversion via USDT
+                # First get from_currency to USDT rate
+                rates_to_usdt = get_exchange_rates(from_currency, ['USDT'])
+                rate_to_usdt = rates_to_usdt.get('USDT', 0)
+                
+                # Then get USDT to to_currency rate
+                rates_from_usdt = get_exchange_rates('USDT', [to_currency])
+                rate_from_usdt = rates_from_usdt.get(to_currency, 0)
+                
+                # Calculate the cross rate
+                if rate_to_usdt > 0:
+                    rate = rate_from_usdt * rate_to_usdt
+                else:
+                    rate = 0
+            
+            if rate <= 0:
+                flash('Could not get a valid conversion rate for this pair.', 'danger')
+                return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
+                
+        except Exception as e:
+            flash(f'Error getting conversion rate: {str(e)}', 'danger')
             return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # Calculate converted amount
         converted_amount = amount * rate
         
-        # Deduct from source wallet
+        # Deduct from source wallet (always from spot balance)
         from_wallet.spot_balance -= amount
         
-        # Add to destination wallet
+        # Add to destination wallet (always to spot balance)
         to_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=to_currency).first()
         if not to_wallet:
             to_wallet = Wallet(user_id=current_user.id, currency=to_currency, spot_balance=0)
@@ -286,14 +296,13 @@ def convert():
             fee=0,
             from_wallet='spot',
             to_wallet='spot',
-            notes=f"Converted {amount} {from_currency} to {converted_amount} {to_currency} at rate {rate}"
+            notes=f"Converted {amount} {from_currency} to {converted_amount:.8f} {to_currency} at rate {rate:.8f}"
         )
         
         db.session.add(transaction)
         db.session.commit()
         
         flash(f'Successfully converted {amount} {from_currency} to {converted_amount:.8f} {to_currency}!', 'success')
-        # Fix: change 'from' to 'from_curr'
         return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
     
     # Get recent conversions

@@ -10,8 +10,11 @@ import requests
 import logging
 from datetime import datetime, timedelta
 from app.config import Config
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
+
+
 
 def get_exchange_rates(base_currency='USDT', quote_currencies=None):
     """

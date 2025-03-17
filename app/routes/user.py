@@ -9,6 +9,8 @@ from app.services.market_service import get_market_data, get_popular_coins, get_
 import os
 from werkzeug.utils import secure_filename
 from app.config import Config
+from app.utils.helpers import format_currency_amount
+import requests
 
 user = Blueprint('user', __name__)
 
@@ -78,22 +80,61 @@ def assets():
     # Get user's wallets
     spot_wallets = Wallet.query.filter_by(user_id=current_user.id).all()
     
+    # Fetch real-time conversion rates using a free API
+    # Using CoinGecko API which doesn't require API key for basic usage
+    try:
+        response = requests.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,ripple&vs_currencies=usd')
+        if response.status_code == 200:
+            api_rates = response.json()
+            rates = {
+                'BTC': api_rates['bitcoin']['usd'],
+                'ETH': api_rates['ethereum']['usd'],
+                'BNB': api_rates['binancecoin']['usd'],
+                'XRP': api_rates['ripple']['usd'],
+                'USDT': 1  # Assuming 1 USDT = 1 USD
+            }
+        else:
+            # Fallback rates if API call fails
+            rates = {
+                'BTC': 60000,
+                'ETH': 3000,
+                'BNB': 500,
+                'XRP': 0.5,
+                'USDT': 1
+            }
+    except Exception as e:
+        # Log the exception
+        print(f"Error fetching rates: {str(e)}")
+        # Fallback rates if API call fails
+        rates = {
+            'BTC': 60000,
+            'ETH': 3000,
+            'BNB': 500,
+            'XRP': 0.5,
+            'USDT': 1
+        }
+    
     # Calculate total balance in USDT
     total_spot_balance = 0
     total_funding_balance = 0
     
     for wallet in spot_wallets:
-        # TODO: Convert each currency to USDT using current rates
-        # For now, just assume 1:1 for simplicity
-        total_spot_balance += wallet.spot_balance
-        total_funding_balance += wallet.funding_balance
+        # Convert each currency to USDT using rates
+        rate = rates.get(wallet.currency, 1)
+        total_spot_balance += wallet.spot_balance * rate
+        total_funding_balance += wallet.funding_balance * rate
+    
+    # Calculate the actual total balance as the sum of both spot and funding
+    total_balance = total_spot_balance + total_funding_balance
     
     return render_template('user/assets.html', 
                           title='Assets', 
                           spot_wallets=spot_wallets,
-                          total_spot_balance=total_spot_balance,
-                          total_funding_balance=total_funding_balance)
-
+                          rates=rates,
+                          total_spot_balance=format_currency_amount(total_spot_balance, 'USDT', 2),
+                          total_funding_balance=format_currency_amount(total_funding_balance, 'USDT', 2),
+                          total_balance=format_currency_amount(total_balance, 'USDT', 2),
+                          format_currency_amount=format_currency_amount)
 @user.route('/profile')
 @login_required
 def profile():

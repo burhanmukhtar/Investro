@@ -49,12 +49,14 @@ def format_currency_amount(amount, currency=None, precision=None):
     """
     # Set precision based on currency if not explicitly specified
     if precision is None:
-        if currency in ['BTC', 'ETH']:
+        if currency in ['BTC']:
             precision = 8
+        elif currency in ['ETH', 'BNB']:
+            precision = 6
         elif currency in ['USDT', 'USDC', 'DAI']:
             precision = 2
         else:
-            precision = 6
+            precision = 4
     
     # Format the amount
     formatted = f"{float(amount):.{precision}f}"

@@ -6,7 +6,7 @@ class Config:
     # Basic config
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'a-very-hard-to-guess-string'
     DEBUG = os.environ.get('FLASK_DEBUG', False)
-    ENVIRONMENT = os.environ.get('FLASK_ENV', 'development')
+    ENVIRONMENT = os.environ.get('FLASK_ENV', 'production')
     
     # Database config
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'

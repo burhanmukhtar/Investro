@@ -9,7 +9,7 @@
     <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
         <div class="p-4 border-b">
             <h2 class="text-lg font-semibold mb-1">Total Balance</h2>
-            <div class="text-2xl font-bold">{{ total_spot_balance + total_funding_balance }} USDT</div>
+            <div class="text-2xl font-bold">{{ total_balance }} USDT</div>
         </div>
         
         <div class="grid grid-cols-2 divide-x">
@@ -105,8 +105,8 @@
                         </div>
                     </div>
                     <div class="text-right">
-                        <div class="font-medium">{{ wallet.spot_balance }}</div>
-                        <div class="text-xs text-gray-500">≈ {{ wallet.spot_balance }} USDT</div>
+                        <div class="font-medium">{{ format_currency_amount(wallet.spot_balance, wallet.currency) }}</div>
+                        <div class="text-xs text-gray-500">≈ {{ format_currency_amount(wallet.spot_balance * rates.get(wallet.currency, 1), 'USDT', 2) }} USDT</div>
                     </div>
                 </div>
                 {% endfor %}

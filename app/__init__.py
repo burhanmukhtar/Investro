@@ -41,7 +41,7 @@ def create_app(config_class='app.config.Config'):
     from app.routes.admin import admin
     from app.routes.auth import auth
     from app.routes.market import market
-    from app.routes.market import trade
+    from app.routes.trade import trade
     from app.routes.user import user
     from app.routes.wallet import wallet
 

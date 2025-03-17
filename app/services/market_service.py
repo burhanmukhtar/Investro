@@ -3,233 +3,300 @@ import requests
 import json
 import time
 import random
+import logging
 from datetime import datetime, timedelta
 from app.config import Config
 
+logger = logging.getLogger(__name__)
+
+def _get_coin_id(symbol):
+    """
+    Map cryptocurrency symbol to CoinGecko ID.
+    """
+    mappings = {
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'BNB': 'binancecoin',
+        'XRP': 'ripple',
+        'USDT': 'tether',
+        'USDC': 'usd-coin',
+        'ADA': 'cardano',
+        'DOGE': 'dogecoin',
+        'SOL': 'solana'
+    }
+    
+    return mappings.get(symbol.upper(), symbol.lower())
+
 def get_market_data(limit=100, offset=0):
     """
-    Get market data from a cryptocurrency API.
+    Get market data from CoinGecko API.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API like CoinMarketCap, CoinGecko, or Binance API.
+    Args:
+        limit: Number of coins to return
+        offset: Offset for pagination
     
-    For development, this returns mock data.
+    Returns:
+        List of cryptocurrency market data
     """
     try:
-        # Example for integrating with CoinGecko API
-        # response = requests.get(
-        #     'https://api.coingecko.com/api/v3/coins/markets',
-        #     params={
-        #         'vs_currency': 'usd',
-        #         'order': 'market_cap_desc',
-        #         'per_page': limit,
-        #         'page': offset // limit + 1,
-        #         'sparkline': False
-        #     }
-        # )
-        # return response.json()
+        # Fetch market data from CoinGecko
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/coins/markets',
+            params={
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': limit,
+                'page': offset // limit + 1,
+                'sparkline': False
+            },
+            timeout=10  # 10-second timeout
+        )
         
-        # For development, return mock data
-        mock_data = []
-        for i in range(limit):
-            idx = offset + i
-            price = random.uniform(0.1, 60000)
-            change_24h = random.uniform(-15, 15)
-            volume_24h = price * random.uniform(1000, 1000000)
-            market_cap = price * random.uniform(10000, 100000000)
-            
-            coin = {
-                'id': f'coin_{idx}',
-                'symbol': f'COIN{idx}',
-                'name': f'Coin {idx}',
-                'image': f'/static/images/coins/coin_{idx}.png',
-                'current_price': price,
-                'market_cap': market_cap,
-                'market_cap_rank': idx + 1,
-                'total_volume': volume_24h,
-                'price_change_percentage_24h': change_24h,
-                'circulating_supply': random.uniform(1000, 100000000),
-                'total_supply': random.uniform(1000, 100000000),
-                'max_supply': random.uniform(1000, 100000000),
-                'last_updated': datetime.utcnow().isoformat()
-            }
-            mock_data.append(coin)
+        response.raise_for_status()  # Raise an error for bad responses
         
-        return mock_data
-    except Exception as e:
-        print(f"Error fetching market data: {e}")
-        return []
+        # Process the response
+        data = response.json()
+        
+        # Transform data to match expected format
+        result = []
+        for coin in data:
+            result.append({
+                'id': coin['id'],
+                'symbol': coin['symbol'].upper(),
+                'name': coin['name'],
+                'image': coin['image'],
+                'current_price': coin['current_price'],
+                'market_cap': coin['market_cap'],
+                'market_cap_rank': coin['market_cap_rank'],
+                'total_volume': coin['total_volume'],
+                'price_change_percentage_24h': coin['price_change_percentage_24h'],
+                'circulating_supply': coin['circulating_supply'],
+                'total_supply': coin['total_supply'],
+                'max_supply': coin['max_supply'],
+                'last_updated': coin['last_updated']
+            })
+        
+        return result
+    except requests.RequestException as e:
+        logger.error(f"Error fetching market data from CoinGecko: {e}")
+        raise RuntimeError("Unable to fetch market data. Please try again later.") from e
 
 def get_coin_data(symbol):
     """
-    Get detailed data for a specific coin.
+    Get detailed data for a specific coin from CoinGecko.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API.
+    Args:
+        symbol: Cryptocurrency symbol (e.g., 'BTC')
     
-    For development, this returns mock data.
+    Returns:
+        Dictionary with coin details
     """
     try:
-        # For development, return mock data
-        price = random.uniform(0.1, 60000)
-        change_24h = random.uniform(-15, 15)
-        volume_24h = price * random.uniform(1000, 1000000)
-        market_cap = price * random.uniform(10000, 100000000)
+        # Get coin ID from symbol
+        coin_id = _get_coin_id(symbol)
         
+        # Fetch detailed coin data from CoinGecko
+        response = requests.get(
+            f'https://api.coingecko.com/api/v3/coins/{coin_id}',
+            params={
+                'localization': 'false',
+                'tickers': 'false',
+                'market_data': 'true',
+                'community_data': 'false',
+                'developer_data': 'false'
+            },
+            timeout=10
+        )
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Extract relevant information
         return {
-            'id': f'coin_{symbol}',
-            'symbol': symbol,
-            'name': f'Coin {symbol}',
-            'description': f'This is a detailed description for {symbol} coin.',
-            'image': f'/static/images/coins/{symbol}.png',
-            'current_price': price,
-            'market_cap': market_cap,
-            'market_cap_rank': random.randint(1, 100),
-            'total_volume': volume_24h,
-            'price_change_percentage_24h': change_24h,
-            'price_change_percentage_7d': random.uniform(-30, 30),
-            'price_change_percentage_30d': random.uniform(-50, 50),
-            'circulating_supply': random.uniform(1000, 100000000),
-            'total_supply': random.uniform(1000, 100000000),
-            'max_supply': random.uniform(1000, 100000000),
-            'ath': price * random.uniform(1, 5),
-            'ath_date': (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat(),
-            'atl': price * random.uniform(0.1, 0.9),
-            'atl_date': (datetime.utcnow() - timedelta(days=random.randint(366, 1000))).isoformat(),
-            'last_updated': datetime.utcnow().isoformat()
+            'id': data['id'],
+            'symbol': data['symbol'].upper(),
+            'name': data['name'],
+            'description': data.get('description', {}).get('en', ''),
+            'image': data['image']['large'],
+            'current_price': data['market_data']['current_price']['usd'],
+            'market_cap': data['market_data']['market_cap']['usd'],
+            'market_cap_rank': data['market_data']['market_cap_rank'],
+            'total_volume': data['market_data']['total_volume']['usd'],
+            'price_change_percentage_24h': data['market_data']['price_change_percentage_24h'],
+            'price_change_percentage_7d': data['market_data']['price_change_percentage_7d'],
+            'price_change_percentage_30d': data['market_data']['price_change_percentage_30d'],
+            'circulating_supply': data['market_data']['circulating_supply'],
+            'total_supply': data['market_data']['total_supply'],
+            'max_supply': data['market_data']['max_supply'],
+            'ath': data['market_data']['ath']['usd'],
+            'ath_date': data['market_data']['ath_date']['usd'],
+            'atl': data['market_data']['atl']['usd'],
+            'atl_date': data['market_data']['atl_date']['usd'],
+            'last_updated': data['last_updated']
         }
-    except Exception as e:
-        print(f"Error fetching coin data: {e}")
-        return {}
+    except requests.RequestException as e:
+        logger.error(f"Error fetching coin data from CoinGecko: {e}")
+        raise RuntimeError(f"Unable to fetch data for {symbol}. Please try again later.") from e
 
 def get_chart_data(symbol, interval='1d', limit=100):
     """
-    Get chart data for a specific coin.
+    Get historical chart data for a cryptocurrency from CoinGecko.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API.
+    Args:
+        symbol: Cryptocurrency symbol (e.g., 'BTC')
+        interval: Time interval
+        limit: Number of data points to return
     
-    For development, this returns mock data.
+    Returns:
+        List of OHLCV data points
     """
     try:
-        # For development, return mock data
-        mock_data = []
-        base_price = random.uniform(0.1, 60000)
+        # Get coin ID from symbol
+        coin_id = _get_coin_id(symbol)
         
-        # Generate timestamps
-        now = int(time.time() * 1000)
+        # Map interval to CoinGecko's requirements
+        days = limit if interval == '1d' else limit // 7
         
-        # Determine time interval in milliseconds
-        if interval == '1m':
-            interval_ms = 60 * 1000
-        elif interval == '5m':
-            interval_ms = 5 * 60 * 1000
-        elif interval == '15m':
-            interval_ms = 15 * 60 * 1000
-        elif interval == '1h':
-            interval_ms = 60 * 60 * 1000
-        elif interval == '4h':
-            interval_ms = 4 * 60 * 60 * 1000
-        elif interval == '1d':
-            interval_ms = 24 * 60 * 60 * 1000
-        elif interval == '1w':
-            interval_ms = 7 * 24 * 60 * 60 * 1000
-        else:
-            interval_ms = 24 * 60 * 60 * 1000  # Default to 1d
+        # Fetch chart data from CoinGecko
+        response = requests.get(
+            f'https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart',
+            params={
+                'vs_currency': 'usd',
+                'days': days,
+                'interval': 'daily'
+            },
+            timeout=10
+        )
         
-        # Generate candlestick data
-        for i in range(limit):
-            timestamp = now - ((limit - i) * interval_ms)
+        response.raise_for_status()
+        
+        # Process the response
+        data = response.json()
+        
+        # Transform data to OHLCV-like structure
+        result = []
+        for item in data['prices']:
+            timestamp = item[0]  # Timestamp in milliseconds
+            price = item[1]  # Closing price
             
-            # Generate OHLC (Open, High, Low, Close) values
-            price_change = base_price * random.uniform(-0.1, 0.1)
-            open_price = base_price
-            close_price = base_price + price_change
-            high_price = max(open_price, close_price) * random.uniform(1, 1.05)
-            low_price = min(open_price, close_price) * random.uniform(0.95, 1)
-            volume = base_price * random.uniform(1000, 100000)
-            
-            # Update base price for next iteration
-            base_price = close_price
-            
-            # Candlestick data format: [timestamp, open, high, low, close, volume]
-            candlestick = [timestamp, open_price, high_price, low_price, close_price, volume]
-            mock_data.append(candlestick)
+            result.append([
+                timestamp,  # timestamp
+                price,      # open
+                price,      # high
+                price,      # low
+                price,      # close
+                0           # volume (not provided by this endpoint)
+            ])
         
-        return mock_data
-    except Exception as e:
-        print(f"Error fetching chart data: {e}")
-        return []
+        return result[:limit]
+    except requests.RequestException as e:
+        logger.error(f"Error fetching chart data from CoinGecko: {e}")
+        raise RuntimeError(f"Unable to fetch chart data for {symbol}. Please try again later.") from e
 
 def get_popular_coins(limit=5):
     """
-    Get a list of popular coins.
+    Get a list of popular coins from CoinGecko.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API.
+    Args:
+        limit: Number of coins to return
     
-    For development, this returns mock data.
+    Returns:
+        List of popular cryptocurrency details
     """
     try:
-        # For development, return mock data for popular coins
-        popular_coins = [
-            {'symbol': 'BTC', 'name': 'Bitcoin', 'price': random.uniform(20000, 60000), 'change_24h': random.uniform(-5, 5)},
-            {'symbol': 'ETH', 'name': 'Ethereum', 'price': random.uniform(1000, 3000), 'change_24h': random.uniform(-5, 5)},
-            {'symbol': 'BNB', 'name': 'Binance Coin', 'price': random.uniform(200, 500), 'change_24h': random.uniform(-5, 5)},
-            {'symbol': 'XRP', 'name': 'Ripple', 'price': random.uniform(0.1, 1), 'change_24h': random.uniform(-5, 5)},
-            {'symbol': 'ADA', 'name': 'Cardano', 'price': random.uniform(0.1, 2), 'change_24h': random.uniform(-5, 5)}
-        ]
+        # Fetch market data from CoinGecko
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/coins/markets',
+            params={
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': limit,
+                'page': 1,
+                'sparkline': False
+            },
+            timeout=10
+        )
         
-        return popular_coins[:limit]
-    except Exception as e:
-        print(f"Error fetching popular coins: {e}")
-        return []
+        response.raise_for_status()
+        
+        coins = response.json()
+        
+        # Transform data to match expected format
+        return [{
+            'symbol': coin['symbol'].upper(),
+            'name': coin['name'],
+            'price': coin['current_price'],
+            'change_24h': coin['price_change_percentage_24h']
+        } for coin in coins]
+    except requests.RequestException as e:
+        logger.error(f"Error fetching popular coins from CoinGecko: {e}")
+        raise RuntimeError("Unable to fetch popular coins. Please try again later.") from e
 
 def get_new_listings(limit=5):
     """
-    Get a list of newly listed coins.
+    Get a list of new cryptocurrency listings from CoinGecko.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API.
+    Args:
+        limit: Number of new listings to return
     
-    For development, this returns mock data.
+    Returns:
+        List of new cryptocurrency listings
     """
     try:
-        # For development, return mock data for new listings
-        new_listings = [
-            {'symbol': 'NEW1', 'name': 'New Coin 1', 'price': random.uniform(0.01, 1), 'change_24h': random.uniform(10, 100)},
-            {'symbol': 'NEW2', 'name': 'New Coin 2', 'price': random.uniform(0.01, 1), 'change_24h': random.uniform(10, 100)},
-            {'symbol': 'NEW3', 'name': 'New Coin 3', 'price': random.uniform(0.01, 1), 'change_24h': random.uniform(10, 100)},
-            {'symbol': 'NEW4', 'name': 'New Coin 4', 'price': random.uniform(0.01, 1), 'change_24h': random.uniform(10, 100)},
-            {'symbol': 'NEW5', 'name': 'New Coin 5', 'price': random.uniform(0.01, 1), 'change_24h': random.uniform(10, 100)}
-        ]
+        # Fetch new listings from CoinGecko
+        response = requests.get(
+            'https://api.coingecko.com/api/v3/coins/markets',
+            params={
+                'vs_currency': 'usd',
+                'order': 'date_added_desc',
+                'per_page': limit,
+                'page': 1,
+                'sparkline': False
+            },
+            timeout=10
+        )
         
-        return new_listings[:limit]
-    except Exception as e:
-        print(f"Error fetching new listings: {e}")
-        return []
+        response.raise_for_status()
+        
+        coins = response.json()
+        
+        # Transform data to match expected format
+        return [{
+            'symbol': coin['symbol'].upper(),
+            'name': coin['name'],
+            'price': coin['current_price'],
+            'change_24h': coin['price_change_percentage_24h']
+        } for coin in coins]
+    except requests.RequestException as e:
+        logger.error(f"Error fetching new listings from CoinGecko: {e}")
+        raise RuntimeError("Unable to fetch new listings. Please try again later.") from e
 
 def get_current_price(currency_pair):
     """
-    Get current price for a currency pair.
+    Get current price for a trading pair from Binance.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API.
+    Args:
+        currency_pair: Trading pair (e.g., 'BTC/USDT')
     
-    For development, this returns a random price.
+    Returns:
+        Current price as a float
     """
     try:
-        # For development, return a random price
-        if currency_pair == 'BTC/USDT':
-            return random.uniform(20000, 60000)
-        elif currency_pair == 'ETH/USDT':
-            return random.uniform(1000, 3000)
-        elif currency_pair == 'BNB/USDT':
-            return random.uniform(200, 500)
-        elif currency_pair == 'XRP/USDT':
-            return random.uniform(0.1, 1)
-        else:
-            return random.uniform(0.1, 1000)
-    except Exception as e:
-        print(f"Error fetching current price: {e}")
-        return 0
+        # Convert pair format from BTC/USDT to BTCUSDT
+        binance_symbol = currency_pair.replace('/', '')
+        
+        response = requests.get(
+            'https://api.binance.com/api/v3/ticker/price',
+            params={'symbol': binance_symbol},
+            timeout=10
+        )
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        return float(data['price'])
+    except requests.RequestException as e:
+        logger.error(f"Error fetching current price from Binance: {e}")
+        raise RuntimeError(f"Unable to fetch price for {currency_pair}. Please try again later.") from e

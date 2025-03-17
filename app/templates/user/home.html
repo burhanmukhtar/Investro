@@ -144,7 +144,7 @@
         <!-- New Listings -->
         <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">New Listings</h2>
+                <h2 class="text-lg font-semibold">Popular</h2>
             </div>
             
             <div class="overflow-x-auto ios-scrolling">
@@ -222,79 +222,93 @@
         // Market overview chart
         const marketChartElement = document.getElementById('marketChart');
         if (marketChartElement) {
-            // Generate random data
-            const dates = Array.from({length: 14}, (_, i) => {
-                const date = new Date();
-                date.setDate(date.getDate() - (13 - i));
-                return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-            });
-            
-            // Generate random line data for BTC
-            let btcPrice = 30000 + Math.random() * 10000;
-            const btcData = [];
-            for (let i = 0; i < 14; i++) {
-                btcPrice = btcPrice * (1 + (Math.random() * 0.06 - 0.03));
-                btcData.push(btcPrice);
-            }
-            
-            // Create the chart
-            const ctx = document.createElement('canvas');
-            marketChartElement.appendChild(ctx);
-            
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'BTC/USDT',
-                        data: btcData,
-                        borderColor: '#0ea5e9',
-                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 2,
-                        pointBackgroundColor: '#0ea5e9'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            }
+            // Fetch real market data for Bitcoin chart
+            fetch('/market/chart/BTC?interval=1d&limit=14')
+                .then(response => response.json())
+                .then(data => {
+                    // Create canvas element
+                    const canvas = document.createElement('canvas');
+                    marketChartElement.innerHTML = '';
+                    marketChartElement.appendChild(canvas);
+                    
+                    // Prepare chart data
+                    const labels = data.map(item => {
+                        const date = new Date(item[0]);
+                        return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+                    });
+                    const prices = data.map(item => item[4]); // Close price
+                    
+                    // Determine overall trend for color
+                    const firstPrice = prices[0];
+                    const lastPrice = prices[prices.length - 1];
+                    const chartColor = lastPrice >= firstPrice ? '#10b981' : '#ef4444';
+                    
+                    // Create chart
+                    new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'BTC/USDT',
+                                data: prices,
+                                borderColor: chartColor,
+                                backgroundColor: chartColor + '20', // Transparent fill
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 2,
+                                pointBackgroundColor: chartColor
+                            }]
                         },
-                        y: {
-                            position: 'right',
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.05)'
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
                             },
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value.toFixed(0);
+                            scales: {
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                },
+                                y: {
+                                    position: 'right',
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)'
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '$' + value.toLocaleString(undefined, {
+                                                minimumFractionDigits: 0,
+                                                maximumFractionDigits: 0
+                                            });
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return 'BTC/USDT: $' + context.raw.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            });
+                                        }
+                                    }
+                                },
+                                legend: {
+                                    display: false
                                 }
                             }
                         }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return 'BTC/USDT: $' + context.raw.toFixed(2);
-                                }
-                            }
-                        },
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching chart data:', error);
+                    marketChartElement.innerHTML = '<div class="p-6 text-center text-red-500">Error loading chart data.</div>';
+                });
         }
     });
 </script>

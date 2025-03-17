@@ -139,8 +139,15 @@ def verifications():
 @admin_required
 def verify_document(doc_id):
     document = VerificationDocument.query.get_or_404(doc_id)
-    action = request.form.get('action')
-    admin_notes = request.form.get('admin_notes', '')
+    
+    # Check if the request is JSON or form data
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    
+    action = data.get('action')
+    admin_notes = data.get('admin_notes', '')
     
     if action not in ['approve', 'reject']:
         return jsonify({'success': False, 'message': 'Invalid action.'})
@@ -186,8 +193,15 @@ def deposits():
 @admin_required
 def process_deposit(tx_id):
     transaction = Transaction.query.get_or_404(tx_id)
-    action = request.form.get('action')
-    admin_notes = request.form.get('admin_notes', '')
+    
+    # Check if the request is JSON or form data
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    
+    action = data.get('action')
+    admin_notes = data.get('admin_notes', '')
     
     if action not in ['approve', 'reject']:
         return jsonify({'success': False, 'message': 'Invalid action.'})
@@ -215,6 +229,7 @@ def process_deposit(tx_id):
         'status': transaction.status
     })
 
+
 @admin.route('/withdrawals')
 @login_required
 @admin_required
@@ -235,9 +250,16 @@ def withdrawals():
 @admin_required
 def process_withdrawal(tx_id):
     transaction = Transaction.query.get_or_404(tx_id)
-    action = request.form.get('action')
-    blockchain_txid = request.form.get('blockchain_txid', '')
-    admin_notes = request.form.get('admin_notes', '')
+    
+    # Check if the request is JSON or form data
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    
+    action = data.get('action')
+    blockchain_txid = data.get('blockchain_txid', '')
+    admin_notes = data.get('admin_notes', '')
     
     if action not in ['approve', 'reject']:
         return jsonify({'success': False, 'message': 'Invalid action.'})
@@ -262,6 +284,7 @@ def process_withdrawal(tx_id):
         'message': f"Withdrawal {transaction.status}.",
         'status': transaction.status
     })
+
 
 @admin.route('/trade-signals')
 @login_required
@@ -339,9 +362,14 @@ def create_signal():
 @admin_required
 def update_signal(signal_id):
     signal = TradeSignal.query.get_or_404(signal_id)
-    action = request.form.get('action')
-    result = request.form.get('result')
-    profit_percentage = request.form.get('profit_percentage')
+    
+    # Check if the request is JSON or form data
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    
+    action = data.get('action')
     
     if action == 'deactivate':
         signal.is_active = False
@@ -349,12 +377,15 @@ def update_signal(signal_id):
         return jsonify({'success': True, 'message': 'Signal deactivated.'})
     
     elif action == 'update_result':
+        result = data.get('result')
+        profit_percentage = data.get('profit_percentage')
+        
         if result not in ['profit', 'loss']:
             return jsonify({'success': False, 'message': 'Invalid result.'})
         
         try:
             profit_percentage = float(profit_percentage)
-        except ValueError:
+        except (ValueError, TypeError):
             return jsonify({'success': False, 'message': 'Invalid profit percentage.'})
         
         signal.result = result
@@ -455,7 +486,14 @@ def create_announcement():
 @admin_required
 def update_announcement(announcement_id):
     announcement = Announcement.query.get_or_404(announcement_id)
-    action = request.form.get('action')
+    
+    # Check if the request is JSON or form data
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form
+    
+    action = data.get('action')
     
     if action == 'toggle_active':
         announcement.is_active = not announcement.is_active

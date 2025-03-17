@@ -140,6 +140,7 @@
             
             <form id="closePositionForm">
                 <input type="hidden" id="positionId" name="position_id">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="mb-4 text-sm">
                     <p>Are you sure you want to close this position?</p>
@@ -163,7 +164,7 @@
         // Trading view chart
         new TradingView.widget({
             "container_id": "tradingViewChart",
-            "symbol": "BINANCE:{{ selected_coin|replace('/', '') }}",
+            "symbol": "{{ selected_coin|replace('/', '') }}",
             "interval": "60",
             "timezone": "Etc/UTC",
             "theme": "light",
@@ -421,82 +422,99 @@
         }
         
         function loadOrderHistory() {
-            fetch('/trade/history')
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('historyContainer');
-                    
-                    if (data.history.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center text-gray-500 py-6">
-                                <i class="fas fa-history text-3xl mb-2"></i>
-                                <p>No order history</p>
+    // Show loading indicator
+    const container = document.getElementById('historyContainer');
+    container.innerHTML = `
+        <div class="text-center text-gray-500 py-6">
+            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+            <p>Loading order history...</p>
+        </div>
+    `;
+    
+    fetch('/trade/history')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || 'Unknown error');
+            }
+            
+            if (!data.history || data.history.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-500 py-6">
+                        <i class="fas fa-history text-3xl mb-2"></i>
+                        <p>No order history</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="space-y-4">';
+            
+            data.history.forEach(item => {
+                const profitClass = item.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+                
+                html += `
+                    <div class="bg-white border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="font-medium">${item.currency_pair}</div>
+                            <div class="${item.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                ${item.signal_type}
                             </div>
-                        `;
-                        return;
-                    }
-                    
-                    let html = '<div class="space-y-4">';
-                    
-                    data.history.forEach(item => {
-                        const profitClass = item.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
-                        
-                        html += `
-                            <div class="bg-white border rounded-lg p-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <div class="font-medium">${item.currency_pair}</div>
-                                    <div class="${item.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                                        ${item.signal_type}
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-2 mb-3">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Amount</div>
-                                        <div class="text-sm">${item.amount} USDT</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Leverage</div>
-                                        <div class="text-sm">${item.leverage}x</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Entry Price</div>
-                                        <div class="text-sm">$${item.entry_price.toFixed(2)}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Close Price</div>
-                                        <div class="text-sm">$${item.close_price.toFixed(2)}</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-gray-500">PNL</div>
-                                        <div class="text-sm ${profitClass}">
-                                            ${item.profit_loss >= 0 ? '+' : ''}${item.profit_loss.toFixed(2)} USDT 
-                                            (${item.profit_loss_percentage >= 0 ? '+' : ''}${item.profit_loss_percentage.toFixed(2)}%)
-                                        </div>
-                                    </div>
-                                    <div class="text-xs text-gray-500">
-                                        ${new Date(item.closed_at).toLocaleString()}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    container.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading history:', error);
-                    document.getElementById('historyContainer').innerHTML = `
-                        <div class="text-center text-red-500 py-6">
-                            <p>Error loading order history. Please try again.</p>
                         </div>
-                    `;
-                });
-        }
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                                <div class="text-xs text-gray-500">Amount</div>
+                                <div class="text-sm">${item.amount} USDT</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Leverage</div>
+                                <div class="text-sm">${item.leverage || 1}x</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Entry Price</div>
+                                <div class="text-sm">$${parseFloat(item.entry_price).toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Close Price</div>
+                                <div class="text-sm">$${parseFloat(item.close_price).toFixed(2)}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-gray-500">PNL</div>
+                                <div class="text-sm ${profitClass}">
+                                    ${item.profit_loss >= 0 ? '+' : ''}${parseFloat(item.profit_loss).toFixed(2)} USDT 
+                                    (${item.profit_loss_percentage >= 0 ? '+' : ''}${parseFloat(item.profit_loss_percentage).toFixed(2)}%)
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                ${new Date(item.closed_at).toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading history:', error);
+            container.innerHTML = `
+                <div class="text-center text-red-500 py-6">
+                    <p>Error loading order history. Please try again.</p>
+                    <p class="text-xs mt-1">${error.message || ''}</p>
+                </div>
+            `;
+        });
+}
         
         function loadTradeSignals() {
             fetch('/trade/signals')
@@ -684,5 +702,135 @@
             modal.classList.remove('scale-0');
         }
     });
+
+
+    // Add this function to your future.html file, 
+// specifically in the script section at the bottom
+
+function loadOrders() {
+    const container = document.getElementById('ordersContainer');
+    
+    // Show loading indicator
+    container.innerHTML = `
+        <div class="text-center text-gray-500 py-6">
+            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+            <p>Loading open orders...</p>
+        </div>
+    `;
+    
+    fetch('/trade/orders')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.orders || data.orders.length === 0) {
+                // Show no orders message with explanation
+                container.innerHTML = `
+                    <div class="text-center text-gray-500 py-6">
+                        <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                        <p>No open orders</p>
+                        <p class="text-xs mt-3 max-w-md mx-auto">
+                            Open orders are limit, stop, and other non-market orders that are waiting 
+                            to be executed when certain price conditions are met.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Display orders
+            let html = '<div class="space-y-4">';
+            
+            data.orders.forEach(order => {
+                // Determine badge colors based on order type and side
+                const orderTypeClass = order.order_type === 'limit' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800';
+                const sideClass = order.side === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                
+                html += `
+                    <div class="bg-white border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="font-medium">${order.currency_pair}</div>
+                            <div class="flex space-x-2">
+                                <span class="px-2 py-0.5 ${sideClass} text-xs rounded-full">
+                                    ${order.side.toUpperCase()}
+                                </span>
+                                <span class="px-2 py-0.5 ${orderTypeClass} text-xs rounded-full">
+                                    ${order.order_type.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                                <div class="text-xs text-gray-500">Order Price</div>
+                                <div class="text-sm">$${order.price.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Current Price</div>
+                                <div class="text-sm">$${order.current_price.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Amount</div>
+                                <div class="text-sm">${order.amount.toFixed(6)} ${order.currency_pair.split('/')[0]}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Created</div>
+                                <div class="text-sm">${new Date(order.created_at).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        
+                        <button class="cancel-order-btn w-full py-2 bg-red-600 text-white text-sm rounded-lg" data-order-id="${order.id}">
+                            Cancel Order
+                        </button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+            // Add event listeners to cancel buttons
+            const cancelButtons = document.querySelectorAll('.cancel-order-btn');
+            cancelButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const orderId = this.dataset.orderId;
+                    cancelOrder(orderId);
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Error loading orders:', error);
+            container.innerHTML = `
+                <div class="text-center text-red-500 py-6">
+                    <p>Error loading open orders. Please try again.</p>
+                </div>
+            `;
+        });
+}
+
+function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('order_id', orderId);
+    
+    fetch('/trade/cancel-order', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Order canceled successfully');
+            loadOrders(); // Reload the orders
+        } else {
+            alert(data.message || 'Error canceling order');
+        }
+    })
+    .catch(error => {
+        console.error('Error canceling order:', error);
+        alert('Error canceling order. Please try again.');
+    });
+}
 </script>
 {% endblock %}
