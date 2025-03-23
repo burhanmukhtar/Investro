@@ -18,11 +18,12 @@ class Config:
     REMEMBER_COOKIE_HTTPONLY = True
     
     # Mail settings
-    MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 587
-    MAIL_USE_TLS = True
-    MAIL_USERNAME = 'bazhar691@gmail.com'  
-    MAIL_PASSWORD = 'zkzo vwcr lrfo xpdu'
+    MAIL_SERVER = 'smtp.hostinger.com'
+    MAIL_PORT = 465
+    MAIL_USE_SSL = True  # Changed from TLS to SSL
+    MAIL_USE_TLS = False
+    MAIL_USERNAME = 'verify@theinvestro.io'  
+    MAIL_PASSWORD = 'Root@Bloom@098'
     
     # File upload settings
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')

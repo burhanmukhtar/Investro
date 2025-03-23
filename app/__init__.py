@@ -52,6 +52,12 @@ def create_app(config_class='app.config.Config'):
     app.register_blueprint(user, url_prefix='/user')
     app.register_blueprint(wallet, url_prefix='/wallet')
 
+    # Add root route
+    from flask import redirect, url_for
+    @app.route('/')
+    def home():
+        return redirect(url_for('auth.login'))
+
     # Setup logging
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):

@@ -446,30 +446,30 @@ def create_announcement():
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
-        priority = request.form.get('priority', 0)
-        start_date = request.form.get('start_date')
-        end_date = request.form.get('end_date', '')
+        announcement_type = request.form.get('type')
+        priority = request.form.get('priority', 'normal')
+        action_text = request.form.get('action_text')
+        action_url = request.form.get('action_url')
+        has_countdown = 'has_countdown' in request.form
+        expiry_date = None
         
-        # Validate input
-        if not title or not content:
-            flash('Title and content are required.', 'danger')
-            return redirect(url_for('admin.create_announcement'))
-        
-        try:
-            priority = int(priority)
-            start_date = datetime.strptime(start_date, '%Y-%m-%d')
-            end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
-        except ValueError:
-            flash('Invalid input. Please check your values.', 'danger')
-            return redirect(url_for('admin.create_announcement'))
+        if request.form.get('expiry_date'):
+            try:
+                expiry_date = datetime.strptime(request.form.get('expiry_date'), '%Y-%m-%d')
+            except ValueError:
+                flash('Invalid date format for expiry date.', 'danger')
+                return redirect(url_for('admin.create_announcement'))
         
         # Create new announcement
         announcement = Announcement(
             title=title,
             content=content,
+            type=announcement_type,
             priority=priority,
-            start_date=start_date,
-            end_date=end_date,
+            action_text=action_text,
+            action_url=action_url,
+            has_countdown=has_countdown,
+            expiry_date=expiry_date,
             created_by=current_user.id
         )
         
@@ -480,6 +480,67 @@ def create_announcement():
         return redirect(url_for('admin.announcements'))
     
     return render_template('admin/create_announcement.html', title='Create Announcement')
+@admin.route('/edit-announcement/<int:announcement_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    
+    if request.method == 'POST':
+        announcement.title = request.form.get('title')
+        announcement.content = request.form.get('content')
+        announcement.type = request.form.get('type')
+        announcement.priority = request.form.get('priority', 'normal')
+        announcement.action_text = request.form.get('action_text')
+        announcement.action_url = request.form.get('action_url')
+        announcement.has_countdown = 'has_countdown' in request.form
+        
+        if request.form.get('expiry_date'):
+            try:
+                announcement.expiry_date = datetime.strptime(request.form.get('expiry_date'), '%Y-%m-%d')
+            except ValueError:
+                flash('Invalid date format for expiry date.', 'danger')
+                return redirect(url_for('admin.edit_announcement', announcement_id=announcement_id))
+        else:
+            announcement.expiry_date = None
+        
+        db.session.commit()
+        
+        flash('Announcement updated successfully!', 'success')
+        return redirect(url_for('admin.announcements'))
+    
+    return render_template('admin/edit_announcement.html', 
+                          title='Edit Announcement',
+                          announcement=announcement)
+
+@admin.route('/toggle-announcement/<int:announcement_id>', methods=['POST'])
+@login_required
+@admin_required
+def toggle_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    
+    announcement.is_active = not announcement.is_active
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f"Announcement {'activated' if announcement.is_active else 'deactivated'}.",
+        'is_active': announcement.is_active
+    })
+
+@admin.route('/delete-announcement/<int:announcement_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    
+    db.session.delete(announcement)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Announcement deleted successfully.'
+    })
 
 @admin.route('/update-announcement/<int:announcement_id>', methods=['POST'])
 @login_required

@@ -12,9 +12,9 @@
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
             {% if source == 'signup' %}
-            We've sent a code to your email and phone
+            We've sent a code to your email
             {% else %}
-            Enter the code sent to your registered email or phone
+            Enter the code sent to your registered email
             {% endif %}
         </p>
     </div>
@@ -23,7 +23,7 @@
         <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <form class="space-y-6" action="{{ url_for('auth.verify_otp', source=source) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div>
+                <div id="otp-input-container">
                     <label for="otp" class="block text-sm font-medium text-gray-700">
                         Verification Code
                     </label>
@@ -33,7 +33,7 @@
                 </div>
 
                 <div>
-                    <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    <button type="submit" id="verify-button" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                         Verify
                     </button>
                 </div>
@@ -49,6 +49,9 @@
                 <div id="resendTimer" class="mt-1 text-xs text-gray-500">
                     Resend available in <span id="countdown">60</span> seconds
                 </div>
+                <div id="resendStatus" class="mt-1 text-xs text-green-500 hidden">
+                    A new code has been sent to your email
+                </div>
             </div>
         </div>
     </div>
@@ -60,7 +63,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         const resendButton = document.getElementById('resendOtp');
         const resendTimer = document.getElementById('resendTimer');
+        const resendStatus = document.getElementById('resendStatus');
         const countdownElement = document.getElementById('countdown');
+        const verifyButton = document.getElementById('verify-button');
         
         // Initially disable the resend button
         resendButton.disabled = true;
@@ -84,10 +89,10 @@
         resendButton.addEventListener('click', function() {
             if (resendButton.disabled) return;
             
-            // Disable the button
+            // Show waiting status
             resendButton.disabled = true;
             resendButton.classList.add('opacity-50');
-            resendTimer.classList.remove('hidden');
+            resendButton.textContent = 'Sending...';
             
             // Send request to resend OTP
             fetch('{{ url_for("auth.resend_otp") }}', {
@@ -101,11 +106,14 @@
             .then(data => {
                 if (data.success) {
                     // Show success message
-                    alert('Verification code has been resent.');
+                    resendStatus.classList.remove('hidden');
+                    resendStatus.textContent = 'A new code has been sent to your email';
+                    resendButton.textContent = 'Resend code';
                     
                     // Reset countdown
                     countdown = 60;
                     countdownElement.textContent = countdown;
+                    resendTimer.classList.remove('hidden');
                     
                     // Start countdown again
                     const newCountdownInterval = setInterval(function() {
@@ -121,18 +129,26 @@
                     }, 1000);
                 } else {
                     // Show error message
-                    alert('Failed to resend verification code. Please try again later.');
+                    resendStatus.classList.remove('hidden');
+                    resendStatus.textContent = 'Failed to resend code. Please try again later.';
+                    resendStatus.classList.remove('text-green-500');
+                    resendStatus.classList.add('text-red-500');
                     resendButton.disabled = false;
                     resendButton.classList.remove('opacity-50');
                     resendTimer.classList.add('hidden');
+                    resendButton.textContent = 'Resend code';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred. Please try again later.');
+                resendStatus.classList.remove('hidden');
+                resendStatus.textContent = 'An error occurred. Please try again later.';
+                resendStatus.classList.remove('text-green-500');
+                resendStatus.classList.add('text-red-500');
                 resendButton.disabled = false;
                 resendButton.classList.remove('opacity-50');
                 resendTimer.classList.add('hidden');
+                resendButton.textContent = 'Resend code';
             });
         });
         
@@ -141,9 +157,14 @@
         otpInput.addEventListener('input', function() {
             // Auto-submit when all 6 digits are entered
             if (this.value.length === 6) {
+                verifyButton.textContent = 'Verifying...';
+                verifyButton.disabled = true;
                 this.form.submit();
             }
         });
+        
+        // Focus OTP input on page load
+        otpInput.focus();
     });
 </script>
 {% endblock %}

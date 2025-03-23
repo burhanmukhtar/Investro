@@ -11,14 +11,18 @@ from werkzeug.utils import secure_filename
 from app.config import Config
 from app.utils.helpers import format_currency_amount
 import requests
+from datetime import datetime
 
 user = Blueprint('user', __name__)
 
 @user.route('/home')
 @login_required
 def home():
-    # Get announcements
-    announcements = Announcement.query.filter_by(is_active=True).order_by(Announcement.priority.desc()).all()
+    # Get active announcements
+    announcements = Announcement.query.filter(
+        Announcement.is_active == True,
+        (Announcement.expiry_date.is_(None) | (Announcement.expiry_date >= datetime.utcnow()))
+    ).order_by(Announcement.priority.desc(), Announcement.created_at.desc()).all()
     
     # Get popular coins and new listings
     popular_coins = get_popular_coins()
@@ -43,6 +47,32 @@ def market():
     return render_template('user/market.html', 
                           title='Market', 
                           market_data=market_data)
+
+@user.route('/api/announcements', methods=['GET'])
+@login_required
+def get_announcements():
+    # Example announcement data - in production, you'd get this from your database
+    announcements = [
+        {
+            "id": 1,
+            "title": "New Trading Features Released",
+            "content": "We've upgraded our platform with advanced charting tools, automated trading bots, and reduced fees for all premium users.",
+            "type": "feature",
+            "priority": "high",
+            "action": "Explore Now"
+        },
+        {
+            "id": 2,
+            "title": "Flash Sale: 50% Off Trading Fees",
+            "content": "For the next 24 hours, enjoy half price trading fees on all currency pairs. Limited time offer!",
+            "type": "promotion",
+            "priority": "urgent",
+            "action": "Claim Offer",
+            "countdown": True
+        },
+        # Add more announcements as needed
+    ]
+    return jsonify(announcements)
 
 @user.route('/future')
 @login_required

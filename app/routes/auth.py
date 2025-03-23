@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from flask_login import login_user, current_user, logout_user, login_required
 from app import db, bcrypt
 from app.models.user import User
-from app.services.auth_service import generate_otp, send_otp_email, send_otp_sms
+from app.services.auth_service import generate_otp, send_otp_email, verify_otp
 from app.utils.validators import validate_email, validate_password, validate_phone
 
 auth = Blueprint('auth', __name__)
@@ -31,8 +31,11 @@ def login():
             otp = user.generate_otp()
             db.session.commit()
             
-            # Send OTP via email
+            # Send OTP via email only
             send_otp_email(user.email, otp)
+            
+            # Show loading indicator or message
+            flash('Verification code has been sent to your email. Please check your inbox.', 'info')
             
             # Store user ID in session for OTP verification
             session['user_id_for_otp'] = user.id
@@ -106,9 +109,10 @@ def signup():
         otp = user.generate_otp()
         db.session.commit()
         
-        # Send OTP via email and SMS
+        # Send OTP via email only
         send_otp_email(email, otp)
         
+        flash('Verification code has been sent to your email. Please check your inbox.', 'info')
         
         # Store user ID in session for OTP verification
         session['user_id_for_otp'] = user.id
@@ -200,6 +204,8 @@ def forgot_password():
             
             # Send OTP via email
             send_otp_email(email, otp)
+            
+            flash('Verification code has been sent to your email. Please check your inbox.', 'info')
             
             # Store user ID in session for password reset
             session['user_id_for_reset'] = user.id

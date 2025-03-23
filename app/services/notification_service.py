@@ -374,7 +374,7 @@ class NotificationService:
             return response.success_count > 0
         except ImportError:
             logger.error("Firebase Admin SDK not installed. Install it with 'pip install firebase-admin'.")
-            return False
+            return False                                                                                                                         
         except Exception as e:
             logger.error(f"Error sending FCM notification: {str(e)}")
             return False

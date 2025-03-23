@@ -7,17 +7,78 @@
 <div class="pb-4">
     <!-- Announcements Slider -->
     {% if announcements %}
-    <div class="bg-gradient-to-r from-primary-600 to-primary-800 py-3 px-4 relative overflow-hidden">
-        <div class="announcement-slider overflow-hidden whitespace-nowrap flex items-center">
+<div class="mb-6">
+    <div class="relative overflow-hidden">
+        <div class="announcement-slider flex transition-transform duration-500" id="announcementSlider">
             {% for announcement in announcements %}
-            <div class="inline-block pr-8 text-white">
-                <span class="font-semibold">{{ announcement.title }}:</span>
-                <span>{{ announcement.content }}</span>
-            </div>
+                <div class="announcement-slide w-full flex-shrink-0 
+                    {% if announcement.type == 'feature' %}bg-indigo-50 border-indigo-200
+                    {% elif announcement.type == 'promotion' %}bg-amber-50 border-amber-200
+                    {% elif announcement.type == 'security' %}bg-rose-50 border-rose-200
+                    {% else %}bg-emerald-50 border-emerald-200{% endif %}
+                    border rounded-lg p-4">
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3 flex-1">
+                            <div class="flex-shrink-0">
+                                <!-- Icon based on type -->
+                                <i class="fas fa-{% if announcement.type == 'feature' %}rocket
+                                            {% elif announcement.type == 'promotion' %}bolt
+                                            {% elif announcement.type == 'security' %}bell
+                                            {% else %}chart-line{% endif %} 
+                                    {% if announcement.type == 'feature' %}text-indigo-500
+                                    {% elif announcement.type == 'promotion' %}text-amber-500
+                                    {% elif announcement.type == 'security' %}text-rose-500
+                                    {% else %}text-emerald-500{% endif %}"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-900 flex items-center">
+                                    {{ announcement.title }}
+                                    {% if announcement.priority == 'urgent' or announcement.priority == 'critical' %}
+                                        <span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full animate-pulse">
+                                            {{ announcement.priority|capitalize }}
+                                        </span>
+                                    {% endif %}
+                                </h3>
+                                <p class="text-sm text-gray-700 announcement-content">{{ announcement.content }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="ml-4 flex items-center space-x-2">
+                            {% if announcement.has_countdown and announcement.expiry_date %}
+                                <div class="text-xs font-mono bg-white bg-opacity-80 px-2 py-1 rounded text-red-600 font-semibold countdown-timer" 
+                                     data-expiry="{{ announcement.expiry_date.isoformat() }}">
+                                </div>
+                            {% endif %}
+                            
+                            {% if announcement.action_text and announcement.action_url %}
+                                <a href="{{ announcement.action_url }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium whitespace-nowrap">
+                                    {{ announcement.action_text }} →
+                                </a>
+                            {% endif %}
+                            
+                            <button class="dismiss-announcement text-gray-500 hover:text-gray-700" data-id="{{ announcement.id }}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             {% endfor %}
         </div>
+        
+        <!-- Navigation dots -->
+        {% if announcements|length > 1 %}
+        <div class="flex justify-center mt-2 space-x-1">
+            {% for i in range(announcements|length) %}
+            <button class="announcement-dot w-2 h-2 rounded-full bg-gray-300 transition-all {% if loop.first %}bg-indigo-600 w-4{% endif %}" data-index="{{ loop.index0 }}">
+                <span class="sr-only">Announcement {{ loop.index }}</span>
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
     <!-- Main Content -->
     <div class="container mx-auto px-4 py-4">
@@ -174,6 +235,109 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Announcement slider
+        const slider = document.getElementById('announcementSlider');
+        const dots = document.querySelectorAll('.announcement-dot');
+        const announcements = document.querySelectorAll('.announcement-slide');
+        let currentIndex = 0;
+        
+        if (slider && announcements.length > 1) {
+            // Auto-rotate announcements
+            setInterval(() => {
+                currentIndex = (currentIndex + 1) % announcements.length;
+                updateSlider();
+            }, 5000);
+            
+            // Dot navigation
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => {
+                    currentIndex = index;
+                    updateSlider();
+                });
+            });
+            
+            // Update slider position
+            function updateSlider() {
+                slider.style.transform = `translateX(-${currentIndex * 100}%)`;
+                
+                // Update dots
+                dots.forEach((dot, index) => {
+                    if (index === currentIndex) {
+                        dot.classList.add('bg-indigo-600', 'w-4');
+                        dot.classList.remove('bg-gray-300');
+                    } else {
+                        dot.classList.remove('bg-indigo-600', 'w-4');
+                        dot.classList.add('bg-gray-300');
+                    }
+                });
+            }
+        }
+        
+        // Countdown timers
+        const countdownTimers = document.querySelectorAll('.countdown-timer');
+        countdownTimers.forEach(timer => {
+            const expiryDate = new Date(timer.dataset.expiry);
+            
+            function updateTimer() {
+                const now = new Date();
+                const diff = expiryDate - now;
+                
+                if (diff <= 0) {
+                    timer.textContent = 'Expired';
+                    return;
+                }
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                if (days > 0) {
+                    timer.textContent = `${days}d ${hours}h`;
+                } else {
+                    timer.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+            
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        });
+        
+        // Dismiss announcements
+        const dismissButtons = document.querySelectorAll('.dismiss-announcement');
+        dismissButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const slide = this.closest('.announcement-slide');
+                
+                // Store dismissed announcements in localStorage
+                let dismissed = JSON.parse(localStorage.getItem('dismissedAnnouncements') || '[]');
+                dismissed.push(id);
+                localStorage.setItem('dismissedAnnouncements', JSON.stringify(dismissed));
+                
+                // Hide the announcement
+                slide.style.height = '0';
+                slide.style.opacity = '0';
+                slide.style.margin = '0';
+                slide.style.padding = '0';
+                slide.style.overflow = 'hidden';
+                
+                setTimeout(() => {
+                    slide.remove();
+                    
+                    // If no more announcements, hide the container
+                    if (document.querySelectorAll('.announcement-slide').length === 0) {
+                        const container = document.querySelector('.announcement-slider').parentElement.parentElement;
+                        container.style.display = 'none';
+                    }
+                }, 300);
+            });
+        });
+    });
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Announcement slider animation
