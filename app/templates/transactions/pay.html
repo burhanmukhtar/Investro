@@ -145,13 +145,14 @@
         const availableBalanceSpan = document.getElementById('availableBalance');
         const selectedCurrencySpan = document.getElementById('selectedCurrency');
         const submitButton = document.getElementById('submitButton');
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
         
-        // Balances
-        const balances = {
-            {% for currency, balance in balances.items() %}
-            '{{ currency }}': {{ balance }},
-            {% endfor %}
-        };
+        // Balances - NOTE: This is Jinja template code that will generate JavaScript
+        // Your editor may show errors because it doesn't understand the template syntax
+        const balances = {};
+        {% for currency, balance in balances.items() %}
+        balances['{{ currency }}'] = {{ balance }};
+        {% endfor %}
         
         // Recipient verification
         let verificationTimeout;
@@ -194,12 +195,21 @@
         function verifyRecipient(id) {
             const formData = new FormData();
             formData.append('recipient_id', id);
+            formData.append('csrf_token', csrfToken);
             
             fetch('/wallet/verify-recipient', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 // Update verification indicator
                 recipientVerification.classList.remove('hidden');
@@ -230,7 +240,7 @@
                     // Show error
                     recipientInfo.classList.add('hidden');
                     recipientError.classList.remove('hidden');
-                    recipientError.textContent = data.message;
+                    recipientError.textContent = data.message || 'Recipient not found';
                     
                     // Update verification icon
                     verificationIcon.className = 'fas fa-times text-red-500';
@@ -246,7 +256,7 @@
                 // Show error
                 recipientInfo.classList.add('hidden');
                 recipientError.classList.remove('hidden');
-                recipientError.textContent = 'Error verifying recipient.';
+                recipientError.textContent = 'Error verifying recipient. Please try again.';
                 
                 // Update verification icon
                 verificationIcon.className = 'fas fa-times text-red-500';
