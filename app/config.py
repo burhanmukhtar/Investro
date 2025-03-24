@@ -29,6 +29,9 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     
+    # CoinGecko API settings
+    COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', 'CG-xM4oVPrLjBmcUKq7Yv1J821D')
+    
     # SMS API settings (placeholder for development)
     SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'twilio')
     SMS_API_KEY = os.environ.get('SMS_API_KEY')

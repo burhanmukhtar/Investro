@@ -1,10 +1,10 @@
-# Add this to app/services/order_service.py
+# app/services/order_service.py
 from datetime import datetime
 from app import db
 from app.models.order import Order
 from app.models.wallet import Wallet
 from app.models.transaction import Transaction
-from app.services.market_service import get_current_price
+from app.services.market_service import get_current_price_service as get_current_price
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,10 +18,20 @@ def process_open_orders():
         # Get all open orders
         open_orders = Order.query.filter_by(status='open').all()
         
+        if not open_orders:
+            logger.info("No open orders to process")
+            return
+            
+        logger.info(f"Processing {len(open_orders)} open orders")
+        
         for order in open_orders:
             try:
                 # Get current price for the currency pair
                 current_price = get_current_price(order.currency_pair)
+                
+                if current_price <= 0:
+                    logger.warning(f"Could not get valid price for {order.currency_pair}")
+                    continue
                 
                 # Check if order conditions are met
                 should_fill = False
@@ -44,8 +54,9 @@ def process_open_orders():
                 
                 # If conditions are met, fill the order
                 if should_fill:
+                    logger.info(f"Filling order {order.id} at price {current_price}")
                     fill_order(order, current_price)
-            
+                    
             except Exception as e:
                 logger.error(f"Error processing order {order.id}: {str(e)}")
     
@@ -55,10 +66,22 @@ def process_open_orders():
 def fill_order(order, execution_price):
     """
     Fill an order at the specified execution price.
+    
+    Args:
+        order: Order object to fill
+        execution_price: Price at which the order is executed
+    
+    Returns:
+        Boolean indicating success or failure
     """
     try:
         # Extract currencies from the pair
-        base_currency, quote_currency = order.currency_pair.split('/')
+        currency_parts = order.currency_pair.split('/')
+        if len(currency_parts) != 2:
+            logger.error(f"Invalid currency pair format: {order.currency_pair}")
+            return False
+            
+        base_currency, quote_currency = currency_parts
         
         # Calculate total cost/proceeds
         total_cost = execution_price * order.amount
@@ -79,8 +102,7 @@ def fill_order(order, execution_price):
             
             base_wallet.spot_balance += order.amount
             
-            # Note: The quote currency was already reserved when placing the order
-            # If the execution price is lower than the limit price, we can refund the difference
+            # If the execution price is lower than the limit price, refund the difference
             if execution_price < order.price:
                 quote_wallet = Wallet.query.filter_by(user_id=order.user_id, currency=quote_currency).first()
                 if quote_wallet:
@@ -96,8 +118,6 @@ def fill_order(order, execution_price):
                 db.session.add(quote_wallet)
             
             quote_wallet.spot_balance += total_cost
-            
-            # Note: The base currency was already reserved when placing the order
         
         # Create transaction records
         transaction = Transaction(
