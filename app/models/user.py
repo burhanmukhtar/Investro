@@ -34,6 +34,13 @@ class User(db.Model, UserMixin):
     transactions = db.relationship('Transaction', backref='user', lazy=True)
     trade_positions = db.relationship('TradePosition', backref='user', lazy=True)
     verification_documents = db.relationship('VerificationDocument', backref='user', lazy=True)
+    # Add relationship for referred users
+    referred_users = db.relationship(
+    'User', 
+    primaryjoin="User.referral_code==User.referred_by",
+    foreign_keys="User.referred_by",
+    backref=db.backref('referrer', uselist=False, remote_side="User.referral_code")
+    )
     
     def __init__(self, username, email, phone, password, referred_by=None):
         self.username = username
@@ -82,8 +89,36 @@ class User(db.Model, UserMixin):
             return True
         return False
     
+    def get_total_deposits(self):
+        """
+        Get total deposits made by the user in USDT.
+        """
+        from app.models.transaction import Transaction
+        
+        deposits = Transaction.query.filter_by(
+            user_id=self.id,
+            transaction_type='deposit',
+            status='completed'
+        ).all()
+        
+        total_amount = 0
+        for deposit in deposits:
+            # Sum all deposits in USDT or convert to USDT equivalent
+            if deposit.currency == 'USDT':
+                total_amount += deposit.amount
+            else:
+                from app.services.wallet_service import get_conversion_rate
+                try:
+                    rate = get_conversion_rate(deposit.currency, 'USDT')
+                    total_amount += deposit.amount * rate
+                except:
+                    total_amount += deposit.amount
+        
+        return total_amount
+    
     def __repr__(self):
         return f"User('{self.username}', '{self.email}')"
+
 
 class VerificationDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -97,3 +132,27 @@ class VerificationDocument(db.Model):
     
     def __repr__(self):
         return f"VerificationDocument('{self.document_type}', '{self.status}')"
+
+
+class ReferralReward(db.Model):
+    """Model for tracking referral rewards."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    referred_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(10), nullable=False)
+    status = db.Column(db.String(20), default='completed')  # pending, completed, failed
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref='given_rewards')
+    referred = db.relationship('User', foreign_keys=[referred_id], backref='received_rewards')
+    transaction = db.relationship('Transaction', backref='referral_reward')
+    
+    @property
+    def referred_username(self):
+        """Get the username of the referred user."""
+        user = User.query.get(self.referred_id)
+        return user.username if user else "Unknown"

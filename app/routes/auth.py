@@ -51,6 +51,9 @@ def signup():
     if current_user.is_authenticated:
         return redirect(url_for('user.home'))
     
+    # Get referral code from query parameters
+    referral_code = request.args.get('ref')
+    
     if request.method == 'POST':
         data = request.form
         
@@ -64,32 +67,32 @@ def signup():
         # Validate inputs
         if not validate_email(email):
             flash('Please enter a valid email address.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         if not validate_phone(phone):
             flash('Please enter a valid phone number.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         if not validate_password(password):
             flash('Password must be at least 8 characters and include a uppercase letter, a lowercase letter, and a number.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         # Check if username, email, or phone already exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         if User.query.filter_by(email=email).first():
             flash('Email already registered.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         if User.query.filter_by(phone=phone).first():
             flash('Phone number already registered.', 'danger')
-            return render_template('auth/signup.html', title='Sign Up')
+            return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
         
         # Check referral code if provided
         referred_by = None
@@ -109,7 +112,7 @@ def signup():
         otp = user.generate_otp()
         db.session.commit()
         
-        # Send OTP via email only
+        # Send OTP via email
         send_otp_email(email, otp)
         
         flash('Verification code has been sent to your email. Please check your inbox.', 'info')
@@ -119,7 +122,7 @@ def signup():
         
         return redirect(url_for('auth.verify_otp', source='signup'))
     
-    return render_template('auth/signup.html', title='Sign Up')
+    return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
 
 @auth.route('/verify-otp/<source>', methods=['GET', 'POST'])
 def verify_otp(source):

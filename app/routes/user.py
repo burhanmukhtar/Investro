@@ -15,8 +15,9 @@ from werkzeug.utils import secure_filename
 from app.config import Config
 from app.utils.helpers import format_currency_amount
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models.transaction import Transaction
+
 
 logger = logging.getLogger(__name__)
 user = Blueprint('user', __name__)
@@ -481,33 +482,14 @@ def verification():
 @login_required
 def transaction_history():
     """
-    View transaction history
+    View transaction history page
     """
     try:
-        # Get pagination parameters
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        transaction_type = request.args.get('type')
-        
-        # Query for transactions with optional filtering
-        query = db.session.query(Transaction).filter_by(user_id=current_user.id)
-        
-        if transaction_type:
-            query = query.filter_by(transaction_type=transaction_type)
-            
-        # Apply pagination and get transactions
-        pagination = query.order_by(Transaction.created_at.desc()).paginate(
-            page=page, per_page=per_page)
-            
-        transactions = pagination.items
-        
-        return render_template('user/transaction_history.html', 
-                              title='Transaction History', 
-                              transactions=transactions,
-                              pagination=pagination,
-                              transaction_type=transaction_type)
+        # We're using client-side JavaScript to load transaction data, 
+        # so we just render the template and the data is fetched via API
+        return render_template('user/transaction_history.html', title='Transaction History')
     except Exception as e:
-        logger.error(f"Error loading transaction history: {str(e)}")
+        logger.error(f"Error loading transaction history page: {str(e)}")
         flash("Error loading transaction history. Please try again later.", "danger")
         return redirect(url_for('user.home'))
 
@@ -522,17 +504,57 @@ def api_transactions():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         transaction_type = request.args.get('type')
+        status = request.args.get('status')
+        currency = request.args.get('currency')
+        date_range = request.args.get('date_range')
+        sort_field = request.args.get('sort_field', 'created_at')
+        sort_dir = request.args.get('sort_dir', 'desc')
         
         # Query for transactions with optional filtering
-        query = db.session.query(Transaction).filter_by(user_id=current_user.id)
+        query = Transaction.query.filter_by(user_id=current_user.id)
         
-        if transaction_type:
+        if transaction_type and transaction_type != 'all':
             query = query.filter_by(transaction_type=transaction_type)
             
-        # Apply pagination and get transactions
-        pagination = query.order_by(Transaction.created_at.desc()).paginate(
-            page=page, per_page=per_page)
+        if status and status != 'all':
+            query = query.filter_by(status=status)
             
+        if currency and currency != 'all':
+            query = query.filter_by(currency=currency)
+            
+        if date_range and date_range != 'all':
+            today = datetime.now().date()
+            if date_range == 'today':
+                start_date = today
+            elif date_range == 'week':
+                start_date = today - timedelta(days=7)
+            elif date_range == 'month':
+                start_date = today - timedelta(days=30)
+            elif date_range == 'quarter':
+                start_date = today - timedelta(days=90)
+            elif date_range == 'year':
+                start_date = today - timedelta(days=365)
+            else:
+                start_date = None
+            
+            if start_date:
+                query = query.filter(Transaction.created_at >= datetime.combine(start_date, datetime.min.time()))
+        
+        # Apply sorting
+        if sort_field == 'date':
+            sort_field = 'created_at'
+        elif sort_field == 'type':
+            sort_field = 'transaction_type'
+        elif sort_field == 'amount':
+            sort_field = 'amount'
+        
+        if sort_dir == 'asc':
+            query = query.order_by(getattr(Transaction, sort_field).asc())
+        else:
+            query = query.order_by(getattr(Transaction, sort_field).desc())
+            
+        # Apply pagination and get transactions
+        pagination = query.paginate(page=page, per_page=per_page)
         transactions = pagination.items
         
         # Format transaction data for API response
@@ -548,9 +570,12 @@ def api_transactions():
                 'fee': tx.fee,
                 'from_wallet': tx.from_wallet,
                 'to_wallet': tx.to_wallet,
+                'address': tx.address,
+                'blockchain_txid': tx.blockchain_txid,
+                'chain': tx.chain,
+                'notes': tx.notes,
                 'created_at': tx.created_at.isoformat() if tx.created_at else None,
-                'updated_at': tx.updated_at.isoformat() if tx.updated_at else None,
-                'notes': tx.notes
+                'updated_at': tx.updated_at.isoformat() if tx.updated_at else None
             })
         
         return jsonify({
@@ -569,25 +594,185 @@ def api_transactions():
             'success': False,
             'message': f"Error fetching transaction data: {str(e)}"
         }), 500
+    
+@user.route('/api/transactions/<int:transaction_id>', methods=['GET'])
+@login_required
+def api_transaction_detail(transaction_id):
+    """
+    API endpoint for transaction details
+    """
+    try:
+        # Ensure user can only access their own transactions
+        transaction = Transaction.query.filter_by(
+            id=transaction_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not transaction:
+            return jsonify({
+                'success': False,
+                'message': 'Transaction not found or unauthorized access'
+            }), 404
+        
+        # Format transaction data for API response
+        transaction_data = {
+            'id': transaction.id,
+            'transaction_id': transaction.transaction_id,
+            'type': transaction.transaction_type,
+            'status': transaction.status,
+            'currency': transaction.currency,
+            'amount': transaction.amount,
+            'fee': transaction.fee,
+            'from_wallet': transaction.from_wallet,
+            'to_wallet': transaction.to_wallet,
+            'address': transaction.address,
+            'blockchain_txid': transaction.blockchain_txid,
+            'chain': transaction.chain,
+            'notes': transaction.notes,
+            'admin_notes': transaction.admin_notes,
+            'created_at': transaction.created_at.isoformat() if transaction.created_at else None,
+            'updated_at': transaction.updated_at.isoformat() if transaction.updated_at else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'transaction': transaction_data
+        })
+    except Exception as e:
+        logger.error(f"Error fetching transaction details: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error fetching transaction details: {str(e)}"
+        }), 500
+
+@user.route('/api/transactions/export', methods=['GET'])
+@login_required
+def export_transactions():
+    """
+    Export transactions to CSV
+    """
+    try:
+        import csv
+        from io import StringIO
+        from flask import Response
+        
+        # Get filter parameters
+        transaction_type = request.args.get('type')
+        status = request.args.get('status')
+        currency = request.args.get('currency')
+        date_range = request.args.get('date_range')
+        
+        # Query for transactions with optional filtering
+        query = Transaction.query.filter_by(user_id=current_user.id)
+        
+        if transaction_type and transaction_type != 'all':
+            query = query.filter_by(transaction_type=transaction_type)
+            
+        if status and status != 'all':
+            query = query.filter_by(status=status)
+            
+        if currency and currency != 'all':
+            query = query.filter_by(currency=currency)
+            
+        if date_range and date_range != 'all':
+            today = datetime.now().date()
+            if date_range == 'today':
+                start_date = today
+            elif date_range == 'week':
+                start_date = today - timedelta(days=7)
+            elif date_range == 'month':
+                start_date = today - timedelta(days=30)
+            elif date_range == 'quarter':
+                start_date = today - timedelta(days=90)
+            elif date_range == 'year':
+                start_date = today - timedelta(days=365)
+            else:
+                start_date = None
+            
+            if start_date:
+                query = query.filter(Transaction.created_at >= datetime.combine(start_date, datetime.min.time()))
+        
+        # Order by created_at
+        transactions = query.order_by(Transaction.created_at.desc()).all()
+        
+        # Create CSV file
+        csv_data = StringIO()
+        fieldnames = [
+            'Transaction ID', 'Type', 'Status', 'Currency', 'Amount', 'Fee', 
+            'From', 'To', 'Address', 'Blockchain TxID', 'Chain', 'Notes', 'Date'
+        ]
+        
+        writer = csv.DictWriter(csv_data, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for tx in transactions:
+            writer.writerow({
+                'Transaction ID': tx.transaction_id,
+                'Type': tx.transaction_type,
+                'Status': tx.status,
+                'Currency': tx.currency,
+                'Amount': tx.amount,
+                'Fee': tx.fee or 0,
+                'From': tx.from_wallet or '',
+                'To': tx.to_wallet or '',
+                'Address': tx.address or '',
+                'Blockchain TxID': tx.blockchain_txid or '',
+                'Chain': tx.chain or '',
+                'Notes': tx.notes or '',
+                'Date': tx.created_at.strftime('%Y-%m-%d %H:%M:%S') if tx.created_at else ''
+            })
+        
+        # Create response
+        response = Response(
+            csv_data.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=transaction_history.csv'}
+        )
+        
+        return response
+    except Exception as e:
+        logger.error(f"Error exporting transactions: {str(e)}")
+        flash(f"Error exporting transactions: {str(e)}", "danger")
+        return redirect(url_for('user.transaction_history'))    
 
 @user.route('/referral')
 @login_required
 def referral():
     """
-    Referral program page
+    Referral program page showing referrals and rewards
     """
     try:
         # Get referred users
         referred_users = User.query.filter_by(referred_by=current_user.referral_code).all()
         
+        # Import referral service functions
+        from app.services.referral_service import (
+            is_eligible_for_referral_reward, 
+            process_referral_reward,
+            get_reward_by_referred_user
+        )
+        
         # Get referral rewards
-        # TODO: Implement proper referral rewards calculation
-        referral_rewards = []
+        from app.models.user import ReferralReward
+        referral_rewards = ReferralReward.query.filter_by(referrer_id=current_user.id).order_by(ReferralReward.created_at.desc()).all()
+        
+        # Check for newly eligible referrals and process rewards
+        for referred_user in referred_users:
+            if is_eligible_for_referral_reward(referred_user.id):
+                success, message = process_referral_reward(referred_user.id)
+                if success:
+                    logger.info(f"Processed referral reward for {referred_user.username}")
+                else:
+                    logger.warning(f"Failed to process referral reward for {referred_user.username}: {message}")
+        
+        # Refresh the rewards list after processing
+        referral_rewards = ReferralReward.query.filter_by(referrer_id=current_user.id).order_by(ReferralReward.created_at.desc()).all()
         
         return render_template('user/referral.html', 
-                              title='Referral', 
+                              title='Referral Program', 
                               referred_users=referred_users,
-                              referral_rewards=referral_rewards)
+                              referral_rewards=referral_rewards,
+                              get_reward_by_referred_user=get_reward_by_referred_user)
     except Exception as e:
         logger.error(f"Error loading referral page: {str(e)}")
         flash("Error loading referral data. Please try again later.", "danger")

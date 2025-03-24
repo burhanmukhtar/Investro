@@ -192,8 +192,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <!-- Logo -->
             <div class="flex items-center">
-                <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="text-xl font-bold text-primary-600">
-                    CryptoTrader
+                <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="flex items-center">
+                    <img src="https://theinvestro.io/Assets/logo.png" alt="Investro" class="h-16 w-auto">
                 </a>
             </div>
             
@@ -243,6 +243,9 @@
             
             <!-- Sidebar content -->
             <div class="flex-1 overflow-y-auto ios-scrolling">
+                <div class="p-5 flex justify-start">
+                    <img src="https://theinvestro.io/Assets/logo.png" alt="Investro" class="h-20">
+                </div>
                 <nav class="py-4">
                     <a href="{{ url_for('user.profile') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
                         <i class="fas fa-user-circle w-6 text-gray-600"></i>

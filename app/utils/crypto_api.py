@@ -25,6 +25,9 @@ def _get_coin_id(symbol):
     Returns:
         CoinGecko coin ID
     """
+    # Normalize symbol to uppercase
+    symbol = symbol.upper() if isinstance(symbol, str) else ''
+    
     # Common mappings
     mappings = {
         'BTC': 'bitcoin',
@@ -35,10 +38,44 @@ def _get_coin_id(symbol):
         'USDC': 'usd-coin',
         'ADA': 'cardano',
         'DOGE': 'dogecoin',
-        'SOL': 'solana'
+        'SOL': 'solana',
+        'DOT': 'polkadot',
+        'SHIB': 'shiba-inu',
+        'AVAX': 'avalanche-2',
+        'MATIC': 'polygon',
+        'LTC': 'litecoin',
+        'UNI': 'uniswap',
+        'LINK': 'chainlink',
+        'XLM': 'stellar',
+        'ATOM': 'cosmos',
+        'CRO': 'crypto-com-chain',
+        'XMR': 'monero',
+        'ALGO': 'algorand',
+        'FTM': 'fantom',
+        'NEAR': 'near',
+        'FIL': 'filecoin',
+        'ICP': 'internet-computer',
+        'APE': 'apecoin',
+        'BCH': 'bitcoin-cash',
+        'TRX': 'tron',
+        'XTZ': 'tezos',
+        'EOS': 'eos',
+        'ZEC': 'zcash',
+        'ETC': 'ethereum-classic',
+        'XCH': 'chia',
+        'CHZ': 'chiliz',
+        'MIOTA': 'iota',
+        'MANA': 'decentraland',
+        'DASH': 'dash',
+        'CAKE': 'pancakeswap-token',
+        'THETA': 'theta-token',
+        'AXS': 'axie-infinity',
+        'OP': 'optimism',
+        'ARB': 'arbitrum'
     }
     
-    return mappings.get(symbol.upper(), symbol.lower())
+    # Return mapped ID or lowercase symbol as fallback
+    return mappings.get(symbol, symbol.lower())
 
 def get_exchange_rates(base_currency='USDT', quote_currencies=None):
     """
@@ -163,32 +200,55 @@ def get_coin_details(symbol):
         response.raise_for_status()
         data = response.json()
         
-        # Extract relevant information
-        return {
-            'id': data['id'],
-            'symbol': data['symbol'].upper(),
-            'name': data['name'],
+        # Extract relevant information with fallbacks for missing data
+        result = {
+            'id': data.get('id', ''),
+            'symbol': data.get('symbol', symbol).upper(),
+            'name': data.get('name', symbol),
             'description': data.get('description', {}).get('en', ''),
-            'image': data['image']['large'],
-            'current_price': data['market_data']['current_price']['usd'],
-            'market_cap': data['market_data']['market_cap']['usd'],
-            'market_cap_rank': data['market_data']['market_cap_rank'],
-            'total_volume': data['market_data']['total_volume']['usd'],
-            'price_change_percentage_24h': data['market_data']['price_change_percentage_24h'],
-            'price_change_percentage_7d': data['market_data']['price_change_percentage_7d'],
-            'price_change_percentage_30d': data['market_data']['price_change_percentage_30d'],
-            'circulating_supply': data['market_data']['circulating_supply'],
-            'total_supply': data['market_data']['total_supply'],
-            'max_supply': data['market_data']['max_supply'],
-            'ath': data['market_data']['ath']['usd'],
-            'ath_date': data['market_data']['ath_date']['usd'],
-            'atl': data['market_data']['atl']['usd'],
-            'atl_date': data['market_data']['atl_date']['usd'],
-            'last_updated': data['last_updated']
+            'image': data.get('image', {}).get('large', ''),
+            'current_price': data.get('market_data', {}).get('current_price', {}).get('usd', 0),
+            'market_cap': data.get('market_data', {}).get('market_cap', {}).get('usd', 0),
+            'market_cap_rank': data.get('market_data', {}).get('market_cap_rank', 0),
+            'total_volume': data.get('market_data', {}).get('total_volume', {}).get('usd', 0),
+            'price_change_percentage_24h': data.get('market_data', {}).get('price_change_percentage_24h', 0),
+            'price_change_percentage_7d': data.get('market_data', {}).get('price_change_percentage_7d', 0),
+            'price_change_percentage_30d': data.get('market_data', {}).get('price_change_percentage_30d', 0),
+            'circulating_supply': data.get('market_data', {}).get('circulating_supply', 0),
+            'total_supply': data.get('market_data', {}).get('total_supply', 0),
+            'max_supply': data.get('market_data', {}).get('max_supply', 0),
+            'ath': data.get('market_data', {}).get('ath', {}).get('usd', 0),
+            'ath_date': data.get('market_data', {}).get('ath_date', {}).get('usd', ''),
+            'atl': data.get('market_data', {}).get('atl', {}).get('usd', 0),
+            'atl_date': data.get('market_data', {}).get('atl_date', {}).get('usd', ''),
+            'last_updated': data.get('last_updated', '')
         }
+        
+        return result
     except requests.RequestException as e:
-        logger.error(f"Error fetching coin details: {str(e)}")
-        raise RuntimeError(f"Unable to fetch data for {symbol}. Please try again later.")
+        logger.error(f"Error fetching coin details for {symbol}: {str(e)}")
+        # Rather than raising an exception, return a minimum viable data structure
+        return {
+            'symbol': symbol.upper(),
+            'name': symbol.upper(),
+            'image': '',
+            'current_price': 0,
+            'market_cap': 0,
+            'total_volume': 0,
+            'price_change_percentage_24h': 0
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error fetching coin details for {symbol}: {str(e)}")
+        # Return basic data to avoid errors in the frontend
+        return {
+            'symbol': symbol.upper(),
+            'name': symbol.upper(),
+            'image': '',
+            'current_price': 0,
+            'market_cap': 0,
+            'total_volume': 0,
+            'price_change_percentage_24h': 0
+        }
 
 def get_market_overview(limit=100, offset=0):
     """
@@ -229,7 +289,7 @@ def get_market_overview(limit=100, offset=0):
                 'id': coin['id'],
                 'symbol': coin['symbol'].upper(),
                 'name': coin['name'],
-                'image': coin['image'],
+                'image': coin['image'],  # Make sure this is included
                 'current_price': coin['current_price'],
                 'market_cap': coin['market_cap'],
                 'market_cap_rank': coin['market_cap_rank'],
@@ -244,7 +304,7 @@ def get_market_overview(limit=100, offset=0):
         return result
     except requests.RequestException as e:
         logger.error(f"Error fetching market overview: {str(e)}")
-        raise RuntimeError("Unable to fetch market data. Please try again later.") 
+        raise RuntimeError("Unable to fetch market data. Please try again later.")
 
 def get_chart_data(symbol, interval='1d', limit=100):
     """
@@ -447,13 +507,16 @@ def get_popular_coins(limit=5):
                 'symbol': coin['symbol'].upper(),
                 'name': coin['name'],
                 'price': coin['current_price'],
-                'change_24h': coin['price_change_percentage_24h']
+                'change_24h': coin['price_change_percentage_24h'] or 0.0,  # Handle None values
+                'image': coin['image']  # Include the image URL
             })
         
         return result
     except requests.RequestException as e:
         logger.error(f"Error fetching popular coins: {str(e)}")
         raise RuntimeError("Unable to fetch popular coins. Please try again later.")
+
+# Update this function in app/utils/crypto_api.py
 
 def get_new_listings(limit=5):
     """
@@ -542,7 +605,8 @@ def get_new_listings(limit=5):
                 'symbol': coin.get('symbol', '').upper(),
                 'name': coin.get('name', 'Unknown'),
                 'price': coin.get('current_price', 0),
-                'change_24h': price_change
+                'change_24h': price_change,
+                'image': coin.get('image')  # Include the image URL
             })
         
         return result
@@ -553,4 +617,84 @@ def get_new_listings(limit=5):
     except Exception as e:
         logger.error(f"Unexpected error in get_new_listings: {str(e)}")
         # Return empty list as fallback
+        return []
+    
+# Add these functions to app/utils/crypto_api.py
+
+def get_top_gainers(limit=20):
+    """
+    Get the top gaining cryptocurrencies.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of top gaining cryptocurrencies
+    """
+    try:
+        # Get market data and sort by price change percentage (descending)
+        market_data = get_market_overview(limit=100)
+        
+        # Filter out entries with None price change
+        filtered_data = [coin for coin in market_data if coin.get('price_change_percentage_24h') is not None]
+        
+        # Sort by price change percentage (descending)
+        filtered_data.sort(key=lambda x: x.get('price_change_percentage_24h', 0), reverse=True)
+        
+        # Return the top N coins
+        return filtered_data[:limit]
+    except Exception as e:
+        logger.error(f"Error fetching top gainers: {str(e)}")
+        return []
+
+def get_top_losers(limit=20):
+    """
+    Get the top losing cryptocurrencies.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of top losing cryptocurrencies
+    """
+    try:
+        # Get market data and sort by price change percentage (ascending)
+        market_data = get_market_overview(limit=100)
+        
+        # Filter out entries with None price change
+        filtered_data = [coin for coin in market_data if coin.get('price_change_percentage_24h') is not None]
+        
+        # Sort by price change percentage (ascending)
+        filtered_data.sort(key=lambda x: x.get('price_change_percentage_24h', 0))
+        
+        # Return the top N coins
+        return filtered_data[:limit]
+    except Exception as e:
+        logger.error(f"Error fetching top losers: {str(e)}")
+        return []
+
+def get_top_volume(limit=20):
+    """
+    Get cryptocurrencies with the highest trading volume.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of cryptocurrencies with highest trading volume
+    """
+    try:
+        # Get market data and sort by total volume (descending)
+        market_data = get_market_overview(limit=100)
+        
+        # Filter out entries with None volume
+        filtered_data = [coin for coin in market_data if coin.get('total_volume') is not None]
+        
+        # Sort by total volume (descending)
+        filtered_data.sort(key=lambda x: x.get('total_volume', 0), reverse=True)
+        
+        # Return the top N coins
+        return filtered_data[:limit]
+    except Exception as e:
+        logger.error(f"Error fetching top volume: {str(e)}")
         return []

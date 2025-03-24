@@ -8,21 +8,20 @@
     <!-- Market Filter -->
     <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
         <div class="flex border-b">
-            <button class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+            <button class="market-tab flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600" data-type="all">
                 All
             </button>
-            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+            <button class="market-tab flex-1 py-3 text-sm font-medium text-gray-500" data-type="gainers">
                 Gainers
             </button>
-            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+            <button class="market-tab flex-1 py-3 text-sm font-medium text-gray-500" data-type="losers">
                 Losers
             </button>
-            <button class="flex-1 py-3 text-sm font-medium text-gray-500">
+            <button class="market-tab flex-1 py-3 text-sm font-medium text-gray-500" data-type="volume">
                 Volume
             </button>
         </div>
         
-        <!-- app/templates/user/market.html (continued) -->
         <div class="p-3 border-b">
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -37,19 +36,19 @@
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
         <div class="flex items-center p-3 border-b text-sm font-medium text-gray-500">
             <div class="w-1/2 flex items-center">
-                <button class="flex items-center">
+                <button class="market-sort flex items-center" data-sort="name">
                     Coin
                     <i class="fas fa-sort ml-1"></i>
                 </button>
             </div>
             <div class="w-1/4 text-right">
-                <button class="flex items-center justify-end ml-auto">
+                <button class="market-sort flex items-center justify-end ml-auto" data-sort="price">
                     Price
                     <i class="fas fa-sort ml-1"></i>
                 </button>
             </div>
             <div class="w-1/4 text-right">
-                <button class="flex items-center justify-end ml-auto">
+                <button class="market-sort flex items-center justify-end ml-auto" data-sort="change">
                     24h Change
                     <i class="fas fa-sort ml-1"></i>
                 </button>
@@ -100,8 +99,9 @@
         </div>
         
         <div class="p-4 flex-1 overflow-y-auto ios-scrolling">
+            <!-- TradingView Widget Container -->
             <div id="coinChartContainer" class="mb-6 h-64">
-                <!-- Chart will be rendered here -->
+                <!-- TradingView Widget will be loaded here -->
             </div>
             
             <div class="space-y-4">
@@ -131,15 +131,41 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const marketData = document.getElementById('marketData');
         const marketSearch = document.getElementById('marketSearch');
         const coinDetailModal = document.getElementById('coinDetailModal');
         const closeCoinDetail = document.getElementById('closeCoinDetail');
+        const marketTabs = document.querySelectorAll('.market-tab');
         
-        // Load market data
-        loadMarketData();
+        let activeTab = 'all'; // Default tab
+        let currentSortField = 'name';
+        let currentSortDirection = 'asc';
+        let allCoinsData = []; // Store all coins data
+        
+        // Initialize market tabs
+        marketTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabType = this.getAttribute('data-type');
+                
+                // Update active tab UI
+                marketTabs.forEach(t => {
+                    t.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                    t.classList.add('text-gray-500');
+                });
+                this.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                this.classList.remove('text-gray-500');
+                
+                // Set active tab and load data
+                activeTab = tabType;
+                loadTabData(tabType);
+            });
+        });
+        
+        // Load market data for the active tab
+        loadTabData(activeTab);
         
         // Initialize search
         if (marketSearch) {
@@ -173,170 +199,297 @@
             });
         }
         
-        function loadMarketData() {
-            fetch('/market/data?limit=100')
-                .then(response => response.json())
-                .then(data => {
-                    // Clear loading indicator
-                    marketData.innerHTML = '';
+        function loadTabData(tabType) {
+            // Show loading indicator
+            marketData.innerHTML = `
+                <div class="p-6 text-center text-gray-500">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+                    <p>Loading market data...</p>
+                </div>
+            `;
+            
+            // Fetch appropriate data based on tab
+            let endpoint = '/market/data?limit=100';
+            
+            if (tabType === 'gainers') {
+                endpoint = '/market/gainers?limit=20';
+            } else if (tabType === 'losers') {
+                endpoint = '/market/losers?limit=20';
+            } else if (tabType === 'volume') {
+                endpoint = '/market/volume?limit=20';
+            }
+            
+            // Fetch data from API
+            fetch(endpoint)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    let data;
                     
-                    // Add market rows
-                    data.forEach(coin => {
-                        const row = document.createElement('div');
-                        row.className = 'market-row p-3 hover:bg-gray-50 cursor-pointer';
-                        row.dataset.coin = coin.symbol;
-                        
-                        const changeColor = coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600';
-                        
-                        row.innerHTML = `
-                            <div class="flex items-center justify-between">
-                                <div class="w-1/2 flex items-center">
-                                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                                        <span class="text-xs font-bold">${coin.symbol.charAt(0)}</span>
-                                    </div>
-                                    <div>
-                                        <div class="text-sm font-medium coin-name">${coin.name}</div>
-                                        <div class="text-xs text-gray-500 coin-symbol">${coin.symbol}</div>
-                                    </div>
-                                </div>
-                                <div class="w-1/4 text-right">
-                                    <div class="text-sm font-medium">$${formatNumber(coin.current_price)}</div>
-                                </div>
-                                <div class="w-1/4 text-right">
-                                    <div class="text-sm font-medium ${changeColor}">
-                                        ${coin.price_change_percentage_24h >= 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}%
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        row.addEventListener('click', function() {
-                            showCoinDetail(coin.symbol);
-                        });
-                        
-                        marketData.appendChild(row);
-                    });
+                    // Handle different response formats
+                    if (Array.isArray(result)) {
+                        data = result; // Direct array format
+                    } else if (result.success && Array.isArray(result.data)) {
+                        data = result.data; // Success + data format
+                    } else {
+                        throw new Error('Invalid data format received');
+                    }
+                    
+                    // Store data for sorting
+                    allCoinsData = data;
+                    
+                    // Display data
+                    displayMarketData(data);
                 })
                 .catch(error => {
-                    console.error('Error fetching market data:', error);
+                    console.error(`Error fetching ${tabType} data:`, error);
                     marketData.innerHTML = '<div class="p-6 text-center text-red-500">Error loading market data. Please try again.</div>';
                 });
         }
         
+        function displayMarketData(data) {
+            // Clear current content
+            marketData.innerHTML = '';
+            
+            // Check if data is empty
+            if (!data || data.length === 0) {
+                marketData.innerHTML = '<div class="p-6 text-center text-gray-500">No data available.</div>';
+                return;
+            }
+            
+            // Create rows for each coin
+            data.forEach(coin => {
+                if (!coin) return; // Skip if coin data is null
+                
+                const row = document.createElement('div');
+                row.className = 'market-row p-3 hover:bg-gray-50 cursor-pointer';
+                row.dataset.coin = coin.symbol;
+                
+                // Handle potential null/undefined values
+                const priceChange = coin.price_change_percentage_24h !== null && coin.price_change_percentage_24h !== undefined 
+                    ? coin.price_change_percentage_24h 
+                    : 0;
+                
+                const changeColor = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
+                const changePrefix = priceChange >= 0 ? '+' : '';
+                
+                // Use image if available, otherwise show fallback with first letter
+                const imageHtml = coin.image 
+                    ? `<img src="${coin.image}" alt="${coin.symbol}" class="w-8 h-8 rounded-full mr-2 object-contain">`
+                    : `<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                         <span class="text-xs font-bold">${coin.symbol ? coin.symbol.charAt(0) : '?'}</span>
+                       </div>`;
+                
+                row.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="w-1/2 flex items-center">
+                            ${imageHtml}
+                            <div>
+                                <div class="text-sm font-medium coin-name">${coin.name || 'Unknown'}</div>
+                                <div class="text-xs text-gray-500 coin-symbol">${coin.symbol || ''}</div>
+                            </div>
+                        </div>
+                        <div class="w-1/4 text-right">
+                            <div class="text-sm font-medium">$${formatNumber(coin.current_price || 0)}</div>
+                        </div>
+                        <div class="w-1/4 text-right">
+                            <div class="text-sm font-medium ${changeColor}">
+                                ${changePrefix}${priceChange.toFixed(2)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                row.addEventListener('click', function() {
+                    showCoinDetail(coin.symbol);
+                });
+                
+                marketData.appendChild(row);
+            });
+        }
+        
         function showCoinDetail(symbol) {
+            // Show loading indicator in the modal
+            const chartContainer = document.getElementById('coinChartContainer');
+            if (chartContainer) {
+                chartContainer.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <p class="ml-2">Loading chart...</p>
+                    </div>
+                `;
+            }
+            
+            // Show and reset the modal with loading state
+            coinDetailModal.classList.remove('scale-0');
+            
+            document.getElementById('coinName').textContent = 'Loading...';
+            document.getElementById('coinSymbol').textContent = symbol;
+            document.getElementById('coinRank').textContent = 'Rank #-';
+            document.getElementById('coinPrice').textContent = '$-.--';
+            document.getElementById('coinChange').textContent = '-.--% (24h)';
+            document.getElementById('coinMarketCap').textContent = 'Loading...';
+            document.getElementById('coinVolume').textContent = 'Loading...';
+            document.getElementById('coinSupply').textContent = 'Loading...';
+            document.getElementById('coinATH').textContent = 'Loading...';
+            
+            // Make the API call
             fetch(`/market/coin/${symbol}`)
-                .then(response => response.json())
-                .then(coin => {
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    // Check data format and handle it
+                    let coinData;
+                    if (result.success && result.data) {
+                        coinData = result.data;
+                    } else {
+                        coinData = result; // Direct object format
+                    }
+                    
+                    if (!coinData || typeof coinData !== 'object') {
+                        throw new Error('Invalid coin data received');
+                    }
+                    
+                    // Update coin icon - use image if available
+                    if (coinData.image) {
+                        document.getElementById('coinIcon').innerHTML = `
+                            <img src="${coinData.image}" alt="${coinData.symbol}" class="w-10 h-10 rounded-full object-contain">
+                        `;
+                    } else {
+                        document.getElementById('coinIcon').innerHTML = `
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <span id="coinSymbolIcon" class="text-sm font-bold">${coinData.symbol ? coinData.symbol.charAt(0) : '?'}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    // Handle potential null/undefined values
+                    const priceChange = coinData.price_change_percentage_24h !== null && coinData.price_change_percentage_24h !== undefined 
+                        ? coinData.price_change_percentage_24h 
+                        : 0;
+                    
                     // Update modal with coin data
-                    document.getElementById('coinSymbolIcon').textContent = coin.symbol.charAt(0);
-                    document.getElementById('coinName').textContent = coin.name;
-                    document.getElementById('coinSymbol').textContent = coin.symbol;
-                    document.getElementById('coinRank').textContent = `Rank #${coin.market_cap_rank}`;
-                    document.getElementById('coinPrice').textContent = `$${formatNumber(coin.current_price)}`;
+                    document.getElementById('coinName').textContent = coinData.name || 'Unknown';
+                    document.getElementById('coinSymbol').textContent = coinData.symbol || '';
+                    document.getElementById('coinRank').textContent = `Rank #${coinData.market_cap_rank || 'N/A'}`;
+                    document.getElementById('coinPrice').textContent = `$${formatNumber(coinData.current_price || 0)}`;
                     
                     const changeElement = document.getElementById('coinChange');
-                    changeElement.textContent = `${coin.price_change_percentage_24h >= 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}% (24h)`;
-                    changeElement.className = coin.price_change_percentage_24h >= 0 ? 'text-sm text-green-600' : 'text-sm text-red-600';
+                    const changePrefix = priceChange >= 0 ? '+' : '';
+                    changeElement.textContent = `${changePrefix}${priceChange.toFixed(2)}% (24h)`;
+                    changeElement.className = priceChange >= 0 ? 'text-sm text-green-600' : 'text-sm text-red-600';
                     
-                    document.getElementById('coinMarketCap').textContent = `$${formatNumber(coin.market_cap)}`;
-                    document.getElementById('coinVolume').textContent = `$${formatNumber(coin.total_volume)}`;
-                    document.getElementById('coinSupply').textContent = `${formatNumber(coin.circulating_supply)} ${coin.symbol}`;
-                    document.getElementById('coinATH').textContent = `$${formatNumber(coin.ath)} (${new Date(coin.ath_date).toLocaleDateString()})`;
+                    document.getElementById('coinMarketCap').textContent = `$${formatNumber(coinData.market_cap || 0)}`;
+                    document.getElementById('coinVolume').textContent = `$${formatNumber(coinData.total_volume || 0)}`;
                     
-                    document.getElementById('tradeCoinButton').href = `/user/future?coin=${coin.symbol}/USDT`;
+                    const supplyText = coinData.circulating_supply 
+                        ? `${formatNumber(coinData.circulating_supply)} ${coinData.symbol}`
+                        : 'N/A';
+                    document.getElementById('coinSupply').textContent = supplyText;
                     
-                    // Load chart
-                    loadCoinChart(coin.symbol);
+                    let athText = 'N/A';
+                    if (coinData.ath) {
+                        athText = `$${formatNumber(coinData.ath)}`;
+                        if (coinData.ath_date) {
+                            athText += ` (${new Date(coinData.ath_date).toLocaleDateString()})`;
+                        }
+                    }
+                    document.getElementById('coinATH').textContent = athText;
                     
-                    // Show modal
-                    coinDetailModal.classList.remove('scale-0');
+                    // Set trade button URL
+                    document.getElementById('tradeCoinButton').href = `/user/future?coin=${coinData.symbol}/USDT`;
+                    
+                    // Load TradingView chart
+                    try {
+                        loadTradingViewChart(coinData.symbol);
+                    } catch (chartError) {
+                        console.error('Error loading TradingView chart:', chartError);
+                        // Fallback to simple message if chart fails
+                        if (chartContainer) {
+                            chartContainer.innerHTML = '<div class="p-4 text-center">Chart not available for this coin</div>';
+                        }
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching coin data:', error);
-                    alert('Error loading coin data. Please try again.');
+                    
+                    // Show error in modal instead of alert
+                    document.getElementById('coinName').textContent = 'Error';
+                    document.getElementById('coinSymbol').textContent = symbol;
+                    document.getElementById('coinPrice').textContent = 'N/A';
+                    document.getElementById('coinChange').textContent = 'Could not load coin data';
+                    document.getElementById('coinChange').className = 'text-sm text-red-600';
+                    
+                    document.getElementById('coinMarketCap').textContent = 'N/A';
+                    document.getElementById('coinVolume').textContent = 'N/A';
+                    document.getElementById('coinSupply').textContent = 'N/A';
+                    document.getElementById('coinATH').textContent = 'N/A';
+                    
+                    // Display error in chart area
+                    if (chartContainer) {
+                        chartContainer.innerHTML = `
+                            <div class="p-6 text-center text-red-500">
+                                <div class="mb-2"><i class="fas fa-exclamation-circle text-2xl"></i></div>
+                                <p>Error loading coin data.</p>
+                                <p class="text-sm mt-2">Please try again later.</p>
+                            </div>
+                        `;
+                    }
                 });
         }
         
-        function loadCoinChart(symbol) {
-            fetch(`/market/chart/${symbol}?interval=1d&limit=30`)
-                .then(response => response.json())
-                .then(data => {
-                    const chartContainer = document.getElementById('coinChartContainer');
-                    chartContainer.innerHTML = '';
-                    
-                    const canvas = document.createElement('canvas');
-                    chartContainer.appendChild(canvas);
-                    
-                    // Format chart data
-                    const labels = data.map(item => new Date(item[0]).toLocaleDateString());
-                    const prices = data.map(item => item[4]); // Close price
-                    
-                    new Chart(canvas, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: `${symbol} Price`,
-                                data: prices,
-                                borderColor: '#0ea5e9',
-                                backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 1,
-                                pointHoverRadius: 5,
-                                pointBackgroundColor: '#0ea5e9'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                intersect: false,
-                                mode: 'index'
-                            },
-                            scales: {
-                                x: {
-                                    grid: {
-                                        display: false
-                                    },
-                                    ticks: {
-                                        maxTicksLimit: 6
-                                    }
-                                },
-                                y: {
-                                    position: 'right',
-                                    grid: {
-                                        color: 'rgba(0, 0, 0, 0.05)'
-                                    },
-                                    ticks: {
-                                        callback: function(value) {
-                                            return '$' + formatNumber(value);
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return `${symbol}: $${formatNumber(context.raw)}`;
-                                        }
-                                    }
-                                },
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching chart data:', error);
-                    document.getElementById('coinChartContainer').innerHTML = '<div class="p-6 text-center text-red-500">Error loading chart data.</div>';
+        function loadTradingViewChart(symbol) {
+            const chartContainer = document.getElementById('coinChartContainer');
+            if (!chartContainer) return;
+            
+            // Clear previous content
+            chartContainer.innerHTML = '';
+            
+            try {
+                // Create TradingView widget for the coin
+                // Use a try-catch here to handle any errors from TradingView
+                new TradingView.widget({
+                    "autosize": true,
+                    "symbol": `BINANCE:${symbol}USDT`,
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "en",
+                    "toolbar_bg": "#f1f3f6",
+                    "enable_publishing": false,
+                    "hide_top_toolbar": false,
+                    "hide_legend": false,
+                    "save_image": false,
+                    "container_id": "coinChartContainer",
+                    "studies": [
+                        "MASimple@tv-basicstudies",
+                        "RSI@tv-basicstudies"
+                    ]
                 });
+            } catch (error) {
+                console.error('Error initializing TradingView widget:', error);
+                
+                // Fallback message
+                chartContainer.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <p>Chart not available for ${symbol}.</p>
+                    </div>
+                `;
+            }
         }
         
         function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            
             if (num >= 1e9) {
                 return (num / 1e9).toFixed(2) + 'B';
             }

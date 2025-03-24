@@ -162,8 +162,9 @@
                 <a href="{{ url_for('user.market') }}" class="text-sm text-primary-600">View All</a>
             </div>
             
-            <div id="marketChart" class="w-full h-64 mb-4">
-                <!-- Chart will be rendered here -->
+            <!-- TradingView Widget Container -->
+            <div id="tradingview_widget" class="w-full h-80 mb-4">
+                <!-- TradingView Widget will be loaded here -->
             </div>
             
             <div class="overflow-x-auto">
@@ -180,10 +181,14 @@
                         <tr>
                             <td class="px-2 py-3 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                    {% if coin.image %}
+                                    <img src="{{ coin.image }}" alt="{{ coin.symbol }}" class="w-8 h-8 rounded-full mr-2 object-contain">
+                                    {% else %}
+                                    <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
                                         <span class="text-xs font-bold">{{ coin.symbol[0] }}</span>
                                     </div>
-                                    <div class="ml-3">
+                                    {% endif %}
+                                    <div class="ml-1">
                                         <div class="text-sm font-medium text-gray-900">{{ coin.symbol }}</div>
                                         <div class="text-xs text-gray-500">{{ coin.name }}</div>
                                     </div>
@@ -213,9 +218,13 @@
                     {% for coin in new_listings %}
                     <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-3 rounded-xl min-w-[140px]">
                         <div class="flex items-center mb-2">
+                            {% if coin.image %}
+                            <img src="{{ coin.image }}" alt="{{ coin.symbol }}" class="h-8 w-8 rounded-full mr-2 object-contain">
+                            {% else %}
                             <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
                                 <span class="text-xs font-bold">{{ coin.symbol[0] }}</span>
                             </div>
+                            {% endif %}
                             <div class="ml-2">
                                 <div class="text-sm font-semibold">{{ coin.symbol }}</div>
                             </div>
@@ -336,31 +345,6 @@
                 }, 300);
             });
         });
-    });
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Announcement slider animation
-        const announcementSlider = document.querySelector('.announcement-slider');
-        if (announcementSlider) {
-            const clone = announcementSlider.innerHTML;
-            announcementSlider.innerHTML += clone;
-            
-            const announcements = announcementSlider.querySelectorAll('div');
-            const totalWidth = Array.from(announcements).slice(0, announcements.length / 2).reduce((sum, el) => sum + el.offsetWidth + 32, 0);
-            
-            announcementSlider.style.animation = `slide ${totalWidth / 50}s linear infinite`;
-            
-            // Add animation keyframes
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slide {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(-${totalWidth}px); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
         
         // More actions popup
         const moreActionsBtn = document.getElementById('moreActionsBtn');
@@ -383,96 +367,28 @@
             });
         }
         
-        // Market overview chart
-        const marketChartElement = document.getElementById('marketChart');
-        if (marketChartElement) {
-            // Fetch real market data for Bitcoin chart
-            fetch('/market/chart/BTC?interval=1d&limit=14')
-                .then(response => response.json())
-                .then(data => {
-                    // Create canvas element
-                    const canvas = document.createElement('canvas');
-                    marketChartElement.innerHTML = '';
-                    marketChartElement.appendChild(canvas);
-                    
-                    // Prepare chart data
-                    const labels = data.map(item => {
-                        const date = new Date(item[0]);
-                        return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-                    });
-                    const prices = data.map(item => item[4]); // Close price
-                    
-                    // Determine overall trend for color
-                    const firstPrice = prices[0];
-                    const lastPrice = prices[prices.length - 1];
-                    const chartColor = lastPrice >= firstPrice ? '#10b981' : '#ef4444';
-                    
-                    // Create chart
-                    new Chart(canvas, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'BTC/USDT',
-                                data: prices,
-                                borderColor: chartColor,
-                                backgroundColor: chartColor + '20', // Transparent fill
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 2,
-                                pointBackgroundColor: chartColor
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                intersect: false,
-                                mode: 'index'
-                            },
-                            scales: {
-                                x: {
-                                    grid: {
-                                        display: false
-                                    }
-                                },
-                                y: {
-                                    position: 'right',
-                                    grid: {
-                                        color: 'rgba(0, 0, 0, 0.05)'
-                                    },
-                                    ticks: {
-                                        callback: function(value) {
-                                            return '$' + value.toLocaleString(undefined, {
-                                                minimumFractionDigits: 0,
-                                                maximumFractionDigits: 0
-                                            });
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return 'BTC/USDT: $' + context.raw.toLocaleString(undefined, {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2
-                                            });
-                                        }
-                                    }
-                                },
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching chart data:', error);
-                    marketChartElement.innerHTML = '<div class="p-6 text-center text-red-500">Error loading chart data.</div>';
-                });
+        // Initialize TradingView Widget
+        const tradingViewWidget = document.getElementById('tradingview_widget');
+        if (tradingViewWidget) {
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": "BINANCE:BTCUSDT",
+                "interval": "D",
+                "timezone": "Etc/UTC",
+                "theme": "light",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_top_toolbar": false,
+                "hide_legend": false,
+                "save_image": false,
+                "container_id": "tradingview_widget",
+                "studies": [
+                    "MASimple@tv-basicstudies",
+                    "RSI@tv-basicstudies"
+                ]
+            });
         }
     });
 </script>

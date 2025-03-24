@@ -111,3 +111,54 @@ def get_new_listings_service(limit=5):
         logger.error(f"Error in get_new_listings_service: {str(e)}")
         # Return empty list in case of error
         return []
+    
+def get_top_gainers_service(limit=20):
+    """
+    Get top gaining cryptocurrencies.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of top gaining cryptocurrencies
+    """
+    try:
+        from app.utils.crypto_api import get_top_gainers
+        return get_top_gainers(limit)
+    except Exception as e:
+        logger.error(f"Error in get_top_gainers_service: {str(e)}")
+        return []
+
+def get_top_losers_service(limit=20):
+    """
+    Get top losing cryptocurrencies.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of top losing cryptocurrencies
+    """
+    try:
+        from app.utils.crypto_api import get_top_losers
+        return get_top_losers(limit)
+    except Exception as e:
+        logger.error(f"Error in get_top_losers_service: {str(e)}")
+        return []
+
+def get_top_volume_service(limit=20):
+    """
+    Get cryptocurrencies with highest trading volume.
+    
+    Args:
+        limit: Number of coins to return
+    
+    Returns:
+        List of cryptocurrencies with highest trading volume
+    """
+    try:
+        from app.utils.crypto_api import get_top_volume
+        return get_top_volume(limit)
+    except Exception as e:
+        logger.error(f"Error in get_top_volume_service: {str(e)}")
+        return []
