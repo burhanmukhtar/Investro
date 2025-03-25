@@ -189,92 +189,130 @@
         const approveBtns = document.querySelectorAll('.approve-btn');
         const rejectBtns = document.querySelectorAll('.reject-btn');
         
-        approveBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const documentId = this.dataset.documentId;
-                const form = document.getElementById(`verifyForm${documentId}`);
-                const adminNotes = form.querySelector('textarea').value;
-                
-                // Show confirmation modal
-                modalTitle.textContent = 'Approve Verification';
-                modalMessage.textContent = 'Are you sure you want to approve this verification document?';
-                modalConfirm.className = 'flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500';
-                modalConfirm.textContent = 'Approve';
-                modalConfirm.dataset.action = 'approve';
-                modalConfirm.dataset.documentId = documentId;
-                modalConfirm.dataset.adminNotes = adminNotes;
-                
-                confirmationModal.classList.remove('scale-0');
+        if (approveBtns.length) {
+            approveBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const documentId = this.dataset.documentId;
+                    const form = document.getElementById(`verifyForm${documentId}`);
+                    const adminNotes = form ? form.querySelector('textarea').value : '';
+                    
+                    // Show confirmation modal
+                    modalTitle.textContent = 'Approve Verification';
+                    modalMessage.textContent = 'Are you sure you want to approve this verification document?';
+                    modalConfirm.className = 'flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500';
+                    modalConfirm.textContent = 'Approve';
+                    modalConfirm.dataset.action = 'approve';
+                    modalConfirm.dataset.documentId = documentId;
+                    modalConfirm.dataset.adminNotes = adminNotes;
+                    
+                    confirmationModal.classList.remove('scale-0');
+                });
             });
-        });
+        }
         
-        rejectBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const documentId = this.dataset.documentId;
-                const form = document.getElementById(`verifyForm${documentId}`);
-                const adminNotes = form.querySelector('textarea').value;
-                
-                // Show confirmation modal
-                modalTitle.textContent = 'Reject Verification';
-                modalMessage.textContent = 'Are you sure you want to reject this verification document?';
-                modalConfirm.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500';
-                modalConfirm.textContent = 'Reject';
-                modalConfirm.dataset.action = 'reject';
-                modalConfirm.dataset.documentId = documentId;
-                modalConfirm.dataset.adminNotes = adminNotes;
-                
-                confirmationModal.classList.remove('scale-0');
+        if (rejectBtns.length) {
+            rejectBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const documentId = this.dataset.documentId;
+                    const form = document.getElementById(`verifyForm${documentId}`);
+                    const adminNotes = form ? form.querySelector('textarea').value : '';
+                    
+                    // Show confirmation modal
+                    modalTitle.textContent = 'Reject Verification';
+                    modalMessage.textContent = 'Are you sure you want to reject this verification document?';
+                    modalConfirm.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500';
+                    modalConfirm.textContent = 'Reject';
+                    modalConfirm.dataset.action = 'reject';
+                    modalConfirm.dataset.documentId = documentId;
+                    modalConfirm.dataset.adminNotes = adminNotes;
+                    
+                    confirmationModal.classList.remove('scale-0');
+                });
             });
-        });
+        }
         
         // Modal cancel button
-        modalCancel.addEventListener('click', function() {
-            confirmationModal.classList.add('scale-0');
-        });
+        if (modalCancel) {
+            modalCancel.addEventListener('click', function() {
+                confirmationModal.classList.add('scale-0');
+            });
+        }
         
         // Modal confirm button
-        modalConfirm.addEventListener('click', function() {
-            const action = this.dataset.action;
-            const documentId = this.dataset.documentId;
-            const adminNotes = this.dataset.adminNotes;
-            
-            // Create form data
-            const formData = new FormData();
-            formData.append('action', action);
-            formData.append('admin_notes', adminNotes);
-            
-            // Submit request
-            fetch(`/admin/verify-document/${documentId}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Hide modal
-                    confirmationModal.classList.add('scale-0');
+        if (modalConfirm) {
+            modalConfirm.addEventListener('click', function() {
+                try {
+                    const action = this.dataset.action;
+                    const documentId = this.dataset.documentId;
+                    const adminNotes = this.dataset.adminNotes || '';
                     
-                    // Show success message
-                    alert(data.message);
+                    // Show processing state
+                    modalConfirm.textContent = 'Processing...';
+                    modalConfirm.disabled = true;
                     
-                    // Reload page
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'An error occurred.');
+                    // Create form data
+                    const formData = new FormData();
+                    formData.append('action', action);
+                    formData.append('admin_notes', adminNotes);
+                    
+                    // Get CSRF token from meta tag
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    
+                    // Submit request
+                    fetch(`/admin/verify-document/${documentId}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken || ''
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            // Hide modal
+                            confirmationModal.classList.add('scale-0');
+                            
+                            // Show success message
+                            alert(data.message);
+                            
+                            // Reload page
+                            window.location.reload();
+                        } else {
+                            alert(data.message || 'An error occurred.');
+                            // Reset button state
+                            modalConfirm.textContent = action === 'approve' ? 'Approve' : 'Reject';
+                            modalConfirm.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert(`An error occurred: ${error.message}`);
+                        // Reset button state
+                        modalConfirm.textContent = action === 'approve' ? 'Approve' : 'Reject';
+                        modalConfirm.disabled = false;
+                    });
+                } catch (error) {
+                    console.error('Error in handler:', error);
+                    alert(`An unexpected error occurred: ${error.message}`);
+                    modalConfirm.textContent = this.dataset.action === 'approve' ? 'Approve' : 'Reject';
+                    modalConfirm.disabled = false;
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
             });
-        });
+        }
         
         // Close modal when clicking outside
-        confirmationModal.addEventListener('click', function(e) {
-            if (e.target === confirmationModal) {
-                confirmationModal.classList.add('scale-0');
-            }
-        });
+        if (confirmationModal) {
+            confirmationModal.addEventListener('click', function(e) {
+                if (e.target === confirmationModal) {
+                    confirmationModal.classList.add('scale-0');
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

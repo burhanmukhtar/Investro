@@ -12,9 +12,9 @@
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
             {% if source == 'signup' %}
-            We've sent a code to your email
+            We've sent a code to {{ email }}
             {% else %}
-            Enter the code sent to your registered email
+            Enter the code sent to {{ email }}
             {% endif %}
         </p>
     </div>

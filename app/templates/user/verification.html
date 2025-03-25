@@ -1,0 +1,296 @@
+<!-- app/templates/user/verification.html -->
+{% extends "base.html" %}
+{% block title %}Verification | Crypto Trading Platform{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4 pb-16">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b">
+            <h1 class="text-xl font-bold">Identity Verification</h1>
+            <p class="text-sm text-gray-500 mt-1">Complete verification to access all platform features</p>
+        </div>
+        
+        <div class="p-4">
+            <!-- Verification Status -->
+            <div class="mb-6 text-center">
+                <div class="inline-block w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                    {% if current_user.is_verified %}
+                        <i class="fas fa-check text-green-500 text-3xl"></i>
+                    {% elif current_user.verification_status == 'pending' %}
+                        <i class="fas fa-clock text-yellow-500 text-3xl"></i>
+                    {% elif current_user.verification_status == 'rejected' %}
+                        <i class="fas fa-times text-red-500 text-3xl"></i>
+                    {% else %}
+                        <i class="fas fa-id-card text-gray-400 text-3xl"></i>
+                    {% endif %}
+                </div>
+                <h2 class="text-lg font-medium">
+                    {% if current_user.is_verified %}
+                        Verified Account
+                    {% elif current_user.verification_status == 'pending' %}
+                        Verification Pending
+                    {% elif current_user.verification_status == 'rejected' %}
+                        Verification Rejected
+                    {% else %}
+                        Unverified Account
+                    {% endif %}
+                </h2>
+                <p class="text-sm text-gray-500 max-w-md mx-auto mt-1">
+                    {% if current_user.is_verified %}
+                        Your account is fully verified. You have access to all platform features.
+                    {% elif current_user.verification_status == 'pending' %}
+                        Your verification is pending review. This usually takes 1-2 business days.
+                    {% elif current_user.verification_status == 'rejected' %}
+                        Your verification was rejected. Please submit new documents.
+                    {% else %}
+                        Verify your identity to unlock all platform features including higher withdrawal limits.
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Verification steps progress -->
+            <div class="mb-8">
+                <h3 class="text-base font-medium mb-2">Verification Progress</h3>
+                <div class="relative">
+                    <!-- Progress line -->
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="h-0.5 w-full bg-gray-200"></div>
+                    </div>
+                    <!-- Steps -->
+                    <ul class="relative flex justify-between">
+                        <li class="flex items-center">
+                            <span class="h-7 w-7 flex items-center justify-center rounded-full bg-primary-500 text-white text-sm">1</span>
+                            <span class="ml-2 text-sm font-medium text-gray-900">Register</span>
+                        </li>
+                        
+                        <li class="flex items-center">
+                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if current_user.email_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">2</span>
+                            <span class="ml-2 text-sm font-medium {% if current_user.email_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Email Verification</span>
+                        </li>
+                        
+                        <li class="flex items-center">
+                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if verification_documents|length > 0 %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">3</span>
+                            <span class="ml-2 text-sm font-medium {% if verification_documents|length > 0 %}text-gray-900{% else %}text-gray-500{% endif %}">ID Submission</span>
+                        </li>
+                        
+                        <li class="flex items-center">
+                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if current_user.is_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">4</span>
+                            <span class="ml-2 text-sm font-medium {% if current_user.is_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Approved</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            {% if not current_user.is_verified and current_user.verification_status != 'pending' %}
+<!-- Document Upload Form -->
+<div class="bg-gray-50 border rounded-lg p-4 mb-4">
+    <h3 class="font-medium mb-3">Submit Verification Documents</h3>
+    
+    <form id="verificationForm" action="{{ url_for('user.verification') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-4">
+            <label for="document_type" class="block text-sm font-medium text-gray-700 mb-1">
+                Document Type
+            </label>
+            <select id="document_type" name="document_type" required class="w-full ios-input">
+                <option value="">Select document type</option>
+                <option value="passport">Passport</option>
+                <option value="id_card">ID Card</option>
+                <option value="driver_license">Driver's License</option>
+            </select>
+        </div>
+        
+        <!-- Front Document Upload -->
+        <div class="mb-4">
+            <label for="front_document" class="block text-sm font-medium text-gray-700 mb-1">
+                Front Side of Document <span class="text-red-500">*</span>
+            </label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="frontDocUploadArea">
+                <input type="file" id="front_document" name="front_document" required class="hidden" accept=".jpg,.jpeg,.png,.pdf">
+                <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-500" id="frontDocLabel">Click or drag file to upload front side</p>
+                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, PDF</p>
+            </div>
+        </div>
+        
+        <!-- Back Document Upload -->
+        <div class="mb-4">
+            <label for="back_document" class="block text-sm font-medium text-gray-700 mb-1">
+                Back Side of Document <span class="text-red-500">*</span>
+            </label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="backDocUploadArea">
+                <input type="file" id="back_document" name="back_document" required class="hidden" accept=".jpg,.jpeg,.png,.pdf">
+                <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-500" id="backDocLabel">Click or drag file to upload back side</p>
+                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, PDF</p>
+            </div>
+        </div>
+        
+        <!-- Selfie Upload (Optional) -->
+        <div class="mb-6">
+            <label for="selfie_document" class="block text-sm font-medium text-gray-700 mb-1">
+                Selfie with Document <span class="text-gray-500 text-xs">(Optional)</span>
+            </label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="selfieDocUploadArea">
+                <input type="file" id="selfie_document" name="selfie_document" class="hidden" accept=".jpg,.jpeg,.png">
+                <i class="fas fa-camera text-2xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-500" id="selfieDocLabel">Click or drag file to upload selfie</p>
+                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG</p>
+            </div>
+        </div>
+        
+        <button type="submit" id="submitVerification" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            Submit for Verification
+        </button>
+    </form>
+</div>
+{% endif %}
+            
+            <!-- Verification Document History -->
+            <div class="bg-white border rounded-lg p-4 mt-6">
+                <h3 class="font-medium mb-3">Submitted Documents</h3>
+                
+                {% if verification_documents %}
+                <div class="space-y-4">
+                    {% for doc in verification_documents %}
+                    <div class="p-3 border rounded-lg {% if doc.status == 'approved' %}bg-green-50 border-green-200{% elif doc.status == 'rejected' %}bg-red-50 border-red-200{% else %}bg-yellow-50 border-yellow-200{% endif %}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-medium">{{ doc.document_type|replace('_', ' ')|title }}</p>
+                                <p class="text-sm text-gray-500">Side: {{ doc.document_side|title }}</p>
+                                <p class="text-xs text-gray-400">Submitted: {{ doc.submitted_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if doc.status == 'approved' %}
+                                bg-green-100 text-green-800
+                                {% elif doc.status == 'rejected' %}
+                                bg-red-100 text-red-800
+                                {% else %}
+                                bg-yellow-100 text-yellow-800
+                                {% endif %}">
+                                {{ doc.status|capitalize }}
+                            </span>
+                        </div>
+                        
+                        {% if doc.admin_notes %}
+                        <div class="mt-2 text-sm p-2 rounded bg-gray-50">
+                            <span class="font-medium">Admin notes:</span> {{ doc.admin_notes }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-6 text-gray-500">
+                    <i class="fas fa-file-upload text-3xl mb-2"></i>
+                    <p>No documents submitted yet</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Verification Benefits -->
+            <div class="bg-gray-50 border rounded-lg p-4 mt-6">
+                <h3 class="font-medium mb-3">Benefits of Verification</h3>
+                
+                <ul class="space-y-2">
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span class="text-sm">Higher withdrawal limits</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span class="text-sm">Access to all trading features</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span class="text-sm">Lower transaction fees</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span class="text-sm">Enhanced account security</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Front document upload handling
+        const frontDocInput = document.getElementById('front_document');
+        const frontDocLabel = document.getElementById('frontDocLabel');
+        const frontDocUploadArea = document.getElementById('frontDocUploadArea');
+        
+        if (frontDocInput) {
+            frontDocUploadArea.addEventListener('click', function() {
+                frontDocInput.click();
+            });
+            
+            frontDocInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    frontDocLabel.textContent = file.name;
+                    frontDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                }
+            });
+        }
+        
+        // Back document upload handling
+        const backDocInput = document.getElementById('back_document');
+        const backDocLabel = document.getElementById('backDocLabel');
+        const backDocUploadArea = document.getElementById('backDocUploadArea');
+        
+        if (backDocInput) {
+            backDocUploadArea.addEventListener('click', function() {
+                backDocInput.click();
+            });
+            
+            backDocInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    backDocLabel.textContent = file.name;
+                    backDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                }
+            });
+        }
+        
+        // Selfie document upload handling
+        const selfieDocInput = document.getElementById('selfie_document');
+        const selfieDocLabel = document.getElementById('selfieDocLabel');
+        const selfieDocUploadArea = document.getElementById('selfieDocUploadArea');
+        
+        if (selfieDocInput) {
+            selfieDocUploadArea.addEventListener('click', function() {
+                selfieDocInput.click();
+            });
+            
+            selfieDocInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    selfieDocLabel.textContent = file.name;
+                    selfieDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                }
+            });
+        }
+        
+        // Form submission handling - prevent duplicate submissions
+        const verificationForm = document.getElementById('verificationForm');
+        const submitButton = document.getElementById('submitVerification');
+        
+        if (verificationForm) {
+            verificationForm.addEventListener('submit', function(e) {
+                // Disable the submit button to prevent multiple submissions
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Submitting...';
+                    submitButton.classList.add('opacity-75');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

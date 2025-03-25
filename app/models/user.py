@@ -19,34 +19,45 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128), nullable=False)
     withdrawal_pin_hash = db.Column(db.String(128), nullable=True)
     profile_image = db.Column(db.String(255), default='default.jpg')
+    
+    # Separate email verification from KYC verification
+    email_verified = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
-    is_admin = db.Column(db.Boolean, default=False)
     verification_status = db.Column(db.String(20), default='unverified')  # unverified, pending, approved, rejected
+    
     referral_code = db.Column(db.String(10), unique=True, nullable=False)
     referred_by = db.Column(db.String(10), nullable=True)
     otp = db.Column(db.String(6), nullable=True)
     otp_expiry = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_admin = db.Column(db.Boolean, default=False)
     
     # Relationships
     wallets = db.relationship('Wallet', backref='user', lazy=True)
     transactions = db.relationship('Transaction', backref='user', lazy=True)
     trade_positions = db.relationship('TradePosition', backref='user', lazy=True)
     verification_documents = db.relationship('VerificationDocument', backref='user', lazy=True)
+    
     # Add relationship for referred users
     referred_users = db.relationship(
-    'User', 
-    primaryjoin="User.referral_code==User.referred_by",
-    foreign_keys="User.referred_by",
-    backref=db.backref('referrer', uselist=False, remote_side="User.referral_code")
+        'User', 
+        primaryjoin="User.referral_code==User.referred_by",
+        foreign_keys="User.referred_by",
+        backref=db.backref('referrer', uselist=False, remote_side="User.referral_code")
     )
     
     def __init__(self, username, email, phone, password, referred_by=None):
         self.username = username
         self.email = email
         self.phone = phone
-        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        # Check if password is already hashed
+        if password.startswith('$2b$') or password.startswith('$2a$'):
+            self.password_hash = password
+        else:
+            self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+            
         self.referred_by = referred_by
         self.generate_unique_id()
         self.generate_referral_code()
@@ -89,6 +100,10 @@ class User(db.Model, UserMixin):
             return True
         return False
     
+    def has_completed_kyc(self):
+        """Check if the user has completed KYC verification"""
+        return self.is_verified and self.verification_status == 'approved'
+    
     def get_total_deposits(self):
         """
         Get total deposits made by the user in USDT.
@@ -119,12 +134,40 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f"User('{self.username}', '{self.email}')"
 
+class PendingUser(db.Model):
+    """Model for users that have started registration but not verified OTP yet"""
+    id = db.Column(db.String(36), primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(20), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    referred_by = db.Column(db.String(10), nullable=True)
+    otp = db.Column(db.String(6), nullable=True)
+    otp_expiry = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def generate_otp(self):
+        self.otp = ''.join(random.choices(string.digits, k=6))
+        self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+        return self.otp
+    
+    def verify_otp(self, otp):
+        if self.otp == otp and datetime.utcnow() <= self.otp_expiry:
+            self.otp = None
+            self.otp_expiry = None
+            return True
+        return False
+    
+    def __repr__(self):
+        return f"PendingUser('{self.username}', '{self.email}')"
+
 
 class VerificationDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     document_type = db.Column(db.String(50), nullable=False)  # ID, passport, driver's license
     document_path = db.Column(db.String(255), nullable=False)
+    document_side = db.Column(db.String(10), default='front')  # front, back, selfie
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     admin_notes = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)

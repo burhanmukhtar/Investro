@@ -4,7 +4,7 @@ import string
 from datetime import datetime, timedelta
 import threading
 from app import db
-from app.models.user import User
+from app.models.user import User, PendingUser
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -12,6 +12,7 @@ from app.config import Config
 import logging
 import time
 from email.mime.image import MIMEImage
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -357,29 +358,8 @@ def _send_otp_email_task(email, otp):
             logger.info(f"OTP email sent successfully to {email}")
             return True
             
-        except smtplib.SMTPConnectError as connect_error:
-            logger.error(f"Failed to connect to SMTP server: {connect_error}")
-            # Fall back to alternative method if available
-            return _send_email_fallback(email, otp)
-            
-        except smtplib.SMTPServerDisconnected as disconnect_error:
-            logger.error(f"SMTP server disconnected: {disconnect_error}")
-            return _send_email_fallback(email, otp)
-            
-        except smtplib.SMTPAuthenticationError as auth_error:
-            logger.error(f"SMTP authentication failed: {auth_error}")
-            return _send_email_fallback(email, otp)
-            
-        except smtplib.SMTPException as smtp_error:
-            logger.error(f"SMTP error: {smtp_error}")
-            return _send_email_fallback(email, otp)
-            
-        except TimeoutError:
-            logger.error("SMTP connection timed out")
-            return _send_email_fallback(email, otp)
-            
-        except OSError as os_error:
-            logger.error(f"OS error during email sending: {os_error}")
+        except Exception as e:
+            logger.error(f"Error sending email: {str(e)}")
             return _send_email_fallback(email, otp)
             
     except Exception as e:
@@ -391,8 +371,6 @@ def _send_email_fallback(email, otp):
     """Fallback method for sending OTP emails if SMTP fails."""
     try:
         # If you have an alternative email service, use it here
-        # For example, you might use a third-party API like SendGrid, Mailgun, etc.
-        
         # For now, just log that we would use a fallback
         logger.info(f"Would use fallback email service to send OTP to {email}")
         
@@ -411,117 +389,64 @@ def _send_email_fallback(email, otp):
 
 def verify_otp(user_id, otp):
     """Verify the OTP for a user."""
+    # First try with PendingUser
+    pending_user = PendingUser.query.get(user_id)
+    
+    if pending_user:
+        if pending_user.otp == otp and datetime.utcnow() <= pending_user.otp_expiry:
+            # Create actual user from pending user
+            user = User(
+                username=pending_user.username,
+                email=pending_user.email,
+                phone=pending_user.phone,
+                password=pending_user.password_hash,
+                referred_by=pending_user.referred_by
+            )
+            
+            # User is email verified but not KYC verified
+            user.email_verified = True
+            user.is_verified = False
+            user.verification_status = 'unverified'
+            
+            db.session.add(user)
+            
+            # Remove pending user
+            db.session.delete(pending_user)
+            db.session.commit()
+            
+            return True, user
+    
+    # Then try with regular User (for login OTP verification)
     user = User.query.get(user_id)
     
-    if not user:
-        return False
-    
-    if user.otp == otp and datetime.utcnow() <= user.otp_expiry:
-        user.otp = None
-        user.otp_expiry = None
-        db.session.commit()
-        return True
-    
-    # In development mode, check if entered OTP is "000000" as a backup
-    if hasattr(Config, 'ENVIRONMENT') and Config.ENVIRONMENT == 'development':
-        if otp == "000000":
-            logger.warning(f"DEVELOPMENT MODE: Using backup OTP code for user {user_id}")
+    if user:
+        if user.otp == otp and datetime.utcnow() <= user.otp_expiry:
             user.otp = None
             user.otp_expiry = None
             db.session.commit()
-            return True
-    
-    return False
-
-def test_email_configuration():
-    """Test SMTP email configuration and return detailed diagnostics."""
-    results = {
-        "success": False,
-        "connection": False,
-        "authentication": False,
-        "sending": False,
-        "errors": []
-    }
-    
-    try:
-        # 1. Test basic connection
-        logger.info(f"Testing connection to SMTP server {Config.MAIL_SERVER}:{Config.MAIL_PORT}")
-        try:
-            # Choose the correct SMTP class based on SSL/TLS settings
-            if hasattr(Config, 'MAIL_USE_SSL') and Config.MAIL_USE_SSL:
-                server = smtplib.SMTP_SSL(Config.MAIL_SERVER, Config.MAIL_PORT, timeout=10)
-                logger.info("Using SMTP_SSL connection")
-            else:
-                server = smtplib.SMTP(Config.MAIL_SERVER, Config.MAIL_PORT, timeout=10)
-                logger.info("Using standard SMTP connection")
-                
-                # Start TLS if configured
-                if hasattr(Config, 'MAIL_USE_TLS') and Config.MAIL_USE_TLS:
-                    server.starttls()
-                    logger.info("TLS connection established")
-            
-            results["connection"] = True
-            logger.info("Connection established successfully")
-            
-            # 3. Test authentication if credentials are provided
-            if Config.MAIL_USERNAME and Config.MAIL_PASSWORD:
-                logger.info(f"Testing authentication with username: {Config.MAIL_USERNAME}")
-                server.login(Config.MAIL_USERNAME, Config.MAIL_PASSWORD)
-                results["authentication"] = True
-                logger.info("Authentication successful")
-                
-                # 4. Optional: Test sending a message
-                # Create a simple test message
-                test_message = MIMEText("This is a test email from your application.")
-                test_message["Subject"] = "SMTP Test"
-                test_message["From"] = Config.MAIL_USERNAME
-                test_message["To"] = Config.MAIL_USERNAME  # Send to self for testing
-                
-                # Just verify connection is working without actually sending
-                # server.sendmail(Config.MAIL_USERNAME, Config.MAIL_USERNAME, test_message.as_string())
-                # results["sending"] = True
-                # logger.info("Test email sent successfully")
-                
-                # Since we got to authentication, mark the test as successful
-                results["success"] = True
-            
-            server.quit()
-            
-        except smtplib.SMTPConnectError as e:
-            results["errors"].append(f"Connection error: {str(e)}")
-            logger.error(f"SMTP connection failed: {e}")
-        except smtplib.SMTPAuthenticationError as e:
-            results["errors"].append(f"Authentication error: {str(e)}")
-            logger.error(f"SMTP authentication failed: {e}")
-        except smtplib.SMTPException as e:
-            results["errors"].append(f"SMTP error: {str(e)}")
-            logger.error(f"SMTP error: {e}")
-        except TimeoutError:
-            results["errors"].append("Connection timed out")
-            logger.error("SMTP connection timed out")
-        except OSError as e:
-            results["errors"].append(f"OS error: {str(e)}")
-            logger.error(f"OS error during SMTP test: {e}")
-        except Exception as e:
-            results["errors"].append(f"Unexpected error: {str(e)}")
-            logger.error(f"Unexpected error during SMTP test: {e}")
-            
-    except Exception as e:
-        results["errors"].append(f"Setup error: {str(e)}")
-        logger.error(f"Error setting up SMTP test: {e}")
+            return True, user
         
-    return results
+        # In development mode, check if entered OTP is "000000" as a backup
+        if hasattr(Config, 'ENVIRONMENT') and Config.ENVIRONMENT == 'development':
+            if otp == "000000":
+                logger.warning(f"DEVELOPMENT MODE: Using backup OTP code for user {user_id}")
+                user.otp = None
+                user.otp_expiry = None
+                db.session.commit()
+                return True, user
+    
+    return False, None
 
-def register_user(username, email, phone, password, referral_code=None):
-    """Register a new user."""
-    # Check if username, email, or phone already exists
-    if User.query.filter_by(username=username).first():
+def register_pending_user(username, email, phone, password, referral_code=None):
+    """Register a pending user that requires OTP verification."""
+    # Check if username, email, or phone already exists in both User and PendingUser
+    if User.query.filter_by(username=username).first() or PendingUser.query.filter_by(username=username).first():
         return None, "Username already exists."
     
-    if User.query.filter_by(email=email).first():
+    if User.query.filter_by(email=email).first() or PendingUser.query.filter_by(email=email).first():
         return None, "Email already registered."
     
-    if User.query.filter_by(phone=phone).first():
+    if User.query.filter_by(phone=phone).first() or PendingUser.query.filter_by(phone=phone).first():
         return None, "Phone number already registered."
     
     # Check referral code if provided
@@ -533,9 +458,29 @@ def register_user(username, email, phone, password, referral_code=None):
         else:
             return None, "Invalid referral code."
     
-    # Create new user
-    user = User(username=username, email=email, phone=phone, password=password, referred_by=referred_by)
-    db.session.add(user)
+    # Generate temporary pending user ID
+    temp_id = str(uuid.uuid4())
+    
+    # Create new pending user
+    from app import bcrypt
+    password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    pending_user = PendingUser(
+        id=temp_id,
+        username=username, 
+        email=email, 
+        phone=phone,
+        password_hash=password_hash,
+        referred_by=referred_by
+    )
+    
+    # Generate OTP
+    otp = pending_user.generate_otp()
+    
+    db.session.add(pending_user)
     db.session.commit()
     
-    return user, "User registered successfully."
+    # Send OTP email
+    send_otp_email(email, otp)
+    
+    return pending_user, "Verification code sent to your email. Please verify to complete registration."

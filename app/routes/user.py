@@ -1,5 +1,5 @@
 # app/routes/user.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User, VerificationDocument
@@ -21,6 +21,13 @@ from app.models.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 user = Blueprint('user', __name__)
+
+@user.route('/hide-verification-popup', methods=['POST'])
+@login_required
+def hide_verification_popup():
+    """Set session flag to hide verification popup"""
+    session['hide_verification_popup'] = True
+    return jsonify({'success': True})
 
 @user.route('/home')
 @login_required
@@ -62,6 +69,8 @@ def home():
         flash("Error loading dashboard. Please try again later.", "danger")
         # Fallback to a simpler page if needed
         return render_template('user/home_basic.html', title='Home')
+    
+    
 
 @user.route('/market')
 @login_required
@@ -415,7 +424,9 @@ def set_withdrawal_pin():
         flash(f"Error setting withdrawal PIN: {str(e)}", "danger")
         return redirect(url_for('user.profile'))
 
-@user.route('/profile/verification', methods=['GET', 'POST'])
+# Updated app/routes/user.py verification route
+
+@user.route('/verification', methods=['GET', 'POST'])
 @login_required
 def verification():
     """
@@ -425,58 +436,81 @@ def verification():
         if request.method == 'POST':
             document_type = request.form.get('document_type')
             
-            if 'document_file' not in request.files:
-                flash('No file part', 'danger')
-                return redirect(url_for('user.profile'))
+            # Check if required files are present
+            if 'front_document' not in request.files or 'back_document' not in request.files:
+                flash('Front and back documents are required', 'danger')
+                return redirect(url_for('user.verification'))
             
-            file = request.files['document_file']
+            front_file = request.files['front_document']
+            back_file = request.files['back_document']
+            selfie_file = request.files.get('selfie_document', None)
             
-            if file.filename == '':
-                flash('No selected file', 'danger')
-                return redirect(url_for('user.profile'))
+            # Validate both required files are present and not empty
+            if front_file.filename == '' or back_file.filename == '':
+                flash('Both front and back documents are required', 'danger')
+                return redirect(url_for('user.verification'))
             
-            # Validate file type
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'pdf'}
-            if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-                # Save file
-                filename = secure_filename(f"{current_user.id}_{document_type}_{file.filename}")
+            # Process and save front document
+            if front_file:
+                process_document_file(front_file, document_type, 'front', current_user.id)
                 
-                # Make sure directory exists
-                upload_dir = os.path.join(Config.UPLOAD_FOLDER, 'verification_documents')
-                os.makedirs(upload_dir, exist_ok=True)
+            # Process and save back document
+            if back_file:
+                process_document_file(back_file, document_type, 'back', current_user.id)
                 
-                filepath = os.path.join(upload_dir, filename)
-                file.save(filepath)
-                
-                # Create verification document record
-                doc = VerificationDocument(
-                    user_id=current_user.id,
-                    document_type=document_type,
-                    document_path=filename
-                )
-                
-                db.session.add(doc)
-                
-                # Update user's verification status
+            # Process selfie if provided
+            if selfie_file and selfie_file.filename != '':
+                process_document_file(selfie_file, document_type, 'selfie', current_user.id)
+            
+            # Update user's verification status if not already pending/approved
+            if current_user.verification_status == 'unverified' or current_user.verification_status == 'rejected':
                 current_user.verification_status = 'pending'
-                
                 db.session.commit()
-                
-                flash('Verification document submitted successfully!', 'success')
-            else:
-                flash('Invalid file format. Allowed formats: PNG, JPG, JPEG, PDF', 'danger')
+            
+            flash('Verification documents submitted successfully!', 'success')
+            return redirect(url_for('user.verification'))
         
         # Get user's verification documents
-        verification_documents = VerificationDocument.query.filter_by(user_id=current_user.id).all()
+        verification_documents = VerificationDocument.query.filter_by(user_id=current_user.id).order_by(VerificationDocument.submitted_at.desc()).all()
         
         return render_template('user/verification.html', 
-                              title='Verification', 
-                              verification_documents=verification_documents)
+                               title='Verification', 
+                               verification_documents=verification_documents)
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error processing verification: {str(e)}")
         flash(f"Error processing verification: {str(e)}", "danger")
         return redirect(url_for('user.profile'))
+
+def process_document_file(file, document_type, document_side, user_id):
+    """Helper function to process and save a document file"""
+    # Validate file type
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'pdf'}
+    if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+        # Save file
+        filename = secure_filename(f"{user_id}_{document_type}_{document_side}_{file.filename}")
+        
+        # Make sure directory exists
+        upload_dir = os.path.join(Config.UPLOAD_FOLDER, 'verification_documents')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        filepath = os.path.join(upload_dir, filename)
+        file.save(filepath)
+        
+        # Create verification document record
+        doc = VerificationDocument(
+            user_id=user_id,
+            document_type=document_type,
+            document_path=filename,
+            document_side=document_side
+        )
+        
+        db.session.add(doc)
+        
+        return True, doc
+    else:
+        flash(f'Invalid file format for {document_side} document. Allowed formats: PNG, JPG, JPEG, PDF', 'danger')
+        return False, None
 
 @user.route('/transaction-history')
 @login_required

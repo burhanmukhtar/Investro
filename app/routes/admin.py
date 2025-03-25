@@ -1,5 +1,5 @@
 # app/routes/admin.py
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User, VerificationDocument
@@ -138,40 +138,63 @@ def verifications():
 @login_required
 @admin_required
 def verify_document(doc_id):
-    document = VerificationDocument.query.get_or_404(doc_id)
-    
-    # Check if the request is JSON or form data
-    if request.is_json:
-        data = request.json
-    else:
-        data = request.form
-    
-    action = data.get('action')
-    admin_notes = data.get('admin_notes', '')
-    
-    if action not in ['approve', 'reject']:
-        return jsonify({'success': False, 'message': 'Invalid action.'})
-    
-    # Update document status
-    document.status = 'approved' if action == 'approve' else 'rejected'
-    document.admin_notes = admin_notes
-    document.reviewed_at = datetime.utcnow()
-    
-    # Update user verification status if approved
-    user = User.query.get(document.user_id)
-    if action == 'approve':
-        user.verification_status = 'approved'
-        user.is_verified = True
-    else:
-        user.verification_status = 'rejected'
-    
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'message': f"Document {document.status}.",
-        'status': document.status
-    })
+    """
+    Process verification document approval or rejection
+    """
+    try:
+        document = VerificationDocument.query.get_or_404(doc_id)
+        
+        # Get form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+        
+        action = data.get('action')
+        admin_notes = data.get('admin_notes', '')
+        
+        if action not in ['approve', 'reject']:
+            return jsonify({'success': False, 'message': 'Invalid action.'}), 400
+        
+        # Update document status
+        document.status = 'approved' if action == 'approve' else 'rejected'
+        document.admin_notes = admin_notes
+        document.reviewed_at = datetime.utcnow()
+        
+        # Update user's verification status if approved
+        user = User.query.get(document.user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found.'}), 404
+            
+        if action == 'approve':
+            user.verification_status = 'approved'
+            user.is_verified = True
+            user.email_verified = True  # Ensure email verification is set
+        else:
+            user.verification_status = 'rejected'
+        
+        db.session.commit()
+        
+        # Send notification to user
+        try:
+            from app.services.notification_service import send_verification_notification
+            send_verification_notification(user, document.status, admin_notes)
+        except Exception as e:
+            # Log the error but don't fail the request
+            current_app.logger.error(f"Error sending notification: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f"Document {document.status} successfully.",
+            'status': document.status
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error processing verification: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error processing verification: {str(e)}"
+        }), 500
 
 @admin.route('/deposits')
 @login_required

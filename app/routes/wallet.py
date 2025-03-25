@@ -10,12 +10,29 @@ from app.utils.crypto_api import get_exchange_rates, get_current_price
 import decimal
 import logging
 import uuid
+from functools import wraps
+from flask import redirect, url_for, flash
+from flask_login import current_user
 
 logger = logging.getLogger(__name__)
 wallet = Blueprint('wallet', __name__)
 
+
+
+def verification_required(f):
+    """Decorator to require verification for sensitive operations"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_verified:
+            flash('Verification required to access this feature. Please complete your verification.', 'warning')
+            return redirect(url_for('user.verification'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @wallet.route('/deposit', methods=['GET'])
 @login_required
+@verification_required
 def deposit():
     """Get deposit page with address for selected currency and chain"""
     try:
@@ -107,6 +124,7 @@ def submit_deposit():
 
 @wallet.route('/withdraw', methods=['GET', 'POST'])
 @login_required
+@verification_required
 def withdraw():
     """Handle withdrawal requests"""
     try:
@@ -217,6 +235,7 @@ def withdraw():
 
 @wallet.route('/convert', methods=['GET', 'POST'])
 @login_required
+@verification_required
 def convert():
     """Handle currency conversion"""
     try:
@@ -346,6 +365,7 @@ def convert():
 
 @wallet.route('/transfer', methods=['GET', 'POST'])
 @login_required
+@verification_required
 def transfer():
     """Handle transfers between spot and funding wallets"""
     try:
@@ -450,6 +470,7 @@ def transfer():
 
 @wallet.route('/pay', methods=['GET', 'POST'])
 @login_required
+@verification_required
 def pay():
     """Handle peer-to-peer payments between users"""
     try:
