@@ -5,134 +5,229 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-4">
-    <!-- Portfolio Overview -->
+    <!-- Portfolio Overview - Binance Style -->
     <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
         <div class="p-4 border-b">
-            <h2 class="text-lg font-semibold mb-1">Total Balance</h2>
-            <div class="text-2xl font-bold">{{ total_balance }} USDT</div>
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold">Total Balance</h2>
+                <div class="text-sm">
+                    <button id="hideBalances" class="text-xs flex items-center text-gray-500 focus:outline-none">
+                        <span class="relative inline-block w-8 h-4 mr-2 bg-gray-300 rounded-full transition-colors ease-in-out duration-200">
+                            <span id="hideBalanceSwitch" class="absolute left-0 inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"></span>
+                        </span>
+                        Hide balances
+                    </button>
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <div class="text-2xl font-bold balance-value">{{ total_balance }} USDT</div>
+                <div class="text-sm text-gray-500">≈ ${{ total_balance }}</div>
+            </div>
         </div>
         
-        <div class="grid grid-cols-2 divide-x">
+        <div class="grid grid-cols-3 divide-x">
             <div class="p-4">
-                <div class="text-sm text-gray-500 mb-1">Spot Wallet</div>
-                <div class="text-xl font-semibold">{{ total_spot_balance }} USDT</div>
+                <div class="text-sm text-gray-500 mb-1">Spot</div>
+                <div class="text-base font-semibold balance-value">{{ total_spot_balance }} USDT</div>
             </div>
             <div class="p-4">
-                <div class="text-sm text-gray-500 mb-1">Funding Wallet</div>
-                <div class="text-xl font-semibold">{{ total_funding_balance }} USDT</div>
+                <div class="text-sm text-gray-500 mb-1">Funding</div>
+                <div class="text-base font-semibold balance-value">{{ total_funding_balance }} USDT</div>
+            </div>
+            <div class="p-4">
+                <div class="text-sm text-gray-500 mb-1">Futures</div>
+                <div class="text-base font-semibold balance-value">{{ total_futures_balance }} USDT</div>
             </div>
         </div>
     </div>
     
     <!-- Quick Actions -->
-    <div class="grid grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-5 gap-2 mb-6">
         <a href="{{ url_for('wallet.deposit') }}" class="flex flex-col items-center bg-white p-3 rounded-lg shadow-sm">
-            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-2">
+            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-1">
                 <i class="fas fa-arrow-down text-green-600"></i>
             </div>
             <span class="text-xs font-medium">Deposit</span>
         </a>
         
         <a href="{{ url_for('wallet.withdraw') }}" class="flex flex-col items-center bg-white p-3 rounded-lg shadow-sm">
-            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-1">
                 <i class="fas fa-arrow-up text-red-600"></i>
             </div>
             <span class="text-xs font-medium">Withdraw</span>
         </a>
         
         <a href="{{ url_for('wallet.convert') }}" class="flex flex-col items-center bg-white p-3 rounded-lg shadow-sm">
-            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-1">
                 <i class="fas fa-exchange-alt text-blue-600"></i>
             </div>
             <span class="text-xs font-medium">Convert</span>
         </a>
         
         <a href="{{ url_for('wallet.transfer') }}" class="flex flex-col items-center bg-white p-3 rounded-lg shadow-sm">
-            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mb-2">
+            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mb-1">
                 <i class="fas fa-sync-alt text-purple-600"></i>
             </div>
             <span class="text-xs font-medium">Transfer</span>
         </a>
+        
+        <a href="{{ url_for('user.transaction_history') }}" class="flex flex-col items-center bg-white p-3 rounded-lg shadow-sm">
+            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-1">
+                <i class="fas fa-history text-gray-600"></i>
+            </div>
+            <span class="text-xs font-medium">History</span>
+        </a>
     </div>
     
-    <!-- Wallets -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="p-4 border-b flex justify-between items-center">
-            <h2 class="text-lg font-semibold">Assets</h2>
-            
+    <!-- Binance-style Tabs -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div class="border-b">
             <div class="flex">
-                <button id="hideZeroBalances" class="text-xs flex items-center text-gray-500 focus:outline-none">
-                    <span class="relative inline-block w-8 h-4 mr-2 bg-gray-300 rounded-full transition-colors ease-in-out duration-200">
-                        <span id="hideZeroSwitch" class="absolute left-0 inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"></span>
-                    </span>
-                    Hide zero balances
+                <button id="cryptoTab" class="px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 flex-1">
+                    Cryptocurrencies
+                </button>
+                <button id="accountsTab" class="px-4 py-3 text-sm font-medium text-gray-500 flex-1">
+                    Accounts
                 </button>
             </div>
         </div>
         
+        <!-- Search and Filters -->
         <div class="p-3 border-b bg-gray-50">
-            <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
+            <div class="flex justify-between items-center mb-2">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text" id="assetSearch" placeholder="Search" class="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
                 </div>
-                <input type="text" id="assetSearch" placeholder="Search" class="pl-10 pr-4 py-2 w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <div class="ml-2">
+                    <button id="hideZeroBalances" class="text-xs flex items-center text-gray-500 focus:outline-none">
+                        <span class="relative inline-block w-8 h-4 mr-2 bg-gray-300 rounded-full transition-colors ease-in-out duration-200">
+                            <span id="hideZeroSwitch" class="absolute left-0 inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"></span>
+                        </span>
+                        Hide zero
+                    </button>
+                </div>
             </div>
         </div>
         
-        <div id="walletsTabs" class="border-b">
-            <div class="flex">
-                <button id="spotTab" class="flex-1 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
-                    Spot
-                </button>
-                <button id="fundingTab" class="flex-1 py-3 text-sm font-medium text-gray-500">
-                    Funding
-                </button>
+        <!-- Cryptocurrencies Tab Content -->
+        <div id="cryptoContent">
+            <!-- Column Headers -->
+            <div class="bg-gray-50 p-3 text-xs text-gray-500 grid grid-cols-3 font-medium">
+                <div>Coin</div>
+                <div class="text-right">Total Balance</div>
+                <div class="text-right">Value in USDT</div>
             </div>
-        </div>
-        
-        <!-- Spot Wallet Tab -->
-        <div id="spotContent">
-            <div id="spotWallets" class="divide-y">
+            
+            <div id="cryptoWallets" class="divide-y">
                 {% for wallet in spot_wallets %}
-                <div class="wallet-item p-4 flex items-center justify-between" data-balance="{{ wallet.spot_balance }}">
+                {% set spot_balance = wallet.spot_balance|default(0) %}
+                {% set funding_balance = wallet.funding_balance|default(0) %}
+                {% set futures_balance = wallet.futures_balance|default(0) %}
+                {% set total_balance = spot_balance + funding_balance + futures_balance %}
+                
+                <div class="wallet-item p-4 grid grid-cols-3 items-center" data-balance="{{ total_balance }}" data-symbol="{{ wallet.currency }}">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                            <span class="text-xs font-bold">{{ wallet.currency[0] }}</span>
+                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3 coin-icon" data-symbol="{{ wallet.currency }}">
+                            <img src="" alt="{{ wallet.currency }}" class="h-8 w-8 rounded-full coin-image hidden">
+                            <span class="text-xs font-bold coin-fallback">{{ wallet.currency[0] }}</span>
                         </div>
                         <div>
                             <div class="font-medium">{{ wallet.currency }}</div>
-                            <div class="text-xs text-gray-500 crypto-name">{{ wallet.currency }}</div>
+                            <div class="text-xs text-gray-500 crypto-name" data-symbol="{{ wallet.currency }}">{{ wallet.currency }}</div>
                         </div>
                     </div>
                     <div class="text-right">
-                        <div class="font-medium">{{ format_currency_amount(wallet.spot_balance, wallet.currency) }}</div>
-                        <div class="text-xs text-gray-500">≈ {{ format_currency_amount(wallet.spot_balance * rates.get(wallet.currency, 1), 'USDT', 2) }} USDT</div>
+                        <div class="font-medium balance-value">{{ format_currency_amount(total_balance, wallet.currency) }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm balance-value">{{ format_currency_amount(total_balance * (rates.get(wallet.currency, 1)|float), 'USDT', 2) }}</div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
         
-        <!-- Funding Wallet Tab -->
-        <div id="fundingContent" class="hidden">
-            <div id="fundingWallets" class="divide-y">
-                {% for wallet in spot_wallets %}
-                <div class="wallet-item p-4 flex items-center justify-between" data-balance="{{ wallet.funding_balance }}">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                            <span class="text-xs font-bold">{{ wallet.currency[0] }}</span>
-                        </div>
-                        <div>
-                            <div class="font-medium">{{ wallet.currency }}</div>
-                            <div class="text-xs text-gray-500 crypto-name">{{ wallet.currency }}</div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-medium">{{ wallet.funding_balance }}</div>
-                        <div class="text-xs text-gray-500">≈ {{ wallet.funding_balance }} USDT</div>
-                    </div>
+        <!-- Accounts Tab Content -->
+        <div id="accountsContent" class="hidden">
+            <!-- Spot Account -->
+            <div class="p-4 border-b">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-medium">Spot Account</h3>
+                    <a href="{{ url_for('wallet.transfer') }}" class="text-xs text-primary-600 hover:underline">Transfer</a>
                 </div>
-                {% endfor %}
+                
+                <div id="spotWallets" class="space-y-3">
+                    {% for wallet in spot_wallets %}
+                    {% set spot_balance = wallet.spot_balance|default(0) %}
+                    {% if spot_balance > 0 %}
+                    <div class="wallet-item flex justify-between items-center py-2">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 coin-icon-small" data-symbol="{{ wallet.currency }}">
+                                <img src="" alt="{{ wallet.currency }}" class="h-6 w-6 rounded-full coin-image-small hidden">
+                                <span class="text-xs font-bold coin-fallback-small">{{ wallet.currency[0] }}</span>
+                            </div>
+                            <span class="text-sm">{{ wallet.currency }}</span>
+                        </div>
+                        <div class="text-sm balance-value">{{ format_currency_amount(spot_balance, wallet.currency) }}</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Funding Account -->
+            <div class="p-4 border-b">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-medium">Funding Account</h3>
+                    <a href="{{ url_for('wallet.transfer') }}" class="text-xs text-primary-600 hover:underline">Transfer</a>
+                </div>
+                
+                <div id="fundingWallets" class="space-y-3">
+                    {% for wallet in spot_wallets %}
+                    {% set funding_balance = wallet.funding_balance|default(0) %}
+                    {% if funding_balance > 0 %}
+                    <div class="wallet-item flex justify-between items-center py-2">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 coin-icon-small" data-symbol="{{ wallet.currency }}">
+                                <img src="" alt="{{ wallet.currency }}" class="h-6 w-6 rounded-full coin-image-small hidden">
+                                <span class="text-xs font-bold coin-fallback-small">{{ wallet.currency[0] }}</span>
+                            </div>
+                            <span class="text-sm">{{ wallet.currency }}</span>
+                        </div>
+                        <div class="text-sm balance-value">{{ format_currency_amount(funding_balance, wallet.currency) }}</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Futures Account -->
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-medium">Futures Account</h3>
+                    <a href="{{ url_for('wallet.transfer') }}" class="text-xs text-primary-600 hover:underline">Transfer</a>
+                </div>
+                
+                <div id="futuresWallets" class="space-y-3">
+                    {% for wallet in spot_wallets %}
+                    {% set futures_balance = wallet.futures_balance|default(0) %}
+                    {% if futures_balance > 0 %}
+                    <div class="wallet-item flex justify-between items-center py-2">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 coin-icon-small" data-symbol="{{ wallet.currency }}">
+                                <img src="" alt="{{ wallet.currency }}" class="h-6 w-6 rounded-full coin-image-small hidden">
+                                <span class="text-xs font-bold coin-fallback-small">{{ wallet.currency[0] }}</span>
+                            </div>
+                            <span class="text-sm">{{ wallet.currency }}</span>
+                        </div>
+                        <div class="text-sm balance_value">{{ format_currency_amount(futures_balance, wallet.currency) }}</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -143,32 +238,32 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Tab switching
-        const spotTab = document.getElementById('spotTab');
-        const fundingTab = document.getElementById('fundingTab');
-        const spotContent = document.getElementById('spotContent');
-        const fundingContent = document.getElementById('fundingContent');
+        const cryptoTab = document.getElementById('cryptoTab');
+        const accountsTab = document.getElementById('accountsTab');
+        const cryptoContent = document.getElementById('cryptoContent');
+        const accountsContent = document.getElementById('accountsContent');
         
-        spotTab.addEventListener('click', function() {
-            spotTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-            spotTab.classList.remove('text-gray-500');
-            fundingTab.classList.add('text-gray-500');
-            fundingTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+        cryptoTab.addEventListener('click', function() {
+            cryptoTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            cryptoTab.classList.remove('text-gray-500');
+            accountsTab.classList.add('text-gray-500');
+            accountsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
             
-            spotContent.classList.remove('hidden');
-            fundingContent.classList.add('hidden');
+            cryptoContent.classList.remove('hidden');
+            accountsContent.classList.add('hidden');
         });
         
-        fundingTab.addEventListener('click', function() {
-            fundingTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-            fundingTab.classList.remove('text-gray-500');
-            spotTab.classList.add('text-gray-500');
-            spotTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+        accountsTab.addEventListener('click', function() {
+            accountsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            accountsTab.classList.remove('text-gray-500');
+            cryptoTab.classList.add('text-gray-500');
+            cryptoTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
             
-            fundingContent.classList.remove('hidden');
-            spotContent.classList.add('hidden');
+            accountsContent.classList.remove('hidden');
+            cryptoContent.classList.add('hidden');
         });
         
-        // Hide zero balances toggle
+        // Toggle hide zero balances
         const hideZeroBalances = document.getElementById('hideZeroBalances');
         const hideZeroSwitch = document.getElementById('hideZeroSwitch');
         let hideZero = false;
@@ -182,7 +277,7 @@
                 
                 // Hide zero balances
                 document.querySelectorAll('.wallet-item').forEach(item => {
-                    const balance = parseFloat(item.dataset.balance);
+                    const balance = parseFloat(item.dataset.balance || 0);
                     if (balance === 0) {
                         item.classList.add('hidden');
                     }
@@ -198,6 +293,31 @@
             }
         });
         
+        // Toggle hide balances
+        const hideBalances = document.getElementById('hideBalances');
+        const hideBalanceSwitch = document.getElementById('hideBalanceSwitch');
+        let balancesHidden = false;
+        
+        hideBalances.addEventListener('click', function() {
+            balancesHidden = !balancesHidden;
+            
+            if (balancesHidden) {
+                hideBalanceSwitch.classList.add('translate-x-4');
+                hideBalanceSwitch.parentElement.classList.add('bg-primary-500');
+                
+                // Hide all balance values
+                document.querySelectorAll('.balance-value').forEach(item => {
+                    item.textContent = '******';
+                });
+            } else {
+                hideBalanceSwitch.classList.remove('translate-x-4');
+                hideBalanceSwitch.parentElement.classList.remove('bg-primary-500');
+                
+                // Refresh the page to show actual balances
+                window.location.reload();
+            }
+        });
+        
         // Asset search
         const assetSearch = document.getElementById('assetSearch');
         
@@ -205,16 +325,154 @@
             const searchTerm = this.value.toLowerCase();
             
             document.querySelectorAll('.wallet-item').forEach(item => {
-                const currency = item.querySelector('.font-medium').textContent.toLowerCase();
-                const name = item.querySelector('.crypto-name').textContent.toLowerCase();
+                const symbol = item.dataset.symbol.toLowerCase();
+                const name = item.querySelector('.crypto-name')?.textContent.toLowerCase() || '';
                 
-                if (currency.includes(searchTerm) || name.includes(searchTerm)) {
+                if (symbol.includes(searchTerm) || name.includes(searchTerm)) {
                     item.classList.remove('hidden');
                 } else {
                     item.classList.add('hidden');
                 }
             });
         });
+        
+        // Load coin icons and full names from CoinGecko
+        async function loadCoinData() {
+            try {
+                // Collect all unique symbols
+                const coinElements = document.querySelectorAll('[data-symbol]');
+                const symbols = new Set();
+                
+                coinElements.forEach(el => {
+                    const symbol = el.dataset.symbol;
+                    if (symbol) symbols.add(symbol.toLowerCase());
+                });
+                
+                // Create a mapping for common symbols
+                const symbolMapping = {
+                    'btc': 'bitcoin',
+                    'eth': 'ethereum',
+                    'usdt': 'tether',
+                    'bnb': 'binancecoin',
+                    'xrp': 'ripple',
+                    'ada': 'cardano',
+                    'doge': 'dogecoin',
+                    'sol': 'solana',
+                    'trx': 'tron',
+                    'dot': 'polkadot',
+                    'avax': 'avalanche-2',
+                    'matic': 'polygon',
+                    'link': 'chainlink',
+                    'ltc': 'litecoin',
+                    'uni': 'uniswap',
+                    'atom': 'cosmos',
+                    'xlm': 'stellar',
+                    'etc': 'ethereum-classic',
+                    'near': 'near',
+                    'algo': 'algorand',
+                    'vet': 'vechain',
+                    'fil': 'filecoin'
+                };
+                
+                // Fetch CoinGecko API for coin list - with rate limiting
+                try {
+                    const response = await fetch('https://api.coingecko.com/api/v3/coins/list?include_platform=false');
+                    if (response.ok) {
+                        const coinList = await response.json();
+                        processCoinData(coinList, symbols, symbolMapping, coinElements);
+                    } else {
+                        console.warn('CoinGecko API rate limited or error, using fallback for coin icons');
+                        // Use just the mapping for common coins
+                        processFallbackData(symbols, symbolMapping, coinElements);
+                    }
+                } catch (error) {
+                    console.error('Error fetching coin list:', error);
+                    processFallbackData(symbols, symbolMapping, coinElements);
+                }
+            } catch (error) {
+                console.error('Error loading coin data:', error);
+            }
+        }
+        
+        function processCoinData(coinList, symbols, symbolMapping, coinElements) {
+            // Process each coin element
+            coinElements.forEach(el => {
+                const symbol = el.dataset.symbol.toLowerCase();
+                
+                // Find coin details
+                let coinId = symbolMapping[symbol];
+                if (!coinId) {
+                    const coinInfo = coinList.find(coin => coin.symbol.toLowerCase() === symbol);
+                    coinId = coinInfo?.id;
+                }
+                
+                updateElement(el, coinId, symbol);
+            });
+        }
+        
+        function processFallbackData(symbols, symbolMapping, coinElements) {
+            // Just use the mapping for common coins
+            coinElements.forEach(el => {
+                const symbol = el.dataset.symbol.toLowerCase();
+                const coinId = symbolMapping[symbol];
+                updateElement(el, coinId, symbol);
+            });
+        }
+        
+        function updateElement(element, coinId, symbol) {
+            if (!coinId) return;
+            
+            // If it's a name element, update with the coin name
+            if (element.classList.contains('crypto-name')) {
+                // Use built-in names for common coins
+                const commonNames = {
+                    'btc': 'Bitcoin',
+                    'eth': 'Ethereum',
+                    'usdt': 'Tether',
+                    'bnb': 'Binance Coin',
+                    'xrp': 'Ripple',
+                    'ada': 'Cardano',
+                    'doge': 'Dogecoin',
+                    'sol': 'Solana',
+                    'dot': 'Polkadot',
+                    'avax': 'Avalanche'
+                };
+                
+                const name = commonNames[symbol] || symbol.charAt(0).toUpperCase() + symbol.slice(1);
+                element.textContent = name;
+            }
+            
+            // If it's an icon element, update with the coin image
+            if (element.classList.contains('coin-icon') || element.classList.contains('coin-icon-small')) {
+                try {
+                    const imageUrl = `https://assets.coingecko.com/coins/images/1/${element.classList.contains('coin-icon-small') ? 'small' : 'large'}/${coinId}.png`;
+                    
+                    // Preload image
+                    const img = new Image();
+                    img.onload = function() {
+                        // Find child image element and update
+                        const imgElement = element.querySelector('.coin-image, .coin-image-small');
+                        if (imgElement) {
+                            imgElement.src = imageUrl;
+                            imgElement.classList.remove('hidden');
+                            
+                            // Hide fallback
+                            const fallback = element.querySelector('.coin-fallback, .coin-fallback-small');
+                            if (fallback) fallback.classList.add('hidden');
+                        }
+                    };
+                    img.onerror = function() {
+                        console.warn(`Failed to load image for ${coinId}, keeping fallback`);
+                    };
+                    img.src = imageUrl;
+                } catch (error) {
+                    console.error(`Error loading image for ${coinId}:`, error);
+                }
+            }
+        }
+        
+        // Call the function to load coin data
+        loadCoinData();
     });
 </script>
 {% endblock %}

@@ -32,13 +32,14 @@
                         <label for="from_wallet" class="block text-sm font-medium text-gray-700">
                             From
                         </label>
-                        <div class="text-xs text-gray-500">
+                        <div id="fromBalanceContainer" class="text-xs text-gray-500">
                             Available: <span id="fromBalance">{{ balances.get(selected_currency, {}).get('spot', 0) }}</span> <span id="selectedCurrency">{{ selected_currency }}</span>
                         </div>
                     </div>
                     <select id="from_wallet" name="from_wallet" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="spot">Spot Wallet</option>
                         <option value="funding">Funding Wallet</option>
+                        <option value="futures">Futures Wallet</option>
                     </select>
                 </div>
                 
@@ -58,26 +59,27 @@
                     </div>
                 </div>
                 
-               <!-- app/templates/transactions/transfer.html (continued) -->
                 <!-- To Wallet -->
                 <div class="mb-6">
                     <div class="flex justify-between items-center mb-1">
                         <label for="to_wallet" class="block text-sm font-medium text-gray-700">
                             To
                         </label>
-                        <div class="text-xs text-gray-500">
+                        <div id="toBalanceContainer" class="text-xs text-gray-500">
                             Available: <span id="toBalance">{{ balances.get(selected_currency, {}).get('funding', 0) }}</span> <span>{{ selected_currency }}</span>
                         </div>
                     </div>
                     <select id="to_wallet" name="to_wallet" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="funding">Funding Wallet</option>
                         <option value="spot">Spot Wallet</option>
+                        <option value="futures">Futures Wallet</option>
                     </select>
                 </div>
                 
                 <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg mb-6">
                     <h3 class="font-semibold text-sm mb-2">Note:</h3>
                     <p class="text-xs">There are no fees for transferring between your wallets.</p>
+                    <p class="text-xs mt-1">Funds in your Futures Wallet can be used for following trade signals and futures trading.</p>
                 </div>
                 
                 <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
@@ -139,7 +141,8 @@
             {% for currency, wallet_balances in balances.items() %}
             '{{ currency }}': {
                 'spot': {{ wallet_balances.get('spot', 0) }},
-                'funding': {{ wallet_balances.get('funding', 0) }}
+                'funding': {{ wallet_balances.get('funding', 0) }},
+                'futures': {{ wallet_balances.get('futures', 0) }}
             },
             {% endfor %}
         };
@@ -151,7 +154,7 @@
             const toWallet = toWalletSelect.value;
             
             // Get balances
-            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0, futures: 0 };
             const fromBalance = currencyBalances[fromWallet] || 0;
             const toBalance = currencyBalances[toWallet] || 0;
             
@@ -168,7 +171,13 @@
             
             if (fromWallet === toWallet) {
                 // Switch the "to" wallet
-                toWalletSelect.value = fromWallet === 'spot' ? 'funding' : 'spot';
+                if (fromWallet === 'spot') {
+                    toWalletSelect.value = 'funding';
+                } else if (fromWallet === 'funding') {
+                    toWalletSelect.value = 'futures';
+                } else { // fromWallet === 'futures'
+                    toWalletSelect.value = 'spot';
+                }
             }
             
             updateBalances();
@@ -188,7 +197,7 @@
             const fromWallet = fromWalletSelect.value;
             
             // Get balance
-            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0, futures: 0 };
             const fromBalance = currencyBalances[fromWallet] || 0;
             
             // Set max amount
@@ -217,7 +226,7 @@
             }
             
             // Get balance
-            const currencyBalances = balances[currency] || { spot: 0, funding: 0 };
+            const currencyBalances = balances[currency] || { spot: 0, funding: 0, futures: 0 };
             const fromBalance = currencyBalances[fromWallet] || 0;
             
             if (amount > fromBalance) {

@@ -109,10 +109,28 @@
                     <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
                         Amount (USDT)
                     </label>
-                    <input type="number" id="amount" name="amount" min="10" step="1" class="w-full ios-input" required>
-                    <p class="mt-1 text-xs text-gray-500">
-                        Minimum amount: 10 USDT
-                    </p>
+                    <div class="relative">
+                        <input type="number" id="amount" name="amount" min="10" step="1" class="w-full ios-input pr-16" required>
+                        <div class="absolute inset-y-0 right-0 flex items-center">
+                            <span class="pr-3 text-gray-500">USDT</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <p class="text-xs text-gray-500">
+                            Available in Futures: <span id="futuresBalance" class="font-medium">0</span> USDT
+                        </p>
+                        <button type="button" id="maxAmount" class="text-xs text-primary-600">MAX</button>
+                    </div>
+                </div>
+                
+                <div class="mb-4 bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
+                    <div class="flex items-start">
+                        <i class="fas fa-info-circle mt-0.5 mr-2 text-blue-600"></i>
+                        <div>
+                            <p><strong>Important:</strong> Funds will be deducted from your Futures Wallet.</p>
+                            <p class="mt-1">Need to add funds? <a href="{{ url_for('wallet.transfer') }}" class="text-primary-600 hover:underline">Transfer</a> from your Spot wallet.</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
@@ -161,676 +179,780 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Trading view chart
-        new TradingView.widget({
-            "container_id": "tradingViewChart",
-            "symbol": "{{ selected_coin|replace('/', '') }}",
-            "interval": "60",
-            "timezone": "Etc/UTC",
-            "theme": "light",
-            "style": "1",
-            "locale": "en",
-            "toolbar_bg": "#f1f3f6",
-            "enable_publishing": false,
-            "hide_top_toolbar": true,
-            "hide_legend": false,
-            "save_image": false,
-            "studies": [
-                "RSI@tv-basicstudies",
-                "MASimple@tv-basicstudies"
-            ],
-            "show_popup_button": true,
-            "popup_width": "1000",
-            "popup_height": "650",
-            "autosize": true,
-        });
-
-        // Tab switching
-        const tabs = {
-            positions: {
-                tab: document.getElementById('positionsTab'),
-                content: document.getElementById('positionsContent')
-            },
-            orders: {
-                tab: document.getElementById('ordersTab'),
-                content: document.getElementById('ordersContent')
-            },
-            history: {
-                tab: document.getElementById('historyTab'),
-                content: document.getElementById('historyContent')
-            },
-            signals: {
-                tab: document.getElementById('signalsTab'),
-                content: document.getElementById('signalsContent')
-            }
-        };
-
-        for (const [key, value] of Object.entries(tabs)) {
-            value.tab.addEventListener('click', function() {
-                // Hide all content
-                for (const k of Object.keys(tabs)) {
-                    tabs[k].content.classList.add('hidden');
-                    tabs[k].tab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
-                    tabs[k].tab.classList.add('text-gray-500');
-                }
-                
-                // Show selected content
-                value.content.classList.remove('hidden');
-                value.tab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-                value.tab.classList.remove('text-gray-500');
-                
-                // Load data for the tab
-                if (key === 'positions') {
-                    loadPositions();
-                } else if (key === 'orders') {
-                    // Load orders
-                } else if (key === 'history') {
-                    loadOrderHistory();
-                } else if (key === 'signals') {
-                    loadTradeSignals();
-                }
-            });
-        }
-        
-        // Coin selector
-        const coinSelector = document.getElementById('coinSelector');
-        coinSelector.addEventListener('change', function() {
-            window.location.href = `/user/future?coin=${this.value}`;
-        });
-        
-        // Modals
-        const tradeSignalModal = document.getElementById('tradeSignalModal');
-        const closeTradeSignal = document.getElementById('closeTradeSignal');
-        const closePositionModal = document.getElementById('closePositionModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        
-        if (closeTradeSignal) {
-            closeTradeSignal.addEventListener('click', function() {
-                tradeSignalModal.classList.add('scale-0');
-            });
-            
-            tradeSignalModal.addEventListener('click', function(e) {
-                if (e.target === tradeSignalModal) {
-                    tradeSignalModal.classList.add('scale-0');
-                }
-            });
-        }
-        
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', function() {
-                closePositionModal.classList.add('scale-0');
-            });
-            
-            closePositionModal.addEventListener('click', function(e) {
-                if (e.target === closePositionModal) {
-                    closePositionModal.classList.add('scale-0');
-                }
-            });
-        }
-        
-        // Forms
-        const followSignalForm = document.getElementById('followSignalForm');
-        if (followSignalForm) {
-            followSignalForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                
-                fetch('/trade/follow-signal', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        tradeSignalModal.classList.add('scale-0');
-                        
-                        // Reload positions
-                        loadPositions();
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
-                });
-            });
-        }
-        
-        const closePositionForm = document.getElementById('closePositionForm');
-        if (closePositionForm) {
-            closePositionForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                
-                fetch('/trade/close-position', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        closePositionModal.classList.add('scale-0');
-                        
-                        // Reload positions
-                        loadPositions();
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
-                });
-            });
-        }
-        
-        // Load initial data
-        loadPositions();
-        
-        // Functions to load data
-        function loadPositions() {
-            fetch('/trade/positions')
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('positionsContainer');
-                    
-                    if (data.positions.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center text-gray-500 py-6">
-                                <i class="fas fa-chart-line text-3xl mb-2"></i>
-                                <p>No open positions</p>
-                            </div>
-                        `;
-                        return;
-                    }
-                    
-                    let html = '<div class="space-y-4">';
-                    
-                    data.positions.forEach(position => {
-                        const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
-                        
-                        html += `
-                            <div class="bg-white border rounded-lg p-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <div class="font-medium">${position.currency_pair}</div>
-                                    <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                                        ${position.signal_type}
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-2 mb-3">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Amount</div>
-                                        <div class="text-sm">${position.amount} USDT</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Leverage</div>
-                                        <div class="text-sm">${position.leverage}x</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Entry Price</div>
-                                        <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
-                                    </div>
-                                    <!-- app/templates/user/future.html (continued) -->
-                                    <div>
-                                        <div class="text-xs text-gray-500">Current Price</div>
-                                        <div class="text-sm">$${position.current_price.toFixed(2)}</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-gray-500">PNL</div>
-                                        <div class="text-sm ${profitClass}">
-                                            ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
-                                            (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
-                                        </div>
-                                    </div>
-                                    <button class="close-position-btn px-3 py-1 bg-red-600 text-white text-sm rounded-lg" data-position='${JSON.stringify(position)}'>
-                                        Close
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    container.innerHTML = html;
-                    
-                    // Add event listeners to close buttons
-                    const closeButtons = document.querySelectorAll('.close-position-btn');
-                    closeButtons.forEach(button => {
-                        button.addEventListener('click', function() {
-                            const position = JSON.parse(this.dataset.position);
-                            showClosePositionModal(position);
-                        });
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading positions:', error);
-                    document.getElementById('positionsContainer').innerHTML = `
-                        <div class="text-center text-red-500 py-6">
-                            <p>Error loading positions. Please try again.</p>
-                        </div>
-                    `;
-                });
-        }
-        
-        function loadOrderHistory() {
-    // Show loading indicator
-    const container = document.getElementById('historyContainer');
-    container.innerHTML = `
-        <div class="text-center text-gray-500 py-6">
-            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
-            <p>Loading order history...</p>
-        </div>
-    `;
-    
-    fetch('/trade/history')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data.success) {
-                throw new Error(data.message || 'Unknown error');
-            }
-            
-            if (!data.history || data.history.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-gray-500 py-6">
-                        <i class="fas fa-history text-3xl mb-2"></i>
-                        <p>No order history</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '<div class="space-y-4">';
-            
-            data.history.forEach(item => {
-                const profitClass = item.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
-                
-                html += `
-                    <div class="bg-white border rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="font-medium">${item.currency_pair}</div>
-                            <div class="${item.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                                ${item.signal_type}
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-2 mb-3">
-                            <div>
-                                <div class="text-xs text-gray-500">Amount</div>
-                                <div class="text-sm">${item.amount} USDT</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Leverage</div>
-                                <div class="text-sm">${item.leverage || 1}x</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Entry Price</div>
-                                <div class="text-sm">$${parseFloat(item.entry_price).toFixed(2)}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Close Price</div>
-                                <div class="text-sm">$${parseFloat(item.close_price).toFixed(2)}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="text-xs text-gray-500">PNL</div>
-                                <div class="text-sm ${profitClass}">
-                                    ${item.profit_loss >= 0 ? '+' : ''}${parseFloat(item.profit_loss).toFixed(2)} USDT 
-                                    (${item.profit_loss_percentage >= 0 ? '+' : ''}${parseFloat(item.profit_loss_percentage).toFixed(2)}%)
-                                </div>
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                ${new Date(item.closed_at).toLocaleString()}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error loading history:', error);
-            container.innerHTML = `
-                <div class="text-center text-red-500 py-6">
-                    <p>Error loading order history. Please try again.</p>
-                    <p class="text-xs mt-1">${error.message || ''}</p>
-                </div>
-            `;
-        });
-}
-        
-        function loadTradeSignals() {
-            fetch('/trade/signals')
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('signalsContainer');
-                    
-                    if (data.signals.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center text-gray-500 py-6">
-                                <i class="fas fa-broadcast-tower text-3xl mb-2"></i>
-                                <p>No active trade signals</p>
-                            </div>
-                        `;
-                        return;
-                    }
-                    
-                    let html = '<div class="space-y-4">';
-                    
-                    data.signals.forEach(signal => {
-                        const expiryTime = new Date(signal.expiry_time);
-                        const now = new Date();
-                        const timeLeft = Math.max(0, Math.floor((expiryTime - now) / 1000 / 60)); // minutes left
-                        
-                        html += `
-                            <div class="bg-white border rounded-lg p-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <div class="font-medium">${signal.currency_pair}</div>
-                                    <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                                        ${signal.signal_type}
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-2 mb-3">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Entry Price</div>
-                                        <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Target Price</div>
-                                        <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Stop Loss</div>
-                                        <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-gray-500">Leverage</div>
-                                        <div class="text-sm">${signal.leverage}x</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="text-xs text-gray-500 mb-3">
-                                    ${signal.description || 'No description provided.'}
-                                </div>
-                                
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Expires in</div>
-                                        <div class="text-sm">${timeLeft} minutes</div>
-                                    </div>
-                                    <button class="follow-signal-btn px-3 py-1 bg-primary-600 text-white text-sm rounded-lg" data-signal='${JSON.stringify(signal)}'>
-                                        Follow
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    html += '</div>';
-                    container.innerHTML = html;
-                    
-                    // Add event listeners to follow buttons
-                    const followButtons = document.querySelectorAll('.follow-signal-btn');
-                    followButtons.forEach(button => {
-                        button.addEventListener('click', function() {
-                            const signal = JSON.parse(this.dataset.signal);
-                            showFollowSignalModal(signal);
-                        });
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading signals:', error);
-                    document.getElementById('signalsContainer').innerHTML = `
-                        <div class="text-center text-red-500 py-6">
-                            <p>Error loading trade signals. Please try again.</p>
-                        </div>
-                    `;
-                });
-        }
-        
-        function showFollowSignalModal(signal) {
-            const modal = document.getElementById('tradeSignalModal');
-            const details = document.getElementById('signalDetails');
-            const signalId = document.getElementById('signalId');
-            
-            // Update modal content
-            details.innerHTML = `
-                <div class="bg-gray-50 p-3 rounded-lg mb-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="font-medium">${signal.currency_pair}</div>
-                        <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                            ${signal.signal_type}
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <div class="text-xs text-gray-500">Entry Price</div>
-                            <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Target Price</div>
-                            <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Stop Loss</div>
-                            <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Leverage</div>
-                            <div class="text-sm">${signal.leverage}x</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Set signal ID
-            signalId.value = signal.id;
-            
-            // Show modal
-            modal.classList.remove('scale-0');
-        }
-        
-        function showClosePositionModal(position) {
-            const modal = document.getElementById('closePositionModal');
-            const details = document.getElementById('positionDetails');
-            const positionId = document.getElementById('positionId');
-            
-            const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
-            
-            // Update modal content
-            details.innerHTML = `
-                <div class="bg-gray-50 p-3 rounded-lg mb-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="font-medium">${position.currency_pair}</div>
-                        <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
-                            ${position.signal_type}
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                            <div class="text-xs text-gray-500">Amount</div>
-                            <div class="text-sm">${position.amount} USDT</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Leverage</div>
-                            <div class="text-sm">${position.leverage}x</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Entry Price</div>
-                            <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-gray-500">Current Price</div>
-                            <div class="text-sm">$${position.current_price.toFixed(2)}</div>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <div class="text-xs text-gray-500">Current PNL</div>
-                        <div class="text-sm ${profitClass}">
-                            ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
-                            (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Set position ID
-            positionId.value = position.id;
-            
-            // Show modal
-            modal.classList.remove('scale-0');
-        }
+    // Trading view chart
+    new TradingView.widget({
+        "container_id": "tradingViewChart",
+        "symbol": "{{ selected_coin|replace('/', '') }}",
+        "interval": "60",
+        "timezone": "Etc/UTC",
+        "theme": "light",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_top_toolbar": true,
+        "hide_legend": false,
+        "save_image": false,
+        "studies": [
+            "RSI@tv-basicstudies",
+            "MASimple@tv-basicstudies"
+        ],
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650",
+        "autosize": true,
     });
 
+    // Tab switching
+    const tabs = {
+        positions: {
+            tab: document.getElementById('positionsTab'),
+            content: document.getElementById('positionsContent')
+        },
+        orders: {
+            tab: document.getElementById('ordersTab'),
+            content: document.getElementById('ordersContent')
+        },
+        history: {
+            tab: document.getElementById('historyTab'),
+            content: document.getElementById('historyContent')
+        },
+        signals: {
+            tab: document.getElementById('signalsTab'),
+            content: document.getElementById('signalsContent')
+        }
+    };
 
-    // Add this function to your future.html file, 
-// specifically in the script section at the bottom
-
-function loadOrders() {
-    const container = document.getElementById('ordersContainer');
-    
-    // Show loading indicator
-    container.innerHTML = `
-        <div class="text-center text-gray-500 py-6">
-            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
-            <p>Loading open orders...</p>
-        </div>
-    `;
-    
-    fetch('/trade/orders')
-        .then(response => response.json())
-        .then(data => {
-            if (!data.orders || data.orders.length === 0) {
-                // Show no orders message with explanation
-                container.innerHTML = `
-                    <div class="text-center text-gray-500 py-6">
-                        <i class="fas fa-clipboard-list text-3xl mb-2"></i>
-                        <p>No open orders</p>
-                        <p class="text-xs mt-3 max-w-md mx-auto">
-                            Open orders are limit, stop, and other non-market orders that are waiting 
-                            to be executed when certain price conditions are met.
-                        </p>
-                    </div>
-                `;
-                return;
+    for (const [key, value] of Object.entries(tabs)) {
+        value.tab.addEventListener('click', function() {
+            // Hide all content
+            for (const k of Object.keys(tabs)) {
+                tabs[k].content.classList.add('hidden');
+                tabs[k].tab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                tabs[k].tab.classList.add('text-gray-500');
             }
             
-            // Display orders
-            let html = '<div class="space-y-4">';
+            // Show selected content
+            value.content.classList.remove('hidden');
+            value.tab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            value.tab.classList.remove('text-gray-500');
             
-            data.orders.forEach(order => {
-                // Determine badge colors based on order type and side
-                const orderTypeClass = order.order_type === 'limit' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800';
-                const sideClass = order.side === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                
-                html += `
-                    <div class="bg-white border rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="font-medium">${order.currency_pair}</div>
-                            <div class="flex space-x-2">
-                                <span class="px-2 py-0.5 ${sideClass} text-xs rounded-full">
-                                    ${order.side.toUpperCase()}
-                                </span>
-                                <span class="px-2 py-0.5 ${orderTypeClass} text-xs rounded-full">
-                                    ${order.order_type.toUpperCase()}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-2 mb-3">
-                            <div>
-                                <div class="text-xs text-gray-500">Order Price</div>
-                                <div class="text-sm">$${order.price.toFixed(2)}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Current Price</div>
-                                <div class="text-sm">$${order.current_price.toFixed(2)}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Amount</div>
-                                <div class="text-sm">${order.amount.toFixed(6)} ${order.currency_pair.split('/')[0]}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-500">Created</div>
-                                <div class="text-sm">${new Date(order.created_at).toLocaleString()}</div>
-                            </div>
-                        </div>
-                        
-                        <button class="cancel-order-btn w-full py-2 bg-red-600 text-white text-sm rounded-lg" data-order-id="${order.id}">
-                            Cancel Order
-                        </button>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
-            
-            // Add event listeners to cancel buttons
-            const cancelButtons = document.querySelectorAll('.cancel-order-btn');
-            cancelButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const orderId = this.dataset.orderId;
-                    cancelOrder(orderId);
-                });
-            });
-        })
-        .catch(error => {
-            console.error('Error loading orders:', error);
-            container.innerHTML = `
-                <div class="text-center text-red-500 py-6">
-                    <p>Error loading open orders. Please try again.</p>
-                </div>
-            `;
+            // Load data for the tab
+            if (key === 'positions') {
+                loadPositions();
+            } else if (key === 'orders') {
+                loadOrders();
+            } else if (key === 'history') {
+                loadOrderHistory();
+            } else if (key === 'signals') {
+                loadTradeSignals();
+            }
         });
-}
-
-function cancelOrder(orderId) {
-    if (!confirm('Are you sure you want to cancel this order?')) {
-        return;
     }
     
-    const formData = new FormData();
-    formData.append('order_id', orderId);
-    
-    fetch('/trade/cancel-order', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Order canceled successfully');
-            loadOrders(); // Reload the orders
-        } else {
-            alert(data.message || 'Error canceling order');
-        }
-    })
-    .catch(error => {
-        console.error('Error canceling order:', error);
-        alert('Error canceling order. Please try again.');
+    // Coin selector
+    const coinSelector = document.getElementById('coinSelector');
+    coinSelector.addEventListener('change', function() {
+        window.location.href = `/user/future?coin=${this.value}`;
     });
-}
+    
+    // Modals
+    const tradeSignalModal = document.getElementById('tradeSignalModal');
+    const closeTradeSignal = document.getElementById('closeTradeSignal');
+    const closePositionModal = document.getElementById('closePositionModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    
+    if (closeTradeSignal) {
+        closeTradeSignal.addEventListener('click', function() {
+            tradeSignalModal.classList.add('scale-0');
+        });
+        
+        tradeSignalModal.addEventListener('click', function(e) {
+            if (e.target === tradeSignalModal) {
+                tradeSignalModal.classList.add('scale-0');
+            }
+        });
+    }
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', function() {
+            closePositionModal.classList.add('scale-0');
+        });
+        
+        closePositionModal.addEventListener('click', function(e) {
+            if (e.target === closePositionModal) {
+                closePositionModal.classList.add('scale-0');
+            }
+        });
+    }
+    
+    // Get user's futures wallet balance
+    function loadFuturesBalance() {
+        fetch('/wallet/get-balance?type=futures&currency=USDT')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Futures balance data:", data); // Debug log
+                if (data.success) {
+                    // Format the balance to a maximum of 8 decimal places and remove trailing zeros
+                    const formattedBalance = parseFloat(data.balance).toFixed(8).replace(/\.?0+$/, '');
+                    document.getElementById('futuresBalance').textContent = formattedBalance;
+                } else {
+                    document.getElementById('futuresBalance').textContent = "0";
+                    console.error('Error fetching balance:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching futures balance:', error);
+                document.getElementById('futuresBalance').textContent = "0";
+            });
+    }
+    
+    // Forms
+    const followSignalForm = document.getElementById('followSignalForm');
+    if (followSignalForm) {
+        followSignalForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const amountInput = document.getElementById('amount');
+            const amount = parseFloat(amountInput.value);
+            const balance = parseFloat(document.getElementById('futuresBalance').textContent);
+            
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid amount.');
+                return;
+            }
+            
+            if (amount < 10) {
+                alert('Minimum amount is 10 USDT.');
+                return;
+            }
+            
+            if (amount > balance) {
+                alert('Insufficient balance in Futures wallet. Please transfer funds to your Futures wallet first.');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            // Get CSRF token from meta tag if not in form
+            if (!formData.get('csrf_token')) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (csrfToken) {
+                    formData.append('csrf_token', csrfToken);
+                }
+            }
+            
+            fetch('/trade/follow-signal', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    tradeSignalModal.classList.add('scale-0');
+                    
+                    // Reload positions
+                    loadPositions();
+                } else {
+                    alert(data.message || 'Error following signal.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    }
+    
+    const closePositionForm = document.getElementById('closePositionForm');
+    if (closePositionForm) {
+        closePositionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/trade/close-position', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closePositionModal.classList.add('scale-0');
+                    
+                    // Reload positions
+                    loadPositions();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+    }
+    
+    // Set max amount from futures balance
+    const maxAmountBtn = document.getElementById('maxAmount');
+    if (maxAmountBtn) {
+        maxAmountBtn.addEventListener('click', function() {
+            const amountInput = document.getElementById('amount');
+            const balance = parseFloat(document.getElementById('futuresBalance').textContent);
+            if (!isNaN(balance) && balance > 0) {
+                amountInput.value = balance;
+            }
+        });
+    }
+    
+    // Load initial data
+    loadPositions();
+    
+    // Ensure CSRF token is included in all AJAX requests
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        // Add CSRF token to all AJAX requests
+        const oldXHROpen = window.XMLHttpRequest.prototype.open;
+        window.XMLHttpRequest.prototype.open = function() {
+            const result = oldXHROpen.apply(this, arguments);
+            this.setRequestHeader('X-CSRFToken', csrfToken);
+            return result;
+        };
+    }
+    
+    // Functions to load data
+    function loadPositions() {
+        fetch('/trade/positions')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('positionsContainer');
+                
+                if (data.positions.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-6">
+                            <i class="fas fa-chart-line text-3xl mb-2"></i>
+                            <p>No open positions</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div class="space-y-4">';
+                
+                data.positions.forEach(position => {
+                    const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+                    
+                    html += `
+                        <div class="bg-white border rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="font-medium">${position.currency_pair}</div>
+                                <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                    ${position.signal_type}
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <div class="text-xs text-gray-500">Amount</div>
+                                    <div class="text-sm">${position.amount} USDT</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Leverage</div>
+                                    <div class="text-sm">${position.leverage}x</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Entry Price</div>
+                                    <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Current Price</div>
+                                    <div class="text-sm">$${position.current_price.toFixed(2)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs text-gray-500">PNL</div>
+                                    <div class="text-sm ${profitClass}">
+                                        ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
+                                        (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
+                                    </div>
+                                </div>
+                                <button class="close-position-btn px-3 py-1 bg-red-600 text-white text-sm rounded-lg" data-position='${JSON.stringify(position)}'>
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+                // Add event listeners to close buttons
+                const closeButtons = document.querySelectorAll('.close-position-btn');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const position = JSON.parse(this.dataset.position);
+                        showClosePositionModal(position);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading positions:', error);
+                document.getElementById('positionsContainer').innerHTML = `
+                    <div class="text-center text-red-500 py-6">
+                        <p>Error loading positions. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function loadOrders() {
+        const container = document.getElementById('ordersContainer');
+        
+        // Show loading indicator
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-6">
+                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                <p>Loading open orders...</p>
+            </div>
+        `;
+        
+        fetch('/trade/orders')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.orders || data.orders.length === 0) {
+                    // Show no orders message with explanation
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-6">
+                            <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                            <p>No open orders</p>
+                            <p class="text-xs mt-3 max-w-md mx-auto">
+                                Open orders are limit, stop, and other non-market orders that are waiting 
+                                to be executed when certain price conditions are met.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display orders
+                let html = '<div class="space-y-4">';
+                
+                data.orders.forEach(order => {
+                    // Determine badge colors based on order type and side
+                    const orderTypeClass = order.order_type === 'limit' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800';
+                    const sideClass = order.side === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    
+                    html += `
+                        <div class="bg-white border rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="font-medium">${order.currency_pair}</div>
+                                <div class="flex space-x-2">
+                                    <span class="px-2 py-0.5 ${sideClass} text-xs rounded-full">
+                                        ${order.side.toUpperCase()}
+                                    </span>
+                                    <span class="px-2 py-0.5 ${orderTypeClass} text-xs rounded-full">
+                                        ${order.order_type.toUpperCase()}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <div class="text-xs text-gray-500">Order Price</div>
+                                    <div class="text-sm">$${order.price.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Current Price</div>
+                                    <div class="text-sm">$${order.current_price.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Amount</div>
+                                    <div class="text-sm">${order.amount.toFixed(6)} ${order.currency_pair.split('/')[0]}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Created</div>
+                                    <div class="text-sm">${new Date(order.created_at).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            
+                            <button class="cancel-order-btn w-full py-2 bg-red-600 text-white text-sm rounded-lg" data-order-id="${order.id}">
+                                Cancel Order
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+                // Add event listeners to cancel buttons
+                const cancelButtons = document.querySelectorAll('.cancel-order-btn');
+                cancelButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const orderId = this.dataset.orderId;
+                        cancelOrder(orderId);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading orders:', error);
+                container.innerHTML = `
+                    <div class="text-center text-red-500 py-6">
+                        <p>Error loading open orders. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function loadOrderHistory() {
+        // Show loading indicator
+        const container = document.getElementById('historyContainer');
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-6">
+                <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                <p>Loading order history...</p>
+            </div>
+        `;
+        
+        fetch('/trade/history')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.message || 'Unknown error');
+                }
+                
+                if (!data.history || data.history.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-6">
+                            <i class="fas fa-history text-3xl mb-2"></i>
+                            <p>No order history</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div class="space-y-4">';
+                
+                data.history.forEach(item => {
+                    const profitClass = item.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+                    
+                    html += `
+                        <div class="bg-white border rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="font-medium">${item.currency_pair}</div>
+                                <div class="${item.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                    ${item.signal_type}
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <div class="text-xs text-gray-500">Amount</div>
+                                    <div class="text-sm">${item.amount} USDT</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Leverage</div>
+                                    <div class="text-sm">${item.leverage || 1}x</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Entry Price</div>
+                                    <div class="text-sm">$${parseFloat(item.entry_price).toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Close Price</div>
+                                    <div class="text-sm">$${parseFloat(item.close_price).toFixed(2)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs text-gray-500">PNL</div>
+                                    <div class="text-sm ${profitClass}">
+                                        ${item.profit_loss >= 0 ? '+' : ''}${parseFloat(item.profit_loss).toFixed(2)} USDT 
+                                        (${item.profit_loss_percentage >= 0 ? '+' : ''}${parseFloat(item.profit_loss_percentage).toFixed(2)}%)
+                                    </div>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    ${new Date(item.closed_at).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading history:', error);
+                container.innerHTML = `
+                    <div class="text-center text-red-500 py-6">
+                        <p>Error loading order history. Please try again.</p>
+                        <p class="text-xs mt-1">${error.message || ''}</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function loadTradeSignals() {
+        fetch('/trade/signals')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('signalsContainer');
+                
+                if (data.signals.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 py-6">
+                            <i class="fas fa-broadcast-tower text-3xl mb-2"></i>
+                            <p>No active trade signals</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div class="space-y-4">';
+                
+                data.signals.forEach(signal => {
+                    const expiryTime = new Date(signal.expiry_time);
+                    const now = new Date();
+                    const timeLeft = Math.max(0, Math.floor((expiryTime - now) / 1000 / 60)); // minutes left
+                    
+                    html += `
+                        <div class="bg-white border rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div class="font-medium">${signal.currency_pair}</div>
+                                <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                                    ${signal.signal_type}
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <div class="text-xs text-gray-500">Entry Price</div>
+                                    <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Target Price</div>
+                                    <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Stop Loss</div>
+                                    <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Leverage</div>
+                                    <div class="text-sm">${signal.leverage}x</div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-xs text-gray-500 mb-3">
+                                ${signal.description || 'No description provided.'}
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs text-gray-500">Expires in</div>
+                                    <div class="text-sm">${timeLeft} minutes</div>
+                                </div>
+                                <button class="follow-signal-btn px-3 py-1 bg-primary-600 text-white text-sm rounded-lg" data-signal='${JSON.stringify(signal)}'>
+                                    Follow
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+                // Add event listeners to follow buttons
+                const followButtons = document.querySelectorAll('.follow-signal-btn');
+                followButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const signal = JSON.parse(this.dataset.signal);
+                        showFollowSignalModal(signal);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading signals:', error);
+                document.getElementById('signalsContainer').innerHTML = `
+                    <div class="text-center text-red-500 py-6">
+                        <p>Error loading trade signals. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function showFollowSignalModal(signal) {
+        const modal = document.getElementById('tradeSignalModal');
+        const details = document.getElementById('signalDetails');
+        const signalId = document.getElementById('signalId');
+        
+        // Update modal content
+        details.innerHTML = `
+            <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="font-medium">${signal.currency_pair}</div>
+                    <div class="${signal.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                        ${signal.signal_type}
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="text-xs text-gray-500">Entry Price</div>
+                        <div class="text-sm">$${signal.entry_price.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Target Price</div>
+                        <div class="text-sm">$${signal.target_price.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Stop Loss</div>
+                        <div class="text-sm">$${signal.stop_loss.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Leverage</div>
+                        <div class="text-sm">${signal.leverage}x</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Set signal ID
+        signalId.value = signal.id;
+        
+        // Load futures balance
+        loadFuturesBalance();
+        
+        // Show modal
+        modal.classList.remove('scale-0');
+    }
+    
+    function showClosePositionModal(position) {
+        const modal = document.getElementById('closePositionModal');
+        const details = document.getElementById('positionDetails');
+        const positionId = document.getElementById('positionId');
+        
+        const profitClass = position.profit_loss >= 0 ? 'text-green-600' : 'text-red-600';
+        
+        // Update modal content
+        details.innerHTML = `
+            <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="font-medium">${position.currency_pair}</div>
+                    <div class="${position.signal_type === 'buy' ? 'text-green-600' : 'text-red-600'} uppercase text-sm font-bold">
+                        ${position.signal_type}
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <div class="text-xs text-gray-500">Amount</div>
+                        <div class="text-sm">${position.amount} USDT</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Leverage</div>
+                        <div class="text-sm">${position.leverage}x</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Entry Price</div>
+                        <div class="text-sm">$${position.entry_price.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Current Price</div>
+                        <div class="text-sm">$${position.current_price.toFixed(2)}</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="text-xs text-gray-500">Current PNL</div>
+                    <div class="text-sm ${profitClass}">
+                        ${position.profit_loss >= 0 ? '+' : ''}${position.profit_loss.toFixed(2)} USDT 
+                        (${position.profit_loss_percentage >= 0 ? '+' : ''}${position.profit_loss_percentage.toFixed(2)}%)
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Set position ID
+        positionId.value = position.id;
+        
+        // Show modal
+        modal.classList.remove('scale-0');
+    }
+    
+    function cancelOrder(orderId) {
+        if (!confirm('Are you sure you want to cancel this order?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('order_id', orderId);
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            formData.append('csrf_token', csrfToken);
+        }
+        
+        fetch('/trade/cancel-order', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Order canceled successfully');
+                loadOrders(); // Reload the orders
+            } else {
+                alert(data.message || 'Error canceling order');
+            }
+        })
+        .catch(error => {
+            console.error('Error canceling order:', error);
+            alert('Error canceling order. Please try again.');
+        });
+    }
+    
+    // Function for external use (if needed)
+    window.showTradeSignalModal = function(signalId, details) {
+        // Populate form and details
+        document.getElementById('signalId').value = signalId;
+        
+        if (typeof details === 'string') {
+            document.getElementById('signalDetails').innerHTML = details;
+        }
+        
+        // Reset amount input
+        document.getElementById('amount').value = "";
+        
+        // Load the futures balance
+        loadFuturesBalance();
+        
+        // Show modal
+        document.getElementById('tradeSignalModal').classList.remove('scale-0');
+    };
+});
 </script>
+
 {% endblock %}

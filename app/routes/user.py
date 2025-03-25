@@ -132,74 +132,70 @@ def future():
 @login_required
 def assets():
     """
-    Display user's asset page with portfolio information
+    Minimal version with maximum safety for handling None values
     """
     try:
         # Get user's wallets
         spot_wallets = Wallet.query.filter_by(user_id=current_user.id).all()
         
-        # Fetch real-time conversion rates using CoinGecko API
-        rates = {}
-        try:
-            from app.utils.crypto_api import get_coin_details
-            
-            # Get USDT rates for main cryptocurrencies
-            for currency in ['BTC', 'ETH', 'BNB', 'XRP', 'USDT']:
-                if currency == 'USDT':
-                    rates['USDT'] = 1.0  # 1 USDT = 1 USD
-                    continue
-                
-                try:
-                    # Get coin details which includes current price in USD
-                    coin_data = get_coin_details(currency)
-                    
-                    # Store the USD price
-                    if coin_data and 'current_price' in coin_data:
-                        rates[currency] = coin_data['current_price']
-                except Exception as e:
-                    logger.error(f"Error fetching rate for {currency}: {str(e)}")
-                    # Use fallback rates if API call fails for a specific coin
-                    fallback_rates = {
-                        'BTC': 60000,
-                        'ETH': 3000,
-                        'BNB': 500,
-                        'XRP': 0.5
-                    }
-                    rates[currency] = fallback_rates.get(currency, 1.0)
-                    
-        except Exception as e:
-            logger.error(f"Error fetching all rates: {str(e)}")
-            # Fallback rates if all API calls fail
-            rates = {
-                'BTC': 60000,
-                'ETH': 3000,
-                'BNB': 500,
-                'XRP': 0.5,
-                'USDT': 1.0
-            }
+        # Basic fallback rates
+        rates = {
+            'BTC': 60000.0,
+            'ETH': 3000.0,
+            'BNB': 500.0,
+            'XRP': 0.5,
+            'USDT': 1.0
+        }
         
-        # Calculate total balance in USDT
-        total_spot_balance = 0
-        total_funding_balance = 0
+        # Add futures_balance attribute to wallets if not exists
+        total_spot_balance = 0.0
+        total_funding_balance = 0.0
+        total_futures_balance = 0.0
         
         for wallet in spot_wallets:
-            # Convert each currency to USDT using rates
-            rate = rates.get(wallet.currency, 1.0)
+            # Ensure all wallet balance attributes exist and are numeric
+            if not hasattr(wallet, 'spot_balance') or wallet.spot_balance is None:
+                wallet.spot_balance = 0.0
+            else:
+                wallet.spot_balance = float(wallet.spot_balance)
+                
+            if not hasattr(wallet, 'funding_balance') or wallet.funding_balance is None:
+                wallet.funding_balance = 0.0
+            else:
+                wallet.funding_balance = float(wallet.funding_balance)
+                
+            if not hasattr(wallet, 'futures_balance') or wallet.futures_balance is None:
+                wallet.futures_balance = 0.0
+            else:
+                wallet.futures_balance = float(wallet.futures_balance)
+                
+            # Get rate for the currency (default to 1.0 if not found)
+            rate = float(rates.get(wallet.currency, 1.0))
+            
+            # Calculate totals
             total_spot_balance += wallet.spot_balance * rate
             total_funding_balance += wallet.funding_balance * rate
+            total_futures_balance += wallet.futures_balance * rate
         
-        # Calculate the actual total balance as the sum of both spot and funding
-        total_balance = total_spot_balance + total_funding_balance
+        # Calculate the total balance
+        total_balance = total_spot_balance + total_funding_balance + total_futures_balance
+        
+        # Safe formatting function
+        def safe_format(amount):
+            if amount is None:
+                amount = 0.0
+            return f"{float(amount):.2f}"
         
         return render_template('user/assets.html', 
-                              title='Assets', 
-                              spot_wallets=spot_wallets,
-                              rates=rates,
-                              total_spot_balance=format_currency_amount(total_spot_balance, 'USDT', 2),
-                              total_funding_balance=format_currency_amount(total_funding_balance, 'USDT', 2),
-                              total_balance=format_currency_amount(total_balance, 'USDT', 2),
-                              format_currency_amount=format_currency_amount)
-                              
+                             title='Assets', 
+                             spot_wallets=spot_wallets,
+                             rates=rates,
+                             total_spot_balance=safe_format(total_spot_balance),
+                             total_funding_balance=safe_format(total_funding_balance),
+                             total_futures_balance=safe_format(total_futures_balance),
+                             total_balance=safe_format(total_balance),
+                             format_currency_amount=lambda a, b=None, c=None: safe_format(a))
+                             
     except Exception as e:
         logger.error(f"Error loading assets page: {str(e)}")
         flash(f"Error loading assets: {str(e)}", "danger")

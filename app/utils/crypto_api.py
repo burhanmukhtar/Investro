@@ -28,7 +28,7 @@ def _get_coin_id(symbol):
     # Normalize symbol to uppercase
     symbol = symbol.upper() if isinstance(symbol, str) else ''
     
-    # Common mappings
+    # Enhanced mappings for better icon fetching
     mappings = {
         'BTC': 'bitcoin',
         'ETH': 'ethereum',
@@ -71,11 +71,135 @@ def _get_coin_id(symbol):
         'THETA': 'theta-token',
         'AXS': 'axie-infinity',
         'OP': 'optimism',
-        'ARB': 'arbitrum'
+        'ARB': 'arbitrum',
+        'KLAY': 'klaytn',
+        'SAND': 'the-sandbox',
+        'AAVE': 'aave',
+        'MKR': 'maker',
+        'GRT': 'the-graph',
+        'CRV': 'curve-dao-token',
+        'QNT': 'quant-network',
+        'EGLD': 'elrond-erd-2',
+        'STX': 'blockstack',
+        'HBAR': 'hedera-hashgraph',
+        'VET': 'vechain'
     }
     
     # Return mapped ID or lowercase symbol as fallback
     return mappings.get(symbol, symbol.lower())
+
+# Add a caching mechanism to reduce API calls
+_coin_cache = {}
+_cache_timestamp = 0
+
+def get_coin_data(symbol, force_refresh=False):
+    """
+    Get coin data including icon URL and name from CoinGecko with caching
+    
+    Args:
+        symbol: Cryptocurrency symbol (e.g., 'BTC')
+        force_refresh: Force a refresh of the cache
+        
+    Returns:
+        Dictionary with coin data or None if not found
+    """
+    import time
+    
+    global _coin_cache, _cache_timestamp
+    current_time = time.time()
+    
+    # Refresh cache if it's older than 15 minutes or forced refresh
+    if force_refresh or not _coin_cache or (current_time - _cache_timestamp > 900):  # 15 minutes
+        try:
+            # Get list of coins from CoinGecko
+            response = requests.get(
+                f'{COINGECKO_API_URL}/coins/list',
+                params={
+                    'include_platform': 'false',
+                    'x_cg_pro_api_key': Config.COINGECKO_API_KEY
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                coin_list = response.json()
+                
+                # Build cache from response
+                for coin in coin_list:
+                    _coin_cache[coin['symbol'].upper()] = {
+                        'id': coin['id'],
+                        'name': coin['name'],
+                        'symbol': coin['symbol'].upper()
+                    }
+                
+                _cache_timestamp = current_time
+            else:
+                logger.warning(f"Failed to get coin list from CoinGecko: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error refreshing coin cache: {str(e)}")
+    
+    # Try with direct mapping first
+    coin_id = _get_coin_id(symbol)
+    
+    # Then check cache
+    symbol_upper = symbol.upper()
+    if symbol_upper in _coin_cache:
+        return _coin_cache[symbol_upper]
+    
+    # If not in cache, try to get it directly (for newly added coins)
+    try:
+        # Get coin details via API
+        # (continue to use existing get_coin_details function)
+        details = get_coin_details(symbol)
+        if details:
+            # Add to cache
+            _coin_cache[symbol_upper] = {
+                'id': details.get('id', coin_id),
+                'name': details.get('name', symbol),
+                'symbol': symbol_upper,
+                'current_price': details.get('current_price', 0),
+                'image': details.get('image', '')
+            }
+            return _coin_cache[symbol_upper]
+    except Exception as e:
+        logger.error(f"Error getting coin data for {symbol}: {str(e)}")
+    
+    # If nothing found, return basic info
+    return {
+        'id': coin_id,
+        'name': symbol,
+        'symbol': symbol_upper
+    }
+
+def get_icon_url(symbol, size='large'):
+    """
+    Get coin icon URL for a specific symbol
+    
+    Args:
+        symbol: Cryptocurrency symbol (e.g., 'BTC')
+        size: Icon size ('small' or 'large')
+    
+    Returns:
+        String URL for the coin icon or empty string if not found
+    """
+    try:
+        coin_id = _get_coin_id(symbol)
+        
+        # Use a standard format for CoinGecko icon URLs
+        size_suffix = "small" if size == "small" else "large"
+        
+        # Try to fetch specific coin data
+        coin_data = get_coin_data(symbol)
+        
+        # If we got specific image URL from coin data, use that
+        if coin_data and 'image' in coin_data:
+            return coin_data['image']
+        
+        # Otherwise use the standard URL format
+        return f"https://assets.coingecko.com/coins/images/1/{size_suffix}/{coin_id}.png"
+    except Exception as e:
+        logger.error(f"Error getting icon URL for {symbol}: {str(e)}")
+        return ""
 
 def get_exchange_rates(base_currency='USDT', quote_currencies=None):
     """

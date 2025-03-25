@@ -50,6 +50,7 @@ def signals():
 def follow_signal():
     """
     Follow a trade signal by creating a position.
+    Uses funds only from the futures wallet.
     """
     try:
         signal_id = request.form.get('signal_id')
@@ -80,10 +81,24 @@ def follow_signal():
         # Extract base currency from pair (e.g., BTC from BTC/USDT)
         base_currency = signal.currency_pair.split('/')[1]
         
-        # Check if user has enough balance
+        # Check if user has enough balance in the FUTURES wallet
         wallet = Wallet.query.filter_by(user_id=current_user.id, currency=base_currency).first()
-        if not wallet or wallet.spot_balance < amount:
-            return jsonify({'success': False, 'message': f'Insufficient {base_currency} balance.'})
+        if not wallet:
+            return jsonify({'success': False, 'message': f'No {base_currency} wallet found.'})
+            
+        # Check specifically for futures balance
+        if not hasattr(wallet, 'futures_balance') or wallet.futures_balance is None:
+            return jsonify({'success': False, 'message': f'Futures wallet for {base_currency} not available.'})
+            
+        # Ensure futures_balance is a float
+        futures_balance = float(wallet.futures_balance) if wallet.futures_balance is not None else 0.0
+        
+        # Check if there's enough balance in futures wallet
+        if futures_balance < amount:
+            return jsonify({
+                'success': False, 
+                'message': f'Insufficient {base_currency} balance in futures wallet. Available: {futures_balance}, Required: {amount}'
+            })
         
         # Get current price
         try:
@@ -100,15 +115,15 @@ def follow_signal():
             entry_price=current_price
         )
         
-        # Deduct amount from user's wallet
-        wallet.spot_balance -= amount
+        # Deduct amount from user's FUTURES wallet
+        wallet.futures_balance -= amount
         
         db.session.add(position)
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Successfully followed signal with {amount} {base_currency}.',
+            'message': f'Successfully followed signal with {amount} {base_currency} from your futures wallet.',
             'position': {
                 'id': position.id,
                 'signal_id': position.signal_id,
@@ -192,6 +207,7 @@ def positions():
 def close_position():
     """
     Close an open trading position.
+    Returns funds to the futures wallet.
     """
     try:
         position_id = request.form.get('position_id')
@@ -237,14 +253,19 @@ def close_position():
             position.profit_loss_percentage = profit_loss_percentage
             position.closed_at = datetime.utcnow()
             
-            # Return amount + profit to user's wallet (or deduct loss)
+            # Return amount + profit to user's FUTURES wallet (or deduct loss)
             wallet = Wallet.query.filter_by(user_id=current_user.id, currency=base_currency).first()
+            
             if not wallet:
-                wallet = Wallet(user_id=current_user.id, currency=base_currency, spot_balance=0)
+                wallet = Wallet(user_id=current_user.id, currency=base_currency, futures_balance=0)
                 db.session.add(wallet)
             
-            # Return original amount plus profit (or minus loss)
-            wallet.spot_balance += position.amount + profit_loss
+            # Ensure futures_balance exists and is a float
+            if not hasattr(wallet, 'futures_balance') or wallet.futures_balance is None:
+                wallet.futures_balance = 0.0
+            
+            # Return original amount plus profit (or minus loss) to futures wallet
+            wallet.futures_balance += position.amount + profit_loss
             
             db.session.commit()
             

@@ -357,6 +357,7 @@ def deactivate_signal(signal_id):
 def update_signal_result(signal_id, result, profit_percentage):
     """
     Update the result of a trade signal and close all related positions.
+    Returns funds to futures wallets.
     
     Args:
         signal_id: Signal ID
@@ -392,11 +393,16 @@ def update_signal_result(signal_id, result, profit_percentage):
             position.profit_loss_percentage = profit_percentage if result == 'profit' else -profit_percentage
             position.closed_at = datetime.utcnow()
             
-            # Update user's wallet
+            # Update user's FUTURES wallet (not spot wallet)
             wallet = Wallet.query.filter_by(user_id=position.user_id, currency=signal.currency_pair.split('/')[1]).first()
             
             if wallet:
-                wallet.spot_balance += position.amount + position_profit
+                # Ensure futures_balance exists and is a float
+                if not hasattr(wallet, 'futures_balance') or wallet.futures_balance is None:
+                    wallet.futures_balance = 0.0
+                    
+                # Return original amount plus profit (or minus loss) to futures wallet
+                wallet.futures_balance += position.amount + position_profit
         
         db.session.commit()
         

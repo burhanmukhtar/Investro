@@ -367,7 +367,7 @@ def convert():
 @login_required
 @verification_required
 def transfer():
-    """Handle transfers between spot and funding wallets"""
+    """Handle transfers between spot, funding, and futures wallets"""
     try:
         # Get available currencies
         currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP']  # TODO: Get from DB or API
@@ -381,10 +381,11 @@ def transfer():
         
         for wallet in wallets:
             if wallet.currency not in balances:
-                balances[wallet.currency] = {'spot': 0, 'funding': 0}
+                balances[wallet.currency] = {'spot': 0, 'funding': 0, 'futures': 0}
             
             balances[wallet.currency]['spot'] = wallet.spot_balance
             balances[wallet.currency]['funding'] = wallet.funding_balance
+            balances[wallet.currency]['futures'] = wallet.futures_balance
         
         if request.method == 'POST':
             currency = request.form.get('currency')
@@ -424,14 +425,29 @@ def transfer():
             elif from_wallet == 'funding' and user_wallet.funding_balance < amount:
                 flash('Insufficient funding balance.', 'danger')
                 return redirect(url_for('wallet.transfer', currency=currency))
+            elif from_wallet == 'futures' and user_wallet.futures_balance < amount:
+                flash('Insufficient futures balance.', 'danger')
+                return redirect(url_for('wallet.transfer', currency=currency))
             
-            # Perform transfer
+            # Perform transfer based on source and destination
             if from_wallet == 'spot':
                 user_wallet.spot_balance -= amount
-                user_wallet.funding_balance += amount
-            else:  # from_wallet == 'funding'
+                if to_wallet == 'funding':
+                    user_wallet.funding_balance += amount
+                else:  # to_wallet == 'futures'
+                    user_wallet.futures_balance += amount
+            elif from_wallet == 'funding':
                 user_wallet.funding_balance -= amount
-                user_wallet.spot_balance += amount
+                if to_wallet == 'spot':
+                    user_wallet.spot_balance += amount
+                else:  # to_wallet == 'futures'
+                    user_wallet.futures_balance += amount
+            else:  # from_wallet == 'futures'
+                user_wallet.futures_balance -= amount
+                if to_wallet == 'spot':
+                    user_wallet.spot_balance += amount
+                else:  # to_wallet == 'funding'
+                    user_wallet.funding_balance += amount
             
             # Create transfer transaction
             transaction = Transaction(
@@ -653,3 +669,47 @@ def get_conversion_rate():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error getting conversion rate: {str(e)}'})
+    
+
+# Add this route to your wallet.py file
+
+@wallet.route('/get-balance', methods=['GET'])
+@login_required
+def get_balance():
+    """API endpoint to get wallet balance for a specific wallet type and currency"""
+    try:
+        wallet_type = request.args.get('type', 'spot')
+        currency = request.args.get('currency', 'USDT')
+        
+        # Get the wallet
+        wallet = Wallet.query.filter_by(user_id=current_user.id, currency=currency).first()
+        
+        # Default balance to 0 if wallet doesn't exist
+        balance = 0
+        
+        if wallet:
+            if wallet_type == 'futures':
+                # Safely handle futures_balance which might be None
+                balance = wallet.futures_balance if hasattr(wallet, 'futures_balance') and wallet.futures_balance is not None else 0
+            elif wallet_type == 'funding':
+                balance = wallet.funding_balance if wallet.funding_balance is not None else 0
+            else:  # Default to spot
+                balance = wallet.spot_balance if wallet.spot_balance is not None else 0
+        
+        # Ensure balance is a float
+        balance = float(balance)
+        
+        # Return the balance
+        return jsonify({
+            'success': True,
+            'balance': balance,
+            'currency': currency,
+            'wallet_type': wallet_type
+        })
+    except Exception as e:
+        logger.error(f"Error getting wallet balance: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'message': f"Error getting wallet balance: {str(e)}",
+            'balance': 0
+        })

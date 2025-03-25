@@ -10,6 +10,7 @@ class Wallet(db.Model):
     currency = db.Column(db.String(10), nullable=False)
     spot_balance = db.Column(db.Float, default=0.0)
     funding_balance = db.Column(db.Float, default=0.0)
+    futures_balance = db.Column(db.Float, default=0.0)  # Added futures_balance
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -17,4 +18,4 @@ class Wallet(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'currency'),)
     
     def __repr__(self):
-        return f"Wallet(User ID: {self.user_id}, Currency: {self.currency}, Spot: {self.spot_balance}, Funding: {self.funding_balance})"
+        return f"Wallet(User ID: {self.user_id}, Currency: {self.currency}, Spot: {self.spot_balance}, Funding: {self.funding_balance}, Futures: {self.futures_balance})"

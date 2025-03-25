@@ -38,15 +38,27 @@ def generate_transaction_id():
 def format_currency_amount(amount, currency=None, precision=None):
     """
     Format a currency amount with appropriate precision.
+    Now with safe handling of None values.
     
     Args:
-        amount: Numeric amount to format
+        amount: Numeric amount to format (handles None safely)
         currency: Optional currency code to determine precision
         precision: Optional fixed precision (overrides currency-based precision)
     
     Returns:
         Formatted amount string
     """
+    # Handle None case safely
+    if amount is None:
+        amount = 0
+    
+    # Ensure amount is a float for formatting
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        # If conversion fails, default to 0
+        amount = 0
+    
     # Set precision based on currency if not explicitly specified
     if precision is None:
         if currency in ['BTC']:
