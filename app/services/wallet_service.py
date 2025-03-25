@@ -2,12 +2,15 @@
 import random
 import string
 import re
+import logging
 from datetime import datetime
 from app import db
 from app.models.wallet import Wallet
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.utils.crypto_api import get_current_price, get_coin_details
 
+logger = logging.getLogger(__name__)
 
 def generate_blockchain_address(user_id, currency, chain):
     """
@@ -50,18 +53,31 @@ def validate_address(address, currency, chain):
         # Generic address
         return len(address) >= 30
 
-def get_wallet_balance(user_id, currency):
+def get_wallet_balance(user_id, currency, wallet_type='spot'):
     """
     Get the wallet balance for a user and currency.
     
-    Returns a tuple of (spot_balance, funding_balance).
+    Args:
+        user_id: User ID
+        currency: Currency code
+        wallet_type: Type of wallet ('spot', 'funding', or 'futures')
+    
+    Returns:
+        Float balance amount
     """
     wallet = Wallet.query.filter_by(user_id=user_id, currency=currency).first()
     
-    if wallet:
-        return wallet.spot_balance, wallet.funding_balance
+    if not wallet:
+        return 0.0
+    
+    if wallet_type == 'spot':
+        return float(wallet.spot_balance) if wallet.spot_balance is not None else 0.0
+    elif wallet_type == 'funding':
+        return float(wallet.funding_balance) if wallet.funding_balance is not None else 0.0
+    elif wallet_type == 'futures':
+        return float(wallet.futures_balance) if wallet.futures_balance is not None else 0.0
     else:
-        return 0, 0
+        return 0.0
 
 def create_wallet(user_id, currency):
     """
@@ -72,8 +88,9 @@ def create_wallet(user_id, currency):
     wallet = Wallet(
         user_id=user_id,
         currency=currency,
-        spot_balance=0,
-        funding_balance=0
+        spot_balance=0.0,
+        funding_balance=0.0,
+        futures_balance=0.0
     )
     
     db.session.add(wallet)
@@ -92,10 +109,15 @@ def add_balance(user_id, currency, amount, wallet_type='spot'):
     if not wallet:
         wallet = create_wallet(user_id, currency)
     
+    # Ensure we're working with float values
+    amount = float(amount)
+    
     if wallet_type == 'spot':
-        wallet.spot_balance += amount
-    else:  # wallet_type == 'funding'
-        wallet.funding_balance += amount
+        wallet.spot_balance = float(wallet.spot_balance or 0.0) + amount
+    elif wallet_type == 'funding':
+        wallet.funding_balance = float(wallet.funding_balance or 0.0) + amount
+    else:  # wallet_type == 'futures'
+        wallet.futures_balance = float(wallet.futures_balance or 0.0) + amount
     
     db.session.commit()
     
@@ -112,14 +134,24 @@ def subtract_balance(user_id, currency, amount, wallet_type='spot'):
     if not wallet:
         return False, "Wallet not found.", None
     
+    # Ensure we're working with float values
+    amount = float(amount)
+    
     if wallet_type == 'spot':
-        if wallet.spot_balance < amount:
+        current_balance = float(wallet.spot_balance or 0.0)
+        if current_balance < amount:
             return False, "Insufficient balance.", wallet
-        wallet.spot_balance -= amount
-    else:  # wallet_type == 'funding'
-        if wallet.funding_balance < amount:
+        wallet.spot_balance = current_balance - amount
+    elif wallet_type == 'funding':
+        current_balance = float(wallet.funding_balance or 0.0)
+        if current_balance < amount:
             return False, "Insufficient balance.", wallet
-        wallet.funding_balance -= amount
+        wallet.funding_balance = current_balance - amount
+    else:  # wallet_type == 'futures'
+        current_balance = float(wallet.futures_balance or 0.0)
+        if current_balance < amount:
+            return False, "Insufficient balance.", wallet
+        wallet.futures_balance = current_balance - amount
     
     db.session.commit()
     
@@ -142,65 +174,145 @@ def transfer_balance(from_user_id, to_user_id, currency, amount, from_wallet_typ
     
     return True, "Transfer completed successfully."
 
-def convert_currency(user_id, from_currency, to_currency, amount, rate):
-    """
-    Convert currency for a user.
-    
-    Returns a tuple of (success, message, converted_amount).
-    """
-    # Subtract from source currency
-    success, message, source_wallet = subtract_balance(user_id, from_currency, amount)
-    
-    if not success:
-        return False, message, 0
-    
-    # Calculate converted amount
-    converted_amount = amount * rate
-    
-    # Add to destination currency
-    add_balance(user_id, to_currency, converted_amount)
-    
-    return True, "Conversion completed successfully.", converted_amount
-
 def get_conversion_rate(from_currency, to_currency):
     """
-    Get the conversion rate between two currencies.
+    Get the conversion rate between two currencies using CoinGecko API.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency API to get actual exchange rates.
+    Args:
+        from_currency: Source currency code
+        to_currency: Target currency code
     
-    For development, this returns a mock rate.
+    Returns:
+        float: Exchange rate or 0 if error
     """
-    # Mock conversion rates
-    rates = {
-        'USDT_BTC': 0.000037,
-        'USDT_ETH': 0.00048,
-        'USDT_BNB': 0.0042,
-        'USDT_XRP': 2.3,
-        'BTC_USDT': 27000,
-        'BTC_ETH': 13,
-        'BTC_BNB': 113,
-        'BTC_XRP': 62000,
-        'ETH_USDT': 2080,
-        'ETH_BTC': 0.077,
-        'ETH_BNB': 8.7,
-        'ETH_XRP': 4800,
-        'BNB_USDT': 238,
-        'BNB_BTC': 0.0088,
-        'BNB_ETH': 0.115,
-        'BNB_XRP': 550,
-        'XRP_USDT': 0.435,
-        'XRP_BTC': 0.000016,
-        'XRP_ETH': 0.00021,
-        'XRP_BNB': 0.0018
-    }
+    try:
+        # For same currency, rate is 1:1
+        if from_currency == to_currency:
+            return 1.0
+            
+        # For USDT to other currencies
+        if from_currency == 'USDT':
+            # Get the price in USDT terms (which is approximately USD)
+            rate = get_current_price(f"{to_currency}/USDT")
+            if rate and rate > 0:
+                return 1.0 / rate  # Inverse since we want USDT to other currency
+            return 0.0
+            
+        # For other currencies to USDT
+        elif to_currency == 'USDT':
+            # Direct price lookup
+            rate = get_current_price(f"{from_currency}/USDT")
+            return rate if rate > 0 else 0.0
+            
+        # For cross currency conversion
+        else:
+            # Get rates via USDT
+            from_to_usdt = get_current_price(f"{from_currency}/USDT")
+            to_to_usdt = get_current_price(f"{to_currency}/USDT")
+            
+            if from_to_usdt > 0 and to_to_usdt > 0:
+                # Cross rate calculation: from → USDT → to
+                return from_to_usdt / to_to_usdt
+            return 0.0
+            
+    except Exception as e:
+        logger.error(f"Error getting conversion rate from {from_currency} to {to_currency}: {str(e)}")
+        return 0.0
+
+def convert_currency(user_id, from_currency, to_currency, amount, wallet_type='spot'):
+    """
+    Convert currency for a user with enhanced error handling and rate fetching.
     
-    rate_key = f"{from_currency}_{to_currency}"
-    if rate_key in rates:
-        return rates[rate_key]
-    else:
-        return 1  # Default
+    Args:
+        user_id: User ID
+        from_currency: Source currency code
+        to_currency: Target currency code
+        amount: Amount to convert
+        wallet_type: Wallet type ('spot', 'funding', 'futures')
     
+    Returns:
+        tuple: (success, message, converted_amount)
+    """
+    try:
+        # Validate amount
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return False, "Amount must be greater than zero.", 0
+        except (ValueError, TypeError):
+            return False, "Invalid amount format.", 0
+            
+        # Check for same currency
+        if from_currency == to_currency:
+            return False, "Cannot convert to the same currency.", 0
+            
+        # Get user's wallet for source currency
+        source_wallet = Wallet.query.filter_by(user_id=user_id, currency=from_currency).first()
+        if not source_wallet:
+            return False, f"No {from_currency} wallet found.", 0
+            
+        # Check balance based on wallet_type
+        if wallet_type == 'spot':
+            balance = float(source_wallet.spot_balance or 0.0)
+        elif wallet_type == 'funding':
+            balance = float(source_wallet.funding_balance or 0.0)
+        else:  # futures
+            balance = float(source_wallet.futures_balance or 0.0)
+            
+        if balance < amount:
+            return False, f"Insufficient {from_currency} balance in {wallet_type} wallet.", 0
+            
+        # Get real-time conversion rate
+        rate = get_conversion_rate(from_currency, to_currency)
+        if rate <= 0:
+            return False, f"Could not get valid conversion rate from {from_currency} to {to_currency}.", 0
+            
+        # Calculate converted amount
+        converted_amount = amount * rate
+        if converted_amount <= 0:
+            return False, "Conversion resulted in zero or negative amount.", 0
+            
+        # Log before transaction
+        logger.info(f"Converting {amount} {from_currency} to {to_currency} at rate {rate} = {converted_amount} {to_currency}")
+        
+        # Perform the conversion
+        
+        # 1. Subtract from source wallet
+        success, message, _ = subtract_balance(user_id, from_currency, amount, wallet_type)
+        if not success:
+            return False, message, 0
+            
+        # 2. Add to destination wallet or create if it doesn't exist
+        destination_wallet = Wallet.query.filter_by(user_id=user_id, currency=to_currency).first()
+        if not destination_wallet:
+            destination_wallet = create_wallet(user_id, to_currency)
+            
+        # 3. Add converted amount to destination wallet (same wallet type)
+        add_balance(user_id, to_currency, converted_amount, wallet_type)
+        
+        # 4. Create conversion transaction record for tracking
+        transaction = Transaction(
+            user_id=user_id,
+            transaction_type='convert',
+            status='completed',
+            currency=from_currency,
+            amount=amount,
+            fee=0,  # No fee for conversions
+            from_wallet=wallet_type,
+            to_wallet=wallet_type,
+            notes=f"Converted {amount} {from_currency} to {converted_amount:.8f} {to_currency} at rate {rate:.8f}"
+        )
+        
+        db.session.add(transaction)
+        db.session.commit()
+        
+        return True, "Conversion completed successfully.", converted_amount
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error during currency conversion: {str(e)}")
+        return False, f"Error during conversion: {str(e)}", 0
+
 def create_deposit_transaction(user_id, currency, amount, chain, blockchain_txid=None):
     """
     Create a deposit transaction record.
@@ -255,7 +367,7 @@ def create_withdrawal_transaction(user_id, currency, amount, address, chain, fee
 
 def create_transfer_transaction(user_id, currency, amount, from_wallet, to_wallet):
     """
-    Create a transfer transaction record for moving funds between spot and funding wallets.
+    Create a transfer transaction record for moving funds between wallets.
     
     Returns the created transaction.
     """
@@ -287,7 +399,7 @@ def create_convert_transaction(user_id, from_currency, to_currency, amount, conv
         status='completed',  # Conversions are completed immediately
         currency=from_currency,
         amount=amount,
-        fee=0,  # No fee for conversions (spread is built into the rate)
+        fee=0,  # No fee for conversions
         from_wallet='spot',
         to_wallet='spot',
         notes=f"Converted {amount} {from_currency} to {converted_amount} {to_currency} at rate {rate}"
@@ -464,47 +576,115 @@ def process_withdrawal(transaction_id, blockchain_txid=None, admin_notes=None, r
 
 def get_user_portfolio(user_id):
     """
-    Get a user's portfolio with equivalent values in USDT.
+    Get a user's portfolio with equivalent values in USDT using real-time rates.
     
-    Returns a dict with portfolio data.
+    Args:
+        user_id: User ID
+    
+    Returns:
+        dict: Portfolio data with spot, funding, futures balances and total values
     """
-    wallets = Wallet.query.filter_by(user_id=user_id).all()
-    
-    portfolio = {
-        'spot': {},
-        'funding': {},
-        'total_spot_value': 0,
-        'total_funding_value': 0,
-        'total_value': 0
-    }
-    
-    for wallet in wallets:
-        # Skip empty wallets
-        if wallet.spot_balance == 0 and wallet.funding_balance == 0:
-            continue
+    try:
+        wallets = Wallet.query.filter_by(user_id=user_id).all()
         
-        # Get equivalent value in USDT
-        if wallet.currency == 'USDT':
-            rate = 1
-        else:
-            rate = get_conversion_rate(wallet.currency, 'USDT')
-        
-        spot_value = wallet.spot_balance * rate
-        funding_value = wallet.funding_balance * rate
-        
-        portfolio['spot'][wallet.currency] = {
-            'balance': wallet.spot_balance,
-            'value_usdt': spot_value
+        portfolio = {
+            'spot': {},
+            'funding': {},
+            'futures': {},
+            'total_spot_value': 0,
+            'total_funding_value': 0,
+            'total_futures_value': 0,
+            'total_value': 0
         }
         
-        portfolio['funding'][wallet.currency] = {
-            'balance': wallet.funding_balance,
-            'value_usdt': funding_value
-        }
+        for wallet in wallets:
+            # Get safe numeric values, replacing None with 0
+            spot_balance = float(wallet.spot_balance or 0)
+            funding_balance = float(wallet.funding_balance or 0)
+            futures_balance = float(wallet.futures_balance or 0)
+            
+            # Skip entirely empty wallets
+            if spot_balance == 0 and funding_balance == 0 and futures_balance == 0:
+                continue
+            
+            # Get rate from currency to USDT (real-time rate)
+            if wallet.currency == 'USDT':
+                rate = 1.0
+            else:
+                rate = get_conversion_rate(wallet.currency, 'USDT')
+                if rate <= 0:
+                    # Log warning and use a fallback method if available
+                    logger.warning(f"Could not get rate for {wallet.currency}/USDT, using fallback")
+                    
+                    # Try alternative approach to get rate
+                    try:
+                        coin_details = get_coin_details(wallet.currency)
+                        # Assuming current_price is in USD/USDT
+                        if coin_details and 'current_price' in coin_details and coin_details['current_price'] > 0:
+                            rate = coin_details['current_price']
+                        else:
+                            # Default fallback rates if all else fails
+                            fallback_rates = {
+                                'BTC': 60000.0,
+                                'ETH': 3000.0,
+                                'BNB': 500.0,
+                                'XRP': 0.5,
+                                'DOGE': 0.1,
+                                'SOL': 100.0,
+                                'ADA': 0.5,
+                                'MATIC': 1.0,
+                                'DOT': 20.0,
+                                'AVAX': 30.0
+                            }
+                            rate = fallback_rates.get(wallet.currency, 1.0)
+                    except Exception as e:
+                        logger.error(f"Error getting fallback rate for {wallet.currency}: {str(e)}")
+                        rate = 1.0  # Use 1:1 as last resort
+            
+            # Calculate USDT values
+            spot_value = spot_balance * rate
+            funding_value = funding_balance * rate
+            futures_value = futures_balance * rate
+            
+            # Add to portfolio
+            portfolio['spot'][wallet.currency] = {
+                'balance': spot_balance,
+                'value_usdt': spot_value
+            }
+            
+            portfolio['funding'][wallet.currency] = {
+                'balance': funding_balance,
+                'value_usdt': funding_value
+            }
+            
+            portfolio['futures'][wallet.currency] = {
+                'balance': futures_balance,
+                'value_usdt': futures_value
+            }
+            
+            # Add to totals
+            portfolio['total_spot_value'] += spot_value
+            portfolio['total_funding_value'] += funding_value
+            portfolio['total_futures_value'] += futures_value
         
-        portfolio['total_spot_value'] += spot_value
-        portfolio['total_funding_value'] += funding_value
-    
-    portfolio['total_value'] = portfolio['total_spot_value'] + portfolio['total_funding_value']
-    
-    return portfolio    
+        # Calculate total value across all wallet types
+        portfolio['total_value'] = (
+            portfolio['total_spot_value'] + 
+            portfolio['total_funding_value'] + 
+            portfolio['total_futures_value']
+        )
+        
+        return portfolio
+    except Exception as e:
+        logger.error(f"Error calculating user portfolio: {str(e)}")
+        # Return empty portfolio structure with zeros
+        return {
+            'spot': {},
+            'funding': {},
+            'futures': {},
+            'total_spot_value': 0,
+            'total_funding_value': 0,
+            'total_futures_value': 0,
+            'total_value': 0,
+            'error': str(e)
+        }

@@ -237,7 +237,7 @@ def withdraw():
 @login_required
 @verification_required
 def convert():
-    """Handle currency conversion"""
+    """Handle currency conversion with improved real-time rate fetching"""
     try:
         # Get available currencies from existing wallets in the system
         available_currencies = db.session.query(Wallet.currency).distinct().all()
@@ -249,18 +249,23 @@ def convert():
             if currency not in currencies:
                 currencies.append(currency)
         
-        # Default currencies
+        # Default currencies for the form
         from_currency = request.args.get('from_curr', 'USDT')
         to_currency = request.args.get('to_curr', 'BTC')
         
         # Get user's wallet balances
         wallets = Wallet.query.filter_by(user_id=current_user.id).all()
-        balances = {wallet.currency: wallet.spot_balance for wallet in wallets}
+        balances = {wallet.currency: {
+            'spot': float(wallet.spot_balance or 0),
+            'funding': float(wallet.funding_balance or 0),
+            'futures': float(wallet.futures_balance or 0)
+        } for wallet in wallets}
         
         if request.method == 'POST':
             from_currency = request.form.get('from_currency')
             to_currency = request.form.get('to_currency')
             amount = request.form.get('amount')
+            wallet_type = request.form.get('wallet_type', 'spot')  # Default to spot if not specified
             
             # Validate input
             if not from_currency or not to_currency or not amount:
@@ -276,73 +281,26 @@ def convert():
                 flash('Invalid amount.', 'danger')
                 return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
             
-            # Check if user has enough balance
-            from_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=from_currency).first()
-            if not from_wallet or from_wallet.spot_balance < amount:
-                flash('Insufficient balance.', 'danger')
+            # Check if from_currency and to_currency are different
+            if from_currency == to_currency:
+                flash('Cannot convert to the same currency.', 'danger')
                 return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
             
-            # Get real-time conversion rate using the updated crypto_api module
-            try:
-                # For direct conversion between currencies
-                if from_currency == to_currency:
-                    rate = 1.0
-                elif from_currency == 'USDT':
-                    # Converting USDT to another currency - use the USDT price of the currency
-                    rate = get_current_price(f"{to_currency}/USDT")
-                elif to_currency == 'USDT':
-                    # Converting another currency to USDT - use the USDT price of the currency
-                    rate = get_current_price(f"{from_currency}/USDT")
-                else:
-                    # Cross-currency conversion via USDT
-                    from_to_usdt_rate = get_current_price(f"{from_currency}/USDT")
-                    to_to_usdt_rate = get_current_price(f"{to_currency}/USDT")
-                    
-                    if from_to_usdt_rate > 0 and to_to_usdt_rate > 0:
-                        # Calculate the cross rate
-                        rate = from_to_usdt_rate / to_to_usdt_rate
-                    else:
-                        rate = 0
-                
-                if rate <= 0:
-                    flash('Could not get a valid conversion rate for this pair.', 'danger')
-                    return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
-                    
-            except Exception as e:
-                flash(f'Error getting conversion rate: {str(e)}', 'danger')
-                return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
-            
-            # Calculate converted amount
-            converted_amount = amount * rate
-            
-            # Deduct from source wallet (always from spot balance)
-            from_wallet.spot_balance -= amount
-            
-            # Add to destination wallet (always to spot balance)
-            to_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=to_currency).first()
-            if not to_wallet:
-                to_wallet = Wallet(user_id=current_user.id, currency=to_currency, spot_balance=0)
-                db.session.add(to_wallet)
-            
-            to_wallet.spot_balance += converted_amount
-            
-            # Create conversion transaction
-            transaction = Transaction(
-                user_id=current_user.id,
-                transaction_type='convert',
-                status='completed',
-                currency=from_currency,
-                amount=amount,
-                fee=0,
-                from_wallet='spot',
-                to_wallet='spot',
-                notes=f"Converted {amount} {from_currency} to {converted_amount:.8f} {to_currency} at rate {rate:.8f}"
+            # Use the enhanced convert_currency function from wallet_service.py
+            from app.services.wallet_service import convert_currency
+            success, message, converted_amount = convert_currency(
+                current_user.id, 
+                from_currency, 
+                to_currency, 
+                amount,
+                wallet_type
             )
             
-            db.session.add(transaction)
-            db.session.commit()
-            
-            flash(f'Successfully converted {amount} {from_currency} to {converted_amount:.8f} {to_currency}!', 'success')
+            if success:
+                flash(f'Successfully converted {amount} {from_currency} to {converted_amount:.8f} {to_currency}!', 'success')
+            else:
+                flash(f'Error: {message}', 'danger')
+                
             return redirect(url_for('wallet.convert', from_curr=from_currency, to_curr=to_currency))
         
         # Get recent conversions
@@ -351,15 +309,21 @@ def convert():
             transaction_type='convert'
         ).order_by(Transaction.created_at.desc()).limit(5).all()
         
+        # Get current conversion rate
+        from app.services.wallet_service import get_conversion_rate
+        current_rate = get_conversion_rate(from_currency, to_currency)
+        
         return render_template('transactions/convert.html', 
-                            title='Convert', 
-                            currencies=currencies,
-                            from_currency=from_currency,
-                            to_currency=to_currency,
-                            balances=balances,
-                            recent_conversions=recent_conversions)
+                          title='Convert', 
+                          currencies=currencies,
+                          from_currency=from_currency,
+                          to_currency=to_currency,
+                          balances=balances,
+                          current_rate=current_rate,
+                          recent_conversions=recent_conversions)
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error processing conversion: {str(e)}")
         flash(f'Error processing conversion: {str(e)}', 'danger')
         return redirect(url_for('user.home'))
 
@@ -629,7 +593,7 @@ def verify_recipient():
 
 @wallet.route('/get-conversion-rate', methods=['GET'])
 @login_required
-def get_conversion_rate():
+def get_conversion_rate_api():
     """API endpoint to get current conversion rate between currencies"""
     try:
         from_currency = request.args.get('from')
@@ -639,27 +603,17 @@ def get_conversion_rate():
             return jsonify({'success': False, 'message': 'Both from and to currencies are required.'})
         
         # Get real-time conversion rate
-        if from_currency == to_currency:
-            rate = 1.0
-        elif from_currency == 'USDT':
-            # Converting USDT to another currency
-            rate = get_current_price(f"{to_currency}/USDT")
-        elif to_currency == 'USDT':
-            # Converting another currency to USDT
-            rate = get_current_price(f"{from_currency}/USDT")
-        else:
-            # Cross-currency conversion via USDT
-            from_to_usdt_rate = get_current_price(f"{from_currency}/USDT")
-            to_to_usdt_rate = get_current_price(f"{to_currency}/USDT")
-            
-            if from_to_usdt_rate > 0 and to_to_usdt_rate > 0:
-                # Calculate the cross rate
-                rate = from_to_usdt_rate / to_to_usdt_rate
-            else:
-                rate = 0
+        from app.services.wallet_service import get_conversion_rate
+        rate = get_conversion_rate(from_currency, to_currency)
         
         if rate <= 0:
-            return jsonify({'success': False, 'message': 'Could not get a valid conversion rate for this pair.'})
+            return jsonify({
+                'success': False, 
+                'message': 'Could not get a valid conversion rate for this pair.',
+                'from_currency': from_currency,
+                'to_currency': to_currency,
+                'rate': 0
+            })
         
         return jsonify({
             'success': True,
@@ -668,7 +622,86 @@ def get_conversion_rate():
             'rate': rate
         })
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error getting conversion rate: {str(e)}'})
+        logger.error(f"Error getting conversion rate: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'message': f'Error getting conversion rate: {str(e)}',
+            'from_currency': from_currency if 'from_currency' in locals() else None,
+            'to_currency': to_currency if 'to_currency' in locals() else None,
+            'rate': 0
+        })
+
+@wallet.route('/convert/preview', methods=['POST'])
+@login_required
+def preview_conversion():
+    """API endpoint to preview a conversion without executing it"""
+    try:
+        data = request.get_json()
+        
+        from_currency = data.get('from_currency')
+        to_currency = data.get('to_currency')
+        amount = data.get('amount')
+        wallet_type = data.get('wallet_type', 'spot')
+        
+        # Validate inputs
+        if not from_currency or not to_currency or not amount:
+            return jsonify({'success': False, 'message': 'Missing required parameters'})
+            
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'success': False, 'message': 'Amount must be greater than zero'})
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Invalid amount format'})
+            
+        if from_currency == to_currency:
+            return jsonify({'success': False, 'message': 'Cannot convert to the same currency'})
+            
+        # Check wallet balance
+        user_wallet = Wallet.query.filter_by(user_id=current_user.id, currency=from_currency).first()
+        available_balance = 0
+        
+        if user_wallet:
+            if wallet_type == 'spot':
+                available_balance = float(user_wallet.spot_balance or 0)
+            elif wallet_type == 'funding':
+                available_balance = float(user_wallet.funding_balance or 0)
+            else:  # futures
+                available_balance = float(user_wallet.futures_balance or 0)
+        
+        if amount > available_balance:
+            return jsonify({
+                'success': False, 
+                'message': f'Insufficient balance. Available: {available_balance} {from_currency}'
+            })
+            
+        # Get conversion rate
+        from app.services.wallet_service import get_conversion_rate
+        rate = get_conversion_rate(from_currency, to_currency)
+        
+        if rate <= 0:
+            return jsonify({
+                'success': False, 
+                'message': f'Could not get a valid conversion rate from {from_currency} to {to_currency}'
+            })
+            
+        # Calculate converted amount
+        converted_amount = amount * rate
+        
+        return jsonify({
+            'success': True,
+            'from_currency': from_currency,
+            'to_currency': to_currency,
+            'amount': amount,
+            'converted_amount': converted_amount,
+            'rate': rate,
+            'wallet_type': wallet_type,
+            'available_balance': available_balance
+        })
+        
+    except Exception as e:
+        logger.error(f"Error previewing conversion: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
     
 
 # Add this route to your wallet.py file

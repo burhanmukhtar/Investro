@@ -237,12 +237,38 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Tab switching
-        const cryptoTab = document.getElementById('cryptoTab');
-        const accountsTab = document.getElementById('accountsTab');
-        const cryptoContent = document.getElementById('cryptoContent');
-        const accountsContent = document.getElementById('accountsContent');
-        
+    // Tab switching
+    const cryptoTab = document.getElementById('cryptoTab');
+    const accountsTab = document.getElementById('accountsTab');
+    const cryptoContent = document.getElementById('cryptoContent');
+    const accountsContent = document.getElementById('accountsContent');
+    
+    // Toggle switches
+    const hideZeroBalances = document.getElementById('hideZeroBalances');
+    const hideZeroSwitch = document.getElementById('hideZeroSwitch');
+    const hideBalances = document.getElementById('hideBalances');
+    const hideBalanceSwitch = document.getElementById('hideBalanceSwitch');
+    
+    // Search input
+    const assetSearch = document.getElementById('assetSearch');
+    
+    // States
+    let hideZero = false;
+    let balancesHidden = false;
+    let originalBalances = {}; // Store original balance values
+    let rates = {}; // Store currency rates
+    
+    // Initialize by capturing all original balance values
+    function captureOriginalBalances() {
+        document.querySelectorAll('.balance-value').forEach(item => {
+            const key = item.dataset.valueId || Math.random().toString(36).substring(7);
+            item.dataset.valueId = key;
+            originalBalances[key] = item.textContent;
+        });
+    }
+    
+    // Tab switching functionality
+    if (cryptoTab && accountsTab && cryptoContent && accountsContent) {
         cryptoTab.addEventListener('click', function() {
             cryptoTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
             cryptoTab.classList.remove('text-gray-500');
@@ -262,12 +288,10 @@
             accountsContent.classList.remove('hidden');
             cryptoContent.classList.add('hidden');
         });
-        
-        // Toggle hide zero balances
-        const hideZeroBalances = document.getElementById('hideZeroBalances');
-        const hideZeroSwitch = document.getElementById('hideZeroSwitch');
-        let hideZero = false;
-        
+    }
+    
+    // Toggle hide zero balances
+    if (hideZeroBalances && hideZeroSwitch) {
         hideZeroBalances.addEventListener('click', function() {
             hideZero = !hideZero;
             
@@ -291,12 +315,18 @@
                     item.classList.remove('hidden');
                 });
             }
+            
+            // Apply search filter again if there's a search term
+            if (assetSearch && assetSearch.value) {
+                filterAssets(assetSearch.value);
+            }
         });
-        
-        // Toggle hide balances
-        const hideBalances = document.getElementById('hideBalances');
-        const hideBalanceSwitch = document.getElementById('hideBalanceSwitch');
-        let balancesHidden = false;
+    }
+    
+    // Toggle hide balances
+    if (hideBalances && hideBalanceSwitch) {
+        // Capture original values first
+        captureOriginalBalances();
         
         hideBalances.addEventListener('click', function() {
             balancesHidden = !balancesHidden;
@@ -313,166 +343,315 @@
                 hideBalanceSwitch.classList.remove('translate-x-4');
                 hideBalanceSwitch.parentElement.classList.remove('bg-primary-500');
                 
-                // Refresh the page to show actual balances
-                window.location.reload();
-            }
-        });
-        
-        // Asset search
-        const assetSearch = document.getElementById('assetSearch');
-        
-        assetSearch.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            
-            document.querySelectorAll('.wallet-item').forEach(item => {
-                const symbol = item.dataset.symbol.toLowerCase();
-                const name = item.querySelector('.crypto-name')?.textContent.toLowerCase() || '';
-                
-                if (symbol.includes(searchTerm) || name.includes(searchTerm)) {
-                    item.classList.remove('hidden');
-                } else {
-                    item.classList.add('hidden');
-                }
-            });
-        });
-        
-        // Load coin icons and full names from CoinGecko
-        async function loadCoinData() {
-            try {
-                // Collect all unique symbols
-                const coinElements = document.querySelectorAll('[data-symbol]');
-                const symbols = new Set();
-                
-                coinElements.forEach(el => {
-                    const symbol = el.dataset.symbol;
-                    if (symbol) symbols.add(symbol.toLowerCase());
-                });
-                
-                // Create a mapping for common symbols
-                const symbolMapping = {
-                    'btc': 'bitcoin',
-                    'eth': 'ethereum',
-                    'usdt': 'tether',
-                    'bnb': 'binancecoin',
-                    'xrp': 'ripple',
-                    'ada': 'cardano',
-                    'doge': 'dogecoin',
-                    'sol': 'solana',
-                    'trx': 'tron',
-                    'dot': 'polkadot',
-                    'avax': 'avalanche-2',
-                    'matic': 'polygon',
-                    'link': 'chainlink',
-                    'ltc': 'litecoin',
-                    'uni': 'uniswap',
-                    'atom': 'cosmos',
-                    'xlm': 'stellar',
-                    'etc': 'ethereum-classic',
-                    'near': 'near',
-                    'algo': 'algorand',
-                    'vet': 'vechain',
-                    'fil': 'filecoin'
-                };
-                
-                // Fetch CoinGecko API for coin list - with rate limiting
-                try {
-                    const response = await fetch('https://api.coingecko.com/api/v3/coins/list?include_platform=false');
-                    if (response.ok) {
-                        const coinList = await response.json();
-                        processCoinData(coinList, symbols, symbolMapping, coinElements);
-                    } else {
-                        console.warn('CoinGecko API rate limited or error, using fallback for coin icons');
-                        // Use just the mapping for common coins
-                        processFallbackData(symbols, symbolMapping, coinElements);
+                // Restore original balance values
+                document.querySelectorAll('.balance-value').forEach(item => {
+                    const key = item.dataset.valueId;
+                    if (key && originalBalances[key]) {
+                        item.textContent = originalBalances[key];
                     }
-                } catch (error) {
-                    console.error('Error fetching coin list:', error);
-                    processFallbackData(symbols, symbolMapping, coinElements);
-                }
-            } catch (error) {
-                console.error('Error loading coin data:', error);
+                });
             }
+        });
+    }
+    
+    // Asset search functionality
+    function filterAssets(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+        
+        document.querySelectorAll('.wallet-item').forEach(item => {
+            const symbol = item.dataset.symbol.toLowerCase();
+            const name = item.querySelector('.crypto-name')?.textContent.toLowerCase() || '';
+            
+            // Get visibility based on search term
+            const matchesSearch = symbol.includes(searchTerm) || name.includes(searchTerm);
+            
+            // Also check zero balance filter
+            const balance = parseFloat(item.dataset.balance || 0);
+            const hideForZero = hideZero && balance === 0;
+            
+            // Only show if it matches search and doesn't have zero balance when filtered
+            if (matchesSearch && !hideForZero) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    }
+    
+    if (assetSearch) {
+        assetSearch.addEventListener('input', function() {
+            filterAssets(this.value);
+        });
+    }
+    
+    // Fetch real-time rates and update portfolio
+    function fetchPortfolioData() {
+        const portfolioEndpoint = '/api/portfolio';
+        
+        // Show loading state
+        document.getElementById('portfolioLoading')?.classList.remove('hidden');
+        
+        fetch(portfolioEndpoint)
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading state
+                document.getElementById('portfolioLoading')?.classList.add('hidden');
+                
+                if (data.success) {
+                    // Store rates for later use
+                    rates = data.rates || {};
+                    
+                    // Update total values
+                    updateTotalValues(data.portfolio);
+                    
+                    // Update currency names and icons using market info
+                    if (data.market_info) {
+                        updateCurrencyInfo(data.market_info);
+                    }
+                    
+                    // Update individual wallet balances if needed
+                    updateWalletBalances(data.portfolio);
+                } else {
+                    console.error('Error fetching portfolio data:', data.message);
+                }
+            })
+            .catch(error => {
+                // Hide loading state
+                document.getElementById('portfolioLoading')?.classList.add('hidden');
+                console.error('Error fetching portfolio data:', error);
+            });
+    }
+    
+    // Update total portfolio values
+    function updateTotalValues(portfolio) {
+        const totalSpotElement = document.getElementById('totalSpotBalance');
+        const totalFundingElement = document.getElementById('totalFundingBalance');
+        const totalFuturesElement = document.getElementById('totalFuturesBalance');
+        const totalBalanceElement = document.getElementById('totalBalance');
+        
+        if (totalSpotElement && !balancesHidden) {
+            totalSpotElement.textContent = formatCurrency(portfolio.total_spot_value);
         }
         
-        function processCoinData(coinList, symbols, symbolMapping, coinElements) {
+        if (totalFundingElement && !balancesHidden) {
+            totalFundingElement.textContent = formatCurrency(portfolio.total_funding_value);
+        }
+        
+        if (totalFuturesElement && !balancesHidden) {
+            totalFuturesElement.textContent = formatCurrency(portfolio.total_futures_value);
+        }
+        
+        if (totalBalanceElement && !balancesHidden) {
+            totalBalanceElement.textContent = formatCurrency(portfolio.total_value);
+        }
+    }
+    
+    // Update currency information (names, icons, etc.)
+    function updateCurrencyInfo(marketInfo) {
+        for (const [currency, info] of Object.entries(marketInfo)) {
+            // Update crypto name
+            document.querySelectorAll(`.crypto-name[data-symbol="${currency}"]`).forEach(el => {
+                el.textContent = info.name || currency;
+            });
+            
+            // Update coin icons if image URL is available
+            if (info.image) {
+                document.querySelectorAll(`.coin-icon[data-symbol="${currency}"] img, .coin-icon-small[data-symbol="${currency}"] img`).forEach(img => {
+                    img.src = info.image;
+                    img.classList.remove('hidden');
+                    
+                    // Hide fallback
+                    const fallback = img.parentElement.querySelector('.coin-fallback, .coin-fallback-small');
+                    if (fallback) {
+                        fallback.classList.add('hidden');
+                    }
+                });
+            }
+            
+            // Add price change indicators
+            const priceChange = info.price_change_percentage_24h;
+            if (priceChange !== undefined) {
+                document.querySelectorAll(`.wallet-item[data-symbol="${currency}"]`).forEach(item => {
+                    const changeIndicator = document.createElement('div');
+                    changeIndicator.className = `text-xs ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                    changeIndicator.textContent = `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%`;
+                    
+                    // Insert after the crypto name
+                    const cryptoName = item.querySelector('.crypto-name');
+                    if (cryptoName && !item.querySelector('.price-change-indicator')) {
+                        changeIndicator.classList.add('price-change-indicator');
+                        cryptoName.insertAdjacentElement('afterend', changeIndicator);
+                    }
+                });
+            }
+        }
+    }
+    
+    // Update individual wallet balances
+    function updateWalletBalances(portfolio) {
+        // Only update if balances aren't hidden
+        if (balancesHidden) return;
+        
+        // Update spot wallet balances
+        for (const [currency, data] of Object.entries(portfolio.spot)) {
+            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"] .wallet-balance`).forEach(el => {
+                el.textContent = formatCurrency(data.balance, 8);
+            });
+            
+            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"] .wallet-value`).forEach(el => {
+                el.textContent = formatCurrency(data.value_usdt, 2);
+            });
+            
+            // Update data-balance attribute for filtering
+            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"]`).forEach(item => {
+                item.dataset.balance = data.balance;
+            });
+        }
+        
+        // Similarly update funding and futures balances if displayed
+    }
+    
+    // Helper function to format currency values
+    function formatCurrency(value, decimals = 2) {
+        if (value === undefined || value === null) return '0.00';
+        
+        const parsedValue = parseFloat(value);
+        if (isNaN(parsedValue)) return '0.00';
+        
+        return parsedValue.toFixed(decimals).replace(/\.?0+$/, '');
+    }
+    
+    // Load coin icons and full names
+    function loadCoinData() {
+        try {
+            // Collect all unique symbols
+            const coinElements = document.querySelectorAll('[data-symbol]');
+            const symbols = new Set();
+            
+            coinElements.forEach(el => {
+                const symbol = el.dataset.symbol;
+                if (symbol) symbols.add(symbol.toLowerCase());
+            });
+            
+            // Create a mapping for common symbols
+            const symbolMapping = {
+                'btc': 'bitcoin',
+                'eth': 'ethereum',
+                'usdt': 'tether',
+                'bnb': 'binancecoin',
+                'xrp': 'ripple',
+                'ada': 'cardano',
+                'doge': 'dogecoin',
+                'sol': 'solana',
+                'trx': 'tron',
+                'dot': 'polkadot',
+                'avax': 'avalanche-2',
+                'matic': 'polygon',
+                'link': 'chainlink',
+                'ltc': 'litecoin',
+                'uni': 'uniswap',
+                'atom': 'cosmos',
+                'xlm': 'stellar',
+                'etc': 'ethereum-classic',
+                'near': 'near',
+                'algo': 'algorand',
+                'vet': 'vechain',
+                'fil': 'filecoin'
+            };
+            
             // Process each coin element
             coinElements.forEach(el => {
                 const symbol = el.dataset.symbol.toLowerCase();
                 
-                // Find coin details
-                let coinId = symbolMapping[symbol];
-                if (!coinId) {
-                    const coinInfo = coinList.find(coin => coin.symbol.toLowerCase() === symbol);
-                    coinId = coinInfo?.id;
+                // Try to use the mapping or fetch the full data
+                const coinId = symbolMapping[symbol] || symbol;
+                
+                if (el.classList.contains('crypto-name')) {
+                    // Use built-in names for common coins
+                    const commonNames = {
+                        'btc': 'Bitcoin',
+                        'eth': 'Ethereum',
+                        'usdt': 'Tether',
+                        'bnb': 'Binance Coin',
+                        'xrp': 'Ripple',
+                        'ada': 'Cardano',
+                        'doge': 'Dogecoin',
+                        'sol': 'Solana',
+                        'dot': 'Polkadot',
+                        'avax': 'Avalanche'
+                    };
+                    
+                    const name = commonNames[symbol] || symbol.charAt(0).toUpperCase() + symbol.slice(1);
+                    el.textContent = name;
                 }
                 
-                updateElement(el, coinId, symbol);
-            });
-        }
-        
-        function processFallbackData(symbols, symbolMapping, coinElements) {
-            // Just use the mapping for common coins
-            coinElements.forEach(el => {
-                const symbol = el.dataset.symbol.toLowerCase();
-                const coinId = symbolMapping[symbol];
-                updateElement(el, coinId, symbol);
-            });
-        }
-        
-        function updateElement(element, coinId, symbol) {
-            if (!coinId) return;
-            
-            // If it's a name element, update with the coin name
-            if (element.classList.contains('crypto-name')) {
-                // Use built-in names for common coins
-                const commonNames = {
-                    'btc': 'Bitcoin',
-                    'eth': 'Ethereum',
-                    'usdt': 'Tether',
-                    'bnb': 'Binance Coin',
-                    'xrp': 'Ripple',
-                    'ada': 'Cardano',
-                    'doge': 'Dogecoin',
-                    'sol': 'Solana',
-                    'dot': 'Polkadot',
-                    'avax': 'Avalanche'
-                };
-                
-                const name = commonNames[symbol] || symbol.charAt(0).toUpperCase() + symbol.slice(1);
-                element.textContent = name;
-            }
-            
-            // If it's an icon element, update with the coin image
-            if (element.classList.contains('coin-icon') || element.classList.contains('coin-icon-small')) {
-                try {
-                    const imageUrl = `https://assets.coingecko.com/coins/images/1/${element.classList.contains('coin-icon-small') ? 'small' : 'large'}/${coinId}.png`;
+                // If it's an icon element, update with the coin image
+                if (el.classList.contains('coin-icon') || el.classList.contains('coin-icon-small')) {
+                    const imageUrl = `https://assets.coingecko.com/coins/images/1/${el.classList.contains('coin-icon-small') ? 'small' : 'large'}/${coinId}.png`;
                     
-                    // Preload image
+                    // Try to load the image
                     const img = new Image();
                     img.onload = function() {
-                        // Find child image element and update
-                        const imgElement = element.querySelector('.coin-image, .coin-image-small');
+                        const imgElement = el.querySelector('.coin-image, .coin-image-small');
                         if (imgElement) {
                             imgElement.src = imageUrl;
                             imgElement.classList.remove('hidden');
                             
                             // Hide fallback
-                            const fallback = element.querySelector('.coin-fallback, .coin-fallback-small');
+                            const fallback = el.querySelector('.coin-fallback, .coin-fallback-small');
                             if (fallback) fallback.classList.add('hidden');
                         }
                     };
-                    img.onerror = function() {
-                        console.warn(`Failed to load image for ${coinId}, keeping fallback`);
-                    };
                     img.src = imageUrl;
-                } catch (error) {
-                    console.error(`Error loading image for ${coinId}:`, error);
                 }
-            }
+            });
+        } catch (error) {
+            console.error('Error loading coin data:', error);
         }
-        
-        // Call the function to load coin data
-        loadCoinData();
+    }
+    
+    // Initialize
+    captureOriginalBalances();
+    loadCoinData();
+    
+    // Fetch real-time portfolio data on page load
+    fetchPortfolioData();
+    
+    // Refresh portfolio data periodically
+    const REFRESH_INTERVAL = 1000; // 60 seconds
+    
+    // Set up interval for periodic refresh
+    const refreshInterval = setInterval(fetchPortfolioData, REFRESH_INTERVAL);
+    
+    // Add refresh button functionality
+    const refreshButton = document.getElementById('refreshPortfolio');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            // Show spinner
+            this.querySelector('.refresh-icon').classList.add('hidden');
+            this.querySelector('.refresh-spinner').classList.remove('hidden');
+            
+            // Fetch data
+            fetchPortfolioData()
+                .then(() => {
+                    // Hide spinner when done
+                    setTimeout(() => {
+                        this.querySelector('.refresh-spinner').classList.add('hidden');
+                        this.querySelector('.refresh-icon').classList.remove('hidden');
+                    }, 500);
+                })
+                .catch(() => {
+                    // Hide spinner on error too
+                    this.querySelector('.refresh-spinner').classList.add('hidden');
+                    this.querySelector('.refresh-icon').classList.remove('hidden');
+                });
+        });
+    }
+    
+    // Clean up on page navigation
+    window.addEventListener('beforeunload', function() {
+        clearInterval(refreshInterval);
     });
+});
 </script>
 {% endblock %}

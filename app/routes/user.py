@@ -17,6 +17,8 @@ from app.utils.helpers import format_currency_amount
 import logging
 from datetime import datetime, timedelta
 from app.models.transaction import Transaction
+import json
+from app.models.user_settings import UserSettings
 
 
 logger = logging.getLogger(__name__)
@@ -132,69 +134,65 @@ def future():
 @login_required
 def assets():
     """
-    Minimal version with maximum safety for handling None values
+    Enhanced assets view with real-time cryptocurrency rates
     """
     try:
-        # Get user's wallets
+        # Get user's portfolio with real-time rates
+        from app.services.wallet_service import get_user_portfolio
+        portfolio = get_user_portfolio(current_user.id)
+        
+        # Get user's wallets for display
         spot_wallets = Wallet.query.filter_by(user_id=current_user.id).all()
         
-        # Basic fallback rates
-        rates = {
-            'BTC': 60000.0,
-            'ETH': 3000.0,
-            'BNB': 500.0,
-            'XRP': 0.5,
-            'USDT': 1.0
-        }
+        # Get real-time rates for all currencies in the portfolio
+        rates = {}
         
-        # Add futures_balance attribute to wallets if not exists
-        total_spot_balance = 0.0
-        total_funding_balance = 0.0
-        total_futures_balance = 0.0
-        
+        # Include all currencies from the spot wallet
         for wallet in spot_wallets:
-            # Ensure all wallet balance attributes exist and are numeric
-            if not hasattr(wallet, 'spot_balance') or wallet.spot_balance is None:
-                wallet.spot_balance = 0.0
-            else:
-                wallet.spot_balance = float(wallet.spot_balance)
-                
-            if not hasattr(wallet, 'funding_balance') or wallet.funding_balance is None:
-                wallet.funding_balance = 0.0
-            else:
-                wallet.funding_balance = float(wallet.funding_balance)
-                
-            if not hasattr(wallet, 'futures_balance') or wallet.futures_balance is None:
-                wallet.futures_balance = 0.0
-            else:
-                wallet.futures_balance = float(wallet.futures_balance)
-                
-            # Get rate for the currency (default to 1.0 if not found)
-            rate = float(rates.get(wallet.currency, 1.0))
+            currency = wallet.currency
             
-            # Calculate totals
-            total_spot_balance += wallet.spot_balance * rate
-            total_funding_balance += wallet.funding_balance * rate
-            total_futures_balance += wallet.futures_balance * rate
-        
-        # Calculate the total balance
-        total_balance = total_spot_balance + total_funding_balance + total_futures_balance
+            if currency == 'USDT':
+                rates[currency] = 1.0  # USDT is our base currency
+                continue
+                
+            # Try to get the rate from our portfolio calculation
+            try:
+                # Calculate rate from balances and values
+                spot_balance = portfolio['spot'].get(currency, {}).get('balance', 0)
+                spot_value = portfolio['spot'].get(currency, {}).get('value_usdt', 0)
+                
+                if spot_balance and spot_balance > 0:
+                    # Calculate the implied rate
+                    rates[currency] = spot_value / spot_balance
+                else:
+                    # Try to get rate directly from the API
+                    from app.services.wallet_service import get_conversion_rate
+                    rate = get_conversion_rate(currency, 'USDT')
+                    rates[currency] = rate
+            except Exception as e:
+                logger.warning(f"Could not calculate rate for {currency}: {str(e)}")
+                # Use a default fallback rate
+                rates[currency] = 0.0
         
         # Safe formatting function
-        def safe_format(amount):
+        def safe_format(amount, precision=2):
             if amount is None:
                 amount = 0.0
-            return f"{float(amount):.2f}"
+            try:
+                return f"{float(amount):.{precision}f}"
+            except (ValueError, TypeError):
+                return f"0.00"
         
         return render_template('user/assets.html', 
                              title='Assets', 
                              spot_wallets=spot_wallets,
                              rates=rates,
-                             total_spot_balance=safe_format(total_spot_balance),
-                             total_funding_balance=safe_format(total_funding_balance),
-                             total_futures_balance=safe_format(total_futures_balance),
-                             total_balance=safe_format(total_balance),
-                             format_currency_amount=lambda a, b=None, c=None: safe_format(a))
+                             portfolio=portfolio,
+                             total_spot_balance=safe_format(portfolio['total_spot_value']),
+                             total_funding_balance=safe_format(portfolio['total_funding_value']),
+                             total_futures_balance=safe_format(portfolio['total_futures_value']),
+                             total_balance=safe_format(portfolio['total_value']),
+                             format_currency_amount=lambda a, b=None, c=None: safe_format(a, 8))
                              
     except Exception as e:
         logger.error(f"Error loading assets page: {str(e)}")
@@ -205,84 +203,71 @@ def assets():
 @login_required
 def get_portfolio_data():
     """
-    Get user portfolio data as JSON for API requests
+    Enhanced API endpoint for user portfolio data with real-time rates
     """
     try:
-        # Get user's wallets
-        wallets = Wallet.query.filter_by(user_id=current_user.id).all()
+        # Get user's portfolio with real-time rates from our service
+        from app.services.wallet_service import get_user_portfolio
+        portfolio = get_user_portfolio(current_user.id)
         
-        # Get real-time rates
-        try:
-            from app.utils.crypto_api import get_coin_details
-            
-            # Get USDT rates for main cryptocurrencies
-            rates = {}
-            for wallet in wallets:
-                currency = wallet.currency
+        # Extract all currencies from the portfolio
+        all_currencies = set()
+        for wallet_type in ['spot', 'funding', 'futures']:
+            all_currencies.update(portfolio[wallet_type].keys())
+        
+        # Get rates for all currencies
+        rates = {}
+        for currency in all_currencies:
+            # For USDT, rate is 1:1
+            if currency == 'USDT':
+                rates[currency] = 1.0
+                continue
                 
-                if currency == 'USDT':
-                    rates['USDT'] = 1.0  # 1 USDT = 1 USD
-                    continue
-                    
-                if currency in rates:
-                    continue
-                
-                try:
-                    # Get coin details which includes current price in USD
+            # For other currencies, try to get from our wallet service
+            try:
+                from app.services.wallet_service import get_conversion_rate
+                rate = get_conversion_rate(currency, 'USDT')
+                rates[currency] = rate if rate > 0 else None
+            except Exception as e:
+                logger.warning(f"Could not get rate for {currency}: {str(e)}")
+                rates[currency] = None
+        
+        # Include any missing rates
+        for currency in all_currencies:
+            if currency not in rates or rates[currency] is None:
+                # Try to infer the rate from the portfolio values
+                for wallet_type in ['spot', 'funding', 'futures']:
+                    if currency in portfolio[wallet_type]:
+                        balance = portfolio[wallet_type][currency].get('balance', 0)
+                        value = portfolio[wallet_type][currency].get('value_usdt', 0)
+                        
+                        if balance and balance > 0:
+                            rates[currency] = value / balance
+                            break
+        
+        # Get additional market info if needed
+        market_info = {}
+        for currency in all_currencies:
+            try:
+                if currency != 'USDT':
+                    from app.utils.crypto_api import get_coin_details
                     coin_data = get_coin_details(currency)
                     
-                    # Store the USD price
-                    if coin_data and 'current_price' in coin_data:
-                        rates[currency] = coin_data['current_price']
-                except Exception as e:
-                    logger.error(f"Error fetching rate for {currency}: {str(e)}")
-                    # Use fallback value
-                    rates[currency] = 0.0
-        except Exception as e:
-            logger.error(f"Error fetching rates: {str(e)}")
-            rates = {wallet.currency: 0.0 for wallet in wallets}
-            rates['USDT'] = 1.0  # Always ensure USDT has a value
-        
-        # Prepare portfolio data
-        portfolio = {
-            'spot': {},
-            'funding': {},
-            'total_spot_value': 0,
-            'total_funding_value': 0,
-            'total_value': 0
-        }
-        
-        # Process each wallet
-        for wallet in wallets:
-            # Skip empty wallets
-            if wallet.spot_balance == 0 and wallet.funding_balance == 0:
-                continue
-            
-            # Get equivalent value in USDT
-            rate = rates.get(wallet.currency, 0)
-            
-            spot_value = wallet.spot_balance * rate
-            funding_value = wallet.funding_balance * rate
-            
-            portfolio['spot'][wallet.currency] = {
-                'balance': wallet.spot_balance,
-                'value_usdt': spot_value
-            }
-            
-            portfolio['funding'][wallet.currency] = {
-                'balance': wallet.funding_balance,
-                'value_usdt': funding_value
-            }
-            
-            portfolio['total_spot_value'] += spot_value
-            portfolio['total_funding_value'] += funding_value
-        
-        portfolio['total_value'] = portfolio['total_spot_value'] + portfolio['total_funding_value']
+                    if coin_data:
+                        market_info[currency] = {
+                            'name': coin_data.get('name', currency),
+                            'image': coin_data.get('image', ''),
+                            'price_change_percentage_24h': coin_data.get('price_change_percentage_24h', 0)
+                        }
+            except Exception as e:
+                logger.warning(f"Could not get market info for {currency}: {str(e)}")
         
         return jsonify({
             'success': True,
             'portfolio': portfolio,
-            'rates': rates
+            'rates': rates,
+            'market_info': market_info,
+            'timestamp': datetime.utcnow().isoformat()
         })
         
     except Exception as e:
@@ -839,15 +824,144 @@ def about():
         flash("Error loading about page. Please try again later.", "danger")
         return redirect(url_for('user.home'))
 
-@user.route('/settings')
+@user.route('/settings', methods=['GET'])
 @login_required
 def settings():
-    """
-    User settings page
-    """
+    """User settings page"""
+    # Get user settings
+    user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
+    
+    if not user_settings:
+        # Create default settings if none exist
+        user_settings = UserSettings(user_id=current_user.id)
+        db.session.add(user_settings)
+        db.session.commit()
+    
+    # Format settings for the template
+    settings_data = {
+        'darkMode': user_settings.theme,
+        'language': user_settings.language,
+        'currency': user_settings.currency,
+        'defaultCrypto': user_settings.default_crypto,
+        'timeFormat': user_settings.time_format,
+        'dateFormat': user_settings.date_format,
+        'notifications': json.loads(user_settings.notifications_json) if user_settings.notifications_json else {},
+        'security': json.loads(user_settings.security_json) if user_settings.security_json else {},
+        'trading': json.loads(user_settings.trading_json) if user_settings.trading_json else {},
+        'display': json.loads(user_settings.display_json) if user_settings.display_json else {},
+        'privacy': json.loads(user_settings.privacy_json) if user_settings.privacy_json else {},
+        'lastSaved': user_settings.updated_at.isoformat() if user_settings.updated_at else None
+    }
+    
+    return render_template('user/settings.html', 
+                          title='Settings',
+                          user_settings=settings_data)
+
+
+@user.route('/api/settings', methods=['GET', 'POST'])
+@login_required
+def api_settings():
+    """API endpoint for settings management using UserSettings model"""
     try:
-        return render_template('user/settings.html', title='Settings')
+        # Get or create user settings
+        user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
+        if not user_settings:
+            # Create default settings if not exists
+            user_settings = UserSettings(user_id=current_user.id)
+            db.session.add(user_settings)
+            db.session.commit()
+        
+        if request.method == 'POST':
+            # Get settings data from JSON request
+            settings_data = request.get_json()
+            
+            if not settings_data:
+                return jsonify({'success': False, 'message': 'No settings data provided'}), 400
+            
+            # Update direct columns
+            user_settings.theme = settings_data.get('darkMode', False)
+            user_settings.language = settings_data.get('language', 'en')
+            user_settings.currency = settings_data.get('currency', 'USD')
+            user_settings.default_crypto = settings_data.get('defaultCrypto', 'USDT')
+            user_settings.time_format = settings_data.get('timeFormat', '12h')
+            user_settings.date_format = settings_data.get('dateFormat', 'MM/DD/YYYY')
+            
+            # Update JSON fields
+            if 'notifications' in settings_data:
+                user_settings.notifications_json = json.dumps(settings_data['notifications'])
+            
+            if 'security' in settings_data:
+                user_settings.security_json = json.dumps(settings_data['security'])
+            
+            if 'trading' in settings_data:
+                user_settings.trading_json = json.dumps(settings_data['trading'])
+            
+            if 'display' in settings_data:
+                user_settings.display_json = json.dumps(settings_data['display'])
+            
+            if 'privacy' in settings_data:
+                user_settings.privacy_json = json.dumps(settings_data['privacy'])
+            
+            # Update timestamp and save
+            user_settings.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Settings saved successfully',
+                'lastSaved': user_settings.updated_at.isoformat()
+            })
+        
+        else:
+            # GET request - format and return current settings
+            notifications = json.loads(user_settings.notifications_json) if user_settings.notifications_json else {}
+            security = json.loads(user_settings.security_json) if user_settings.security_json else {}
+            trading = json.loads(user_settings.trading_json) if user_settings.trading_json else {}
+            display = json.loads(user_settings.display_json) if user_settings.display_json else {}
+            privacy = json.loads(user_settings.privacy_json) if user_settings.privacy_json else {}
+            
+            settings = {
+                'darkMode': user_settings.theme,
+                'language': user_settings.language,
+                'currency': user_settings.currency,
+                'defaultCrypto': user_settings.default_crypto,
+                'timeFormat': user_settings.time_format,
+                'dateFormat': user_settings.date_format,
+                'notifications': notifications,
+                'security': security,
+                'trading': trading,
+                'display': display,
+                'privacy': privacy,
+                'lastSaved': user_settings.updated_at.isoformat() if user_settings.updated_at else None
+            }
+            
+            return jsonify({'success': True, 'settings': settings})
+            
     except Exception as e:
-        logger.error(f"Error loading settings page: {str(e)}")
-        flash("Error loading settings page. Please try again later.", "danger")
-        return redirect(url_for('user.home'))
+        db.session.rollback()
+        print(f"Error in settings API: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@user.route('/api/settings/reset', methods=['POST'])
+@login_required
+def reset_settings():
+    """Reset user settings to default"""
+    try:
+        # Get user settings
+        user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
+        
+        if user_settings:
+            # Delete existing settings
+            db.session.delete(user_settings)
+            db.session.commit()
+            
+            # Create new default settings
+            new_settings = UserSettings(user_id=current_user.id)
+            db.session.add(new_settings)
+            db.session.commit()
+            
+        return jsonify({'success': True, 'message': 'Settings reset to default'})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error resetting settings: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error resetting settings: {str(e)}'}), 500

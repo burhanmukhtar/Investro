@@ -1,11 +1,169 @@
 <!-- app/templates/user/settings.html -->
 {% extends "base.html" %}
 {% block title %}Settings | Crypto Trading Platform{% endblock %}
+{% block head %}
+<style>
+    /* Toggle switch styles */
+    .toggle-checkbox:checked {
+        right: 0;
+        border-color: #3b82f6;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+        background-color: #3b82f6;
+    }
+    
+    /* Dark mode styles */
+    .dark {
+        color-scheme: dark;
+    }
+    
+    .dark body {
+        background-color: #111827;
+        color: #f3f4f6;
+    }
+    
+    .dark .bg-white {
+        background-color: #1f2937;
+    }
+    
+    .dark .text-gray-500 {
+        color: #9ca3af;
+    }
+    
+    .dark .text-gray-700 {
+        color: #e5e7eb;
+    }
+    
+    .dark .border-gray-300 {
+        border-color: #4b5563;
+    }
+    
+    .dark .border-b {
+        border-color: #374151;
+    }
+    
+    .dark .shadow-sm {
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+    }
+    
+    .dark .bg-gray-50 {
+        background-color: #374151;
+    }
+    
+    .dark .bg-gray-100 {
+        background-color: #1f2937;
+    }
+    
+    .dark .bg-gray-200 {
+        background-color: #4b5563;
+    }
+    
+    .dark .ios-input,
+    .dark select,
+    .dark .form-radio {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+    
+    .dark .ios-input:focus,
+    .dark select:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 1px #60a5fa;
+    }
+    
+    .dark option {
+        background-color: #374151;
+    }
+    
+    /* Animation for notifications */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes fadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(20px); }
+    }
+    
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+    
+    /* Modal animations */
+    .modal-enter {
+        animation: modalEnter 0.3s ease-out forwards;
+    }
+    
+    .modal-leave {
+        animation: modalLeave 0.3s ease-in forwards;
+    }
+    
+    @keyframes modalEnter {
+        from { opacity: 0; transform: translateY(-50px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes modalLeave {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-50px); }
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+        background: #2d3748;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+        background: #4a5568;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+        background: #718096;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .container {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        
+        select, button {
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container mx-auto px-4 py-4 pb-16">
     <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-        <div class="p-4 border-b">
+        <div class="p-4 border-b flex justify-between items-center">
             <h1 class="text-xl font-bold">App Settings</h1>
+            <!-- Last saved indicator -->
+            <div id="lastSaved" class="text-xs text-gray-500 hidden">
+                Last saved: <span></span>
+            </div>
         </div>
         
         <div class="divide-y">
@@ -37,6 +195,9 @@
                         <option value="de">Deutsch</option>
                         <option value="zh">中文</option>
                         <option value="ja">日本語</option>
+                        <option value="ru">Русский</option>
+                        <option value="ar">العربية</option>
+                        <option value="hi">हिन्दी</option>
                     </select>
                 </div>
             </div>
@@ -75,6 +236,26 @@
                             <label for="newsUpdatesToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
                         </div>
                     </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Signal Alerts</p>
+                            <p class="text-xs text-gray-500">Receive alerts for new trading signals</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="signalAlertsToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="signalAlertsToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Email Notifications</p>
+                            <p class="text-xs text-gray-500">Receive notifications via email</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="emailNotificationsToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="emailNotificationsToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -92,6 +273,30 @@
                         <option value="JPY">JPY (¥)</option>
                         <option value="CAD">CAD ($)</option>
                         <option value="AUD">AUD ($)</option>
+                        <option value="CNY">CNY (¥)</option>
+                        <option value="INR">INR (₹)</option>
+                        <option value="BRL">BRL (R$)</option>
+                        <option value="RUB">RUB (₽)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Default Crypto Currency -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Default Cryptocurrency</h2>
+                        <p class="text-sm text-gray-500">Select preferred cryptocurrency for conversions</p>
+                    </div>
+                    <select id="defaultCryptoSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="USDT" selected>Tether (USDT)</option>
+                        <option value="BNB">Binance Coin (BNB)</option>
+                        <option value="XRP">Ripple (XRP)</option>
+                        <option value="ADA">Cardano (ADA)</option>
+                        <option value="SOL">Solana (SOL)</option>
+                        <option value="DOGE">Dogecoin (DOGE)</option>
                     </select>
                 </div>
             </div>
@@ -115,6 +320,23 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Date Format Settings -->
+            <div class="p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-medium">Date Format</h2>
+                        <p class="text-sm text-gray-500">Choose your preferred date format</p>
+                    </div>
+                    <select id="dateFormatSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                        <option value="YYYY/MM/DD">YYYY/MM/DD</option>
+                        <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                    </select>
+                </div>
+            </div>
             
             <!-- Security Settings -->
             <div class="p-4">
@@ -125,7 +347,7 @@
                             <p class="text-sm">Two-Factor Authentication</p>
                             <p class="text-xs text-gray-500">Add an extra layer of security</p>
                         </div>
-                        <button class="bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition-colors">
+                        <button id="twoFactorBtn" class="bg-primary-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-primary-600 transition-colors">
                             Enable
                         </button>
                     </div>
@@ -141,6 +363,26 @@
                             <option value="120">2 hours</option>
                             <option value="0">Never</option>
                         </select>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Remember Login</p>
+                            <p class="text-xs text-gray-500">Stay logged in across sessions</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="rememberLoginToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="rememberLoginToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Biometric Authentication</p>
+                            <p class="text-xs text-gray-500">Use fingerprint or face ID to log in</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="biometricToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
+                            <label for="biometricToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -165,23 +407,181 @@
                             <p class="text-xs text-gray-500">Set your preferred chart view</p>
                         </div>
                         <select id="chartTimeframeSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="1m">1 minute</option>
+                            <option value="5m">5 minutes</option>
+                            <option value="15m">15 minutes</option>
                             <option value="1h">1 hour</option>
                             <option value="4h">4 hours</option>
                             <option value="1d" selected>1 day</option>
                             <option value="1w">1 week</option>
-                            <option value="1m">1 month</option>
+                            <option value="1M">1 month</option>
                         </select>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Show Orderbook</p>
+                            <p class="text-xs text-gray-500">Display orderbook alongside chart</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="showOrderbookToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="showOrderbookToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Risk Protection</p>
+                            <p class="text-xs text-gray-500">Set a maximum loss per trade (% of portfolio)</p>
+                        </div>
+                        <select id="riskProtectionSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="0">No limit</option>
+                            <option value="1">1%</option>
+                            <option value="2" selected>2%</option>
+                            <option value="5">5%</option>
+                            <option value="10">10%</option>
+                            <option value="20">20%</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Auto-convert Profits</p>
+                            <p class="text-xs text-gray-500">Automatically convert profits to preferred currency</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="autoConvertToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
+                            <label for="autoConvertToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Display Settings -->
+            <div class="p-4">
+                <h2 class="text-base font-medium mb-3">Display Settings</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Compact Mode</p>
+                            <p class="text-xs text-gray-500">Show more data with less whitespace</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="compactModeToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
+                            <label for="compactModeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Show Balance</p>
+                            <p class="text-xs text-gray-500">Display account balance in header</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="showBalanceToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="showBalanceToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Chart Style</p>
+                            <p class="text-xs text-gray-500">Select your preferred chart type</p>
+                        </div>
+                        <select id="chartStyleSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="candle" selected>Candlestick</option>
+                            <option value="line">Line</option>
+                            <option value="area">Area</option>
+                            <option value="bar">Bar</option>
+                            <option value="heikin">Heikin Ashi</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Font Size</p>
+                            <p class="text-xs text-gray-500">Adjust the application font size</p>
+                        </div>
+                        <select id="fontSizeSelect" class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="small">Small</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="large">Large</option>
+                            <option value="xlarge">Extra Large</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Privacy Settings -->
+            <div class="p-4">
+                <h2 class="text-base font-medium mb-3">Privacy</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Anonymous Trading</p>
+                            <p class="text-xs text-gray-500">Hide your trading activities from public</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="anonymousTradingToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="anonymousTradingToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Usage Analytics</p>
+                            <p class="text-xs text-gray-500">Allow anonymous usage data collection</p>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" id="usageAnalyticsToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer" checked>
+                            <label for="usageAnalyticsToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm">Clear Search History</p>
+                            <p class="text-xs text-gray-500">Delete your search history</p>
+                        </div>
+                        <button id="clearSearchBtn" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-300 transition-colors">
+                            Clear
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Save Button -->
-    <div class="flex justify-end">
+    <!-- Action Buttons -->
+    <div class="flex justify-end space-x-3">
+        <button id="resetSettings" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+            Reset to Default
+        </button>
         <button id="saveSettings" class="bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors">
             Save Changes
         </button>
+    </div>
+
+    <!-- 2FA Setup Modal -->
+    <div id="twoFactorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Setup Two-Factor Authentication</h3>
+                <button id="closeTwoFactorModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.).</p>
+                
+                <div class="flex justify-center my-6">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/Crypto:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=CryptoTrading" alt="2FA QR Code" class="border p-2 rounded">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Enter code from your app</label>
+                    <input type="text" id="twoFactorCode" class="w-full ios-input" placeholder="6-digit code" maxlength="6">
+                </div>
+                
+                <div class="pt-4 flex justify-end">
+                    <button id="enableTwoFactorBtn" class="bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors">
+                        Verify & Enable
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -198,62 +598,653 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Load all saved settings
+        loadSettings();
+        
+        // Add event listeners to all inputs/selects/buttons
+        setupEventListeners();
+        
+        // Initialize 2FA modal
+        initTwoFactorModal();
+        
+        // Font size functionality
+        applyFontSize(document.getElementById('fontSizeSelect').value);
+        
         // Theme toggle functionality
-        const themeToggle = document.getElementById('themeToggle');
-        
-        // Check for saved theme preference
-        if (localStorage.getItem('darkMode') === 'true') {
-            document.documentElement.classList.add('dark');
-            themeToggle.checked = true;
-        }
-        
-        themeToggle.addEventListener('change', function() {
-            if (this.checked) {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('darkMode', 'true');
+        applyTheme();
+    });
+    
+    // Load settings from localStorage
+    function loadSettings() {
+    // Show loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50';
+    loadingIndicator.innerHTML = `
+        <div class="bg-white p-4 rounded-lg shadow-lg animate-pulse">
+            <div class="flex items-center">
+                <div class="rounded-full h-8 w-8 border-4 border-t-primary-500 border-primary-200 animate-spin mr-3"></div>
+                <p>Loading settings...</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingIndicator);
+
+    // Try to get settings from server
+    fetch('/user/api/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.settings) {
+                // Apply the settings to the UI elements
+                const serverSettings = data.settings;
+                
+                // Map server settings format to UI format if needed
+                const uiSettings = {
+                    darkMode: serverSettings.theme || false,
+                    language: serverSettings.language || 'en',
+                    notifications: serverSettings.notifications || {
+                        priceAlerts: true,
+                        tradeConfirmations: true,
+                        newsUpdates: false,
+                        signalAlerts: true,
+                        emailNotifications: true
+                    },
+                    currency: serverSettings.currency || 'USD',
+                    defaultCrypto: serverSettings.defaultCrypto || 'USDT',
+                    timeFormat: serverSettings.timeFormat || '12h',
+                    dateFormat: serverSettings.dateFormat || 'MM/DD/YYYY',
+                    security: serverSettings.security || {
+                        twoFactor: false,
+                        sessionTimeout: '30',
+                        rememberLogin: true,
+                        biometric: false
+                    },
+                    trading: serverSettings.trading || {
+                        confirmations: true,
+                        defaultChartTimeframe: '1d',
+                        showOrderbook: true,
+                        riskProtection: '2',
+                        autoConvert: false
+                    },
+                    display: serverSettings.display || {
+                        compactMode: false,
+                        showBalance: true,
+                        chartStyle: 'candle',
+                        fontSize: 'medium'
+                    },
+                    privacy: serverSettings.privacy || {
+                        anonymousTrading: true,
+                        usageAnalytics: true
+                    },
+                    lastSaved: serverSettings.lastSaved || null
+                };
+                
+                // Apply settings to UI
+                applySettings(uiSettings);
+                
+                // Save to localStorage as backup
+                localStorage.setItem('userSettings', JSON.stringify(uiSettings));
+                
+                // Show last saved time if available
+                if (uiSettings.lastSaved) {
+                    document.getElementById('lastSaved').classList.remove('hidden');
+                    document.getElementById('lastSaved').querySelector('span').textContent = new Date(uiSettings.lastSaved).toLocaleString();
+                }
             } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('darkMode', 'false');
+                // If server settings not available, try localStorage
+                const savedSettings = JSON.parse(localStorage.getItem('userSettings')) || getDefaultSettings();
+                applySettings(savedSettings);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching settings:', error);
+            
+            // Fall back to localStorage if API fails
+            const savedSettings = JSON.parse(localStorage.getItem('userSettings')) || getDefaultSettings();
+            applySettings(savedSettings);
+        })
+        .finally(() => {
+            // Remove loading indicator
+            loadingIndicator.remove();
+        });
+}
+function resetSettingsToDefault() {
+    if (!confirm('Are you sure you want to reset all settings to default?')) {
+        return;
+    }
+    
+    // Show loading indicator
+    const resetButton = document.getElementById('resetSettings');
+    const originalText = resetButton.textContent;
+    resetButton.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span> Resetting...';
+    resetButton.disabled = true;
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    // Call reset API
+    fetch('/user/api/settings/reset', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear localStorage backup
+            localStorage.removeItem('userSettings');
+            
+            // Reload settings from defaults
+            const defaultSettings = getDefaultSettings();
+            applySettings(defaultSettings);
+            
+            // Hide last saved indicator
+            document.getElementById('lastSaved').classList.add('hidden');
+            
+            // Show confirmation
+            showNotification('Settings reset to default');
+        } else {
+            // Show error notification
+            showNotification('Error resetting settings: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting settings:', error);
+        showNotification('Error resetting settings', 'error');
+    })
+    .finally(() => {
+        // Restore reset button
+        resetButton.innerHTML = originalText;
+        resetButton.disabled = false;
+    });
+}
+
+// Updated reset button event listener
+document.getElementById('resetSettings').addEventListener('click', resetSettingsToDefault);
+
+    // Get default settings
+    function getDefaultSettings() {
+        return {
+            darkMode: false,
+            language: 'en',
+            notifications: {
+                priceAlerts: true,
+                tradeConfirmations: true,
+                newsUpdates: false,
+                signalAlerts: true,
+                emailNotifications: true
+            },
+            currency: 'USD',
+            defaultCrypto: 'USDT',
+            timeFormat: '12h',
+            dateFormat: 'MM/DD/YYYY',
+            security: {
+                twoFactor: false,
+                sessionTimeout: '30',
+                rememberLogin: true,
+                biometric: false
+            },
+            trading: {
+                confirmations: true,
+                defaultChartTimeframe: '1d',
+                showOrderbook: true,
+                riskProtection: '2',
+                autoConvert: false
+            },
+            display: {
+                compactMode: false,
+                showBalance: true,
+                chartStyle: 'candle',
+                fontSize: 'medium'
+            },
+            privacy: {
+                anonymousTrading: true,
+                usageAnalytics: true
+            },
+            lastSaved: null
+        };
+    }
+    
+    // Apply settings to UI elements
+    // Apply settings to UI elements
+    function applySettings(settings) {
+        // Theme
+        document.getElementById('themeToggle').checked = settings.darkMode;
+        
+        // Language
+        document.getElementById('languageSelect').value = settings.language;
+        
+        // Notifications
+        document.getElementById('priceAlertsToggle').checked = settings.notifications.priceAlerts;
+        document.getElementById('tradeConfirmToggle').checked = settings.notifications.tradeConfirmations;
+        document.getElementById('newsUpdatesToggle').checked = settings.notifications.newsUpdates;
+        document.getElementById('signalAlertsToggle').checked = settings.notifications.signalAlerts;
+        document.getElementById('emailNotificationsToggle').checked = settings.notifications.emailNotifications;
+        
+        // Currency
+        document.getElementById('currencySelect').value = settings.currency;
+        
+        // Default Crypto
+        document.getElementById('defaultCryptoSelect').value = settings.defaultCrypto;
+        
+        // Time Format
+        document.querySelector(`input[name="timeFormat"][value="${settings.timeFormat}"]`).checked = true;
+        
+        // Date Format
+        document.getElementById('dateFormatSelect').value = settings.dateFormat;
+        
+        // Security
+        updateTwoFactorButton(settings.security.twoFactor);
+        document.getElementById('timeoutSelect').value = settings.security.sessionTimeout;
+        document.getElementById('rememberLoginToggle').checked = settings.security.rememberLogin;
+        document.getElementById('biometricToggle').checked = settings.security.biometric;
+        
+        // Trading
+        document.getElementById('tradeConfirmationsToggle').checked = settings.trading.confirmations;
+        document.getElementById('chartTimeframeSelect').value = settings.trading.defaultChartTimeframe;
+        document.getElementById('showOrderbookToggle').checked = settings.trading.showOrderbook;
+        document.getElementById('riskProtectionSelect').value = settings.trading.riskProtection;
+        document.getElementById('autoConvertToggle').checked = settings.trading.autoConvert;
+        
+        // Display
+        document.getElementById('compactModeToggle').checked = settings.display.compactMode;
+        document.getElementById('showBalanceToggle').checked = settings.display.showBalance;
+        document.getElementById('chartStyleSelect').value = settings.display.chartStyle;
+        document.getElementById('fontSizeSelect').value = settings.display.fontSize;
+        
+        // Privacy
+        document.getElementById('anonymousTradingToggle').checked = settings.privacy.anonymousTrading;
+        document.getElementById('usageAnalyticsToggle').checked = settings.privacy.usageAnalytics;
+    }
+    
+    // Setup event listeners for all inputs
+    function setupEventListeners() {
+        // Save button
+        const saveButton = document.getElementById('saveSettings');
+        saveButton.addEventListener('click', function() {
+            saveAllSettings();
+        });
+        
+        // Reset button
+        const resetButton = document.getElementById('resetSettings');
+        resetButton.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all settings to default?')) {
+                localStorage.removeItem('userSettings');
+                loadSettings();
+                showNotification('Settings reset to default');
             }
         });
         
-        // Save settings button
-        const saveButton = document.getElementById('saveSettings');
-        saveButton.addEventListener('click', function() {
-            // Show save confirmation
-            const confirmation = document.createElement('div');
-            confirmation.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg';
-            confirmation.textContent = 'Settings saved successfully!';
-            document.body.appendChild(confirmation);
-            
-            // Remove confirmation after 3 seconds
-            setTimeout(() => {
-                confirmation.remove();
-            }, 3000);
-            
-            // Here you would normally send the settings to the server
-            const settings = {
-                darkMode: themeToggle.checked,
-                language: document.getElementById('languageSelect').value,
-                currency: document.getElementById('currencySelect').value,
-                timeFormat: document.querySelector('input[name="timeFormat"]:checked').value,
-                notifications: {
-                    priceAlerts: document.getElementById('priceAlertsToggle').checked,
-                    tradeConfirmations: document.getElementById('tradeConfirmToggle').checked,
-                    newsUpdates: document.getElementById('newsUpdatesToggle').checked
-                },
-                security: {
-                    sessionTimeout: document.getElementById('timeoutSelect').value
-                },
-                trading: {
-                    confirmations: document.getElementById('tradeConfirmationsToggle').checked,
-                    defaultChartTimeframe: document.getElementById('chartTimeframeSelect').value
-                }
-            };
-            
-            console.log('Settings to save:', settings);
-            // In a real app: fetch('/api/settings', { method: 'POST', body: JSON.stringify(settings) });
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('change', function() {
+            applyTheme();
         });
+        
+        // Font size
+        document.getElementById('fontSizeSelect').addEventListener('change', function() {
+            applyFontSize(this.value);
+        });
+        
+        // Clear search history
+        document.getElementById('clearSearchBtn').addEventListener('click', function() {
+            // In a real implementation, this would clear the search history
+            localStorage.removeItem('searchHistory');
+            showNotification('Search history cleared');
+        });
+    }
+    
+    // Save all settings
+    function saveAllSettings() {
+    // Show loading indicator
+    const saveButton = document.getElementById('saveSettings');
+    const originalText = saveButton.textContent;
+    saveButton.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span> Saving...';
+    saveButton.disabled = true;
+
+    const settings = {
+        darkMode: document.getElementById('themeToggle').checked,
+        language: document.getElementById('languageSelect').value,
+        notifications: {
+            priceAlerts: document.getElementById('priceAlertsToggle').checked,
+            tradeConfirmations: document.getElementById('tradeConfirmToggle').checked,
+            newsUpdates: document.getElementById('newsUpdatesToggle').checked,
+            signalAlerts: document.getElementById('signalAlertsToggle').checked,
+            emailNotifications: document.getElementById('emailNotificationsToggle').checked
+        },
+        currency: document.getElementById('currencySelect').value,
+        defaultCrypto: document.getElementById('defaultCryptoSelect').value,
+        timeFormat: document.querySelector('input[name="timeFormat"]:checked').value,
+        dateFormat: document.getElementById('dateFormatSelect').value,
+        security: {
+            twoFactor: document.getElementById('twoFactorBtn').textContent.trim() === 'Disable',
+            sessionTimeout: document.getElementById('timeoutSelect').value,
+            rememberLogin: document.getElementById('rememberLoginToggle').checked,
+            biometric: document.getElementById('biometricToggle').checked
+        },
+        trading: {
+            confirmations: document.getElementById('tradeConfirmationsToggle').checked,
+            defaultChartTimeframe: document.getElementById('chartTimeframeSelect').value,
+            showOrderbook: document.getElementById('showOrderbookToggle').checked,
+            riskProtection: document.getElementById('riskProtectionSelect').value,
+            autoConvert: document.getElementById('autoConvertToggle').checked
+        },
+        display: {
+            compactMode: document.getElementById('compactModeToggle').checked,
+            showBalance: document.getElementById('showBalanceToggle').checked,
+            chartStyle: document.getElementById('chartStyleSelect').value,
+            fontSize: document.getElementById('fontSizeSelect').value
+        },
+        privacy: {
+            anonymousTrading: document.getElementById('anonymousTradingToggle').checked,
+            usageAnalytics: document.getElementById('usageAnalyticsToggle').checked
+        }
+    };
+    
+    // Save to localStorage as a backup
+    localStorage.setItem('userSettings', JSON.stringify(settings));
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    // Send to server API
+    fetch('/user/api/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('lastSaved').classList.remove('hidden');
+            document.getElementById('lastSaved').querySelector('span').textContent = new Date().toLocaleString();
+            
+            // Show confirmation
+            showNotification('Settings saved successfully!');
+        } else {
+            // Show error notification
+            showNotification('Error saving settings: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        showNotification('Error saving settings: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Restore save button
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
+        
+        // Apply theme and font size
+        applyTheme();
+        applyFontSize(settings.display.fontSize);
     });
+}
+    
+    // Apply theme
+    function applyTheme() {
+        const isDarkMode = document.getElementById('themeToggle').checked;
+        
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            applyDarkModeStyles();
+        } else {
+            document.documentElement.classList.remove('dark');
+            removeDarkModeStyles();
+        }
+    }
+    
+    // Apply dark mode styles
+    function applyDarkModeStyles() {
+        // Add dark mode styles to specific elements
+        document.querySelectorAll('.bg-white').forEach(el => {
+            el.classList.add('bg-gray-800');
+            el.classList.remove('bg-white');
+        });
+        
+        document.querySelectorAll('.text-gray-500').forEach(el => {
+            el.classList.add('text-gray-400');
+            el.classList.remove('text-gray-500');
+        });
+        
+        document.querySelectorAll('.text-gray-700').forEach(el => {
+            el.classList.add('text-gray-300');
+            el.classList.remove('text-gray-700');
+        });
+        
+        document.querySelectorAll('.border-gray-300').forEach(el => {
+            el.classList.add('border-gray-600');
+            el.classList.remove('border-gray-300');
+        });
+        
+        document.querySelectorAll('.shadow-sm').forEach(el => {
+            el.classList.add('shadow-gray-900');
+        });
+    }
+    
+    // Remove dark mode styles
+    function removeDarkModeStyles() {
+        // Remove dark mode styles from specific elements
+        document.querySelectorAll('.bg-gray-800').forEach(el => {
+            el.classList.add('bg-white');
+            el.classList.remove('bg-gray-800');
+        });
+        
+        document.querySelectorAll('.text-gray-400').forEach(el => {
+            el.classList.add('text-gray-500');
+            el.classList.remove('text-gray-400');
+        });
+        
+        document.querySelectorAll('.text-gray-300').forEach(el => {
+            el.classList.add('text-gray-700');
+            el.classList.remove('text-gray-300');
+        });
+        
+        document.querySelectorAll('.border-gray-600').forEach(el => {
+            el.classList.add('border-gray-300');
+            el.classList.remove('border-gray-600');
+        });
+        
+        document.querySelectorAll('.shadow-gray-900').forEach(el => {
+            el.classList.remove('shadow-gray-900');
+        });
+    }
+    
+    // Apply font size
+    function applyFontSize(size) {
+        const html = document.documentElement;
+        
+        // Remove existing size classes
+        html.classList.remove('text-xs', 'text-sm', 'text-base', 'text-lg');
+        
+        // Add appropriate size class
+        switch(size) {
+            case 'small':
+                html.classList.add('text-xs');
+                break;
+            case 'medium':
+                html.classList.add('text-sm');
+                break;
+            case 'large':
+                html.classList.add('text-base');
+                break;
+            case 'xlarge':
+                html.classList.add('text-lg');
+                break;
+        }
+    }
+    
+    // Update 2FA button text
+    function updateTwoFactorButton(enabled) {
+        const button = document.getElementById('twoFactorBtn');
+        
+        if (enabled) {
+            button.textContent = 'Disable';
+            button.classList.remove('bg-primary-500', 'hover:bg-primary-600');
+            button.classList.add('bg-red-500', 'hover:bg-red-600');
+        } else {
+            button.textContent = 'Enable';
+            button.classList.remove('bg-red-500', 'hover:bg-red-600');
+            button.classList.add('bg-primary-500', 'hover:bg-primary-600');
+        }
+    }
+    
+    // Initialize 2FA modal
+    function initTwoFactorModal() {
+    const modal = document.getElementById('twoFactorModal');
+    const openButton = document.getElementById('twoFactorBtn');
+    const closeButton = document.getElementById('closeTwoFactorModal');
+    const enableButton = document.getElementById('enableTwoFactorBtn');
+    const codeInput = document.getElementById('twoFactorCode');
+    
+    if (!modal || !openButton || !closeButton || !enableButton || !codeInput) {
+        console.error('Missing 2FA modal elements');
+        return;
+    }
+    
+    // Open modal
+    openButton.addEventListener('click', function() {
+        if (this.textContent.trim() === 'Disable') {
+            // Show confirmation dialog
+            if (confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+                // Disable 2FA immediately if it's already enabled
+                updateTwoFactorButton(false);
+                showNotification('Two-factor authentication disabled');
+            }
+            return;
+        }
+        
+        // Reset form
+        codeInput.value = '';
+        modal.classList.remove('hidden');
+        
+        // Add entrance animation
+        const modalContent = modal.querySelector('div');
+        if (modalContent) {
+            modalContent.classList.add('modal-enter');
+            setTimeout(() => {
+                modalContent.classList.remove('modal-enter');
+            }, 300);
+        }
+        
+        // Focus on code input
+        setTimeout(() => {
+            codeInput.focus();
+        }, 100);
+    });
+    
+    // Close modal
+    closeButton.addEventListener('click', function() {
+        const modalContent = modal.querySelector('div');
+        if (modalContent) {
+            modalContent.classList.add('modal-leave');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalContent.classList.remove('modal-leave');
+            }, 300);
+        } else {
+            modal.classList.add('hidden');
+        }
+    });
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeButton.click();
+        }
+    });
+    
+    // Enable 2FA
+    enableButton.addEventListener('click', function() {
+        const code = codeInput.value;
+        
+        // Validate code (in a real app, this would verify with the server)
+        if (code.length === 6 && /^\d+$/.test(code)) {
+            // In a real app, you would make an API call here
+            
+            // Show loading state
+            const originalText = enableButton.textContent;
+            enableButton.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span> Verifying...';
+            enableButton.disabled = true;
+            
+            // Simulate API call with timeout
+            setTimeout(() => {
+                updateTwoFactorButton(true);
+                modal.classList.add('hidden');
+                showNotification('Two-factor authentication enabled');
+                
+                // Save settings to include 2FA change
+                saveAllSettings();
+                
+                // Reset button
+                enableButton.textContent = originalText;
+                enableButton.disabled = false;
+            }, 1000);
+        } else {
+            // Show error on the input
+            codeInput.classList.add('border-red-500');
+            const errorMsg = document.createElement('p');
+            errorMsg.className = 'text-red-500 text-xs mt-1';
+            errorMsg.textContent = 'Please enter a valid 6-digit code';
+            
+            // Remove any existing error message
+            const existingError = codeInput.parentNode.querySelector('.text-red-500');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            codeInput.parentNode.appendChild(errorMsg);
+            
+            // Focus on input
+            codeInput.focus();
+            
+            // Remove error state after 3 seconds
+            setTimeout(() => {
+                codeInput.classList.remove('border-red-500');
+                const currentError = codeInput.parentNode.querySelector('.text-red-500');
+                if (currentError) {
+                    currentError.remove();
+                }
+            }, 3000);
+        }
+    });
+    
+    // Add keyboard listener for Enter key
+    codeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            enableButton.click();
+        }
+    });
+}
+    
+    // Show notification
+    function showNotification(message, type = 'success') {
+    // Create notification element
+    const notification = document.createElement('div');
+    
+    // Set class based on type
+    const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+    notification.className = `fixed bottom-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fadeIn`;
+    
+    // Add icon based on type
+    const icon = type === 'error' ? '❌' : '✅';
+    notification.innerHTML = `<span class="mr-2">${icon}</span> ${message}`;
+    
+    // Add animation class
+    notification.style.animation = 'fadeIn 0.3s, fadeOut 0.3s 2.7s';
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
 </script>
 {% endblock %}
