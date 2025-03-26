@@ -10,6 +10,12 @@ from app.models.announcement import Announcement
 from app.services.market_service import get_current_price
 from datetime import datetime, timedelta
 from functools import wraps
+import logging
+from app.config import Config
+from app.models.support_ticket import SupportTicket, TicketResponse
+
+# Add this line after the existing imports
+logger = logging.getLogger(__name__)
 
 admin = Blueprint('admin', __name__)
 
@@ -22,6 +28,8 @@ def admin_required(f):
             return redirect(url_for('user.home'))
         return f(*args, **kwargs)
     return decorated_function
+
+# In app/routes/admin.py
 
 @admin.route('/dashboard')
 @login_required
@@ -39,6 +47,10 @@ def dashboard():
     # Get active trade signals
     active_signals = TradeSignal.query.filter_by(is_active=True).count()
     
+    # Get support ticket stats
+    from app.models.support_ticket import SupportTicket
+    open_tickets = SupportTicket.query.filter_by(status='open').count()
+    
     # Get recent user registrations
     recent_users = User.query.order_by(User.created_at.desc()).limit(10).all()
     
@@ -53,8 +65,10 @@ def dashboard():
                           pending_deposits=pending_deposits,
                           pending_withdrawals=pending_withdrawals,
                           active_signals=active_signals,
+                          open_tickets=open_tickets,  # Add this line
                           recent_users=recent_users,
-                          recent_transactions=recent_transactions)
+                          recent_transactions=recent_transactions,
+                          stats={'open_tickets': open_tickets})  # Add this line
 
 @admin.route('/users')
 @login_required
@@ -687,3 +701,264 @@ def reports():
                           report_type=report_type,
                           period=period,
                           data=data)
+
+
+# Add these routes to app/routes/admin.py
+
+@admin.route('/support')
+@login_required
+@admin_required
+def support():
+    """
+    Support ticket management for admin
+    """
+    try:
+        # Get query parameters
+        status = request.args.get('status')
+        priority = request.args.get('priority')
+        search = request.args.get('search')
+        page = request.args.get('page', 1, type=int)
+        
+        # Get ticket statistics
+        from app.services.support_service import get_ticket_statistics
+        stats = get_ticket_statistics()
+        
+        # Get tickets with filtering
+        from app.services.support_service import get_all_tickets
+        tickets = get_all_tickets(
+            status=status,
+            priority=priority,
+            page=page,
+            per_page=20
+        )
+        
+        # Search functionality (simple implementation)
+        # For a more comprehensive search, you might want to use a proper search engine
+        if search:
+            from app.models.support_ticket import SupportTicket
+            from sqlalchemy import or_
+            
+            query = SupportTicket.query
+            
+            # Filter by status if specified
+            if status:
+                query = query.filter_by(status=status)
+                
+            # Filter by priority if specified
+            if priority:
+                query = query.filter_by(priority=priority)
+                
+            # Search in ticket number, subject, and message
+            query = query.filter(
+                or_(
+                    SupportTicket.ticket_number.ilike(f'%{search}%'),
+                    SupportTicket.subject.ilike(f'%{search}%'),
+                    SupportTicket.message.ilike(f'%{search}%')
+                )
+            )
+            
+            # Order by priority and created date
+            query = query.order_by(SupportTicket.created_at.desc())
+            
+            # Paginate results
+            tickets = query.paginate(page=page, per_page=20)
+        
+        return render_template('admin/support.html',
+                              title='Support Management',
+                              tickets=tickets,
+                              stats=stats,
+                              status=status,
+                              priority=priority,
+                              search=search)
+    except Exception as e:
+        logger.error(f"Error loading admin support page: {str(e)}")
+        flash(f"Error loading support management: {str(e)}", "danger")
+        return redirect(url_for('admin.dashboard'))
+
+@admin.route('/support/ticket/<int:ticket_id>')
+@login_required
+@admin_required
+def ticket_detail(ticket_id):
+    """
+    View a specific support ticket (admin view)
+    """
+    try:
+        # Get ticket details
+        from app.services.support_service import get_ticket_details
+        ticket_details = get_ticket_details(ticket_id)
+        
+        if not ticket_details:
+            flash("Ticket not found.", "danger")
+            return redirect(url_for('admin.support'))
+        
+        return render_template('admin/ticket_detail.html',
+                              title=f'Ticket #{ticket_details["ticket"].ticket_number}',
+                              ticket=ticket_details['ticket'],
+                              user=ticket_details['user'],
+                              responses=ticket_details['responses'])
+    except Exception as e:
+        logger.error(f"Error viewing ticket details: {str(e)}")
+        flash(f"Error viewing ticket details: {str(e)}", "danger")
+        return redirect(url_for('admin.support'))
+
+@admin.route('/support/ticket/<int:ticket_id>/reply', methods=['POST'])
+@login_required
+@admin_required
+def reply_ticket(ticket_id):
+    """
+    Reply to a support ticket as admin
+    """
+    try:
+        message = request.form.get('message')
+        attachment = request.files.get('attachment')
+        close_ticket = 'close_ticket' in request.form
+        
+        if not message:
+            flash("Please enter a message.", "danger")
+            return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+        
+        # Add admin response to ticket
+        from app.services.support_service import add_ticket_response, update_ticket_status
+        success, message_text, response = add_ticket_response(
+            ticket_id=ticket_id,
+            message=message,
+            admin_id=current_user.id,
+            attachment=attachment
+        )
+        
+        if not success:
+            flash(message_text, "danger")
+            return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+        
+        # Close ticket if requested
+        if close_ticket:
+            update_success, update_message = update_ticket_status(
+                ticket_id=ticket_id,
+                status='closed',
+                admin_id=current_user.id
+            )
+            
+            if update_success:
+                flash("Your response has been sent and the ticket has been closed.", "success")
+            else:
+                flash(f"Response sent but could not close ticket: {update_message}", "warning")
+        else:
+            flash("Your response has been sent.", "success")
+        
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+    except Exception as e:
+        logger.error(f"Error replying to ticket: {str(e)}")
+        flash(f"Error replying to ticket: {str(e)}", "danger")
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+
+@admin.route('/support/ticket/<int:ticket_id>/status', methods=['POST'])
+@login_required
+@admin_required
+def update_ticket_status(ticket_id):
+    """
+    Update a ticket's status
+    """
+    try:
+        status = request.form.get('status')
+        
+        if not status or status not in ['open', 'in_progress', 'closed']:
+            flash("Invalid status.", "danger")
+            return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+        
+        # Update ticket status
+        from app.services.support_service import update_ticket_status
+        success, message_text = update_ticket_status(
+            ticket_id=ticket_id,
+            status=status,
+            admin_id=current_user.id
+        )
+        
+        if success:
+            flash(f"Ticket status updated to '{status}'.", "success")
+        else:
+            flash(message_text, "danger")
+        
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+    except Exception as e:
+        logger.error(f"Error updating ticket status: {str(e)}")
+        flash(f"Error updating ticket status: {str(e)}", "danger")
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+
+@admin.route('/support/ticket/<int:ticket_id>/priority', methods=['POST'])
+@login_required
+@admin_required
+def update_ticket_priority(ticket_id):
+    """
+    Update a ticket's priority
+    """
+    try:
+        priority = request.form.get('priority')
+        
+        if not priority or priority not in ['low', 'normal', 'high', 'urgent']:
+            flash("Invalid priority.", "danger")
+            return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+        
+        # Update ticket priority
+        from app.services.support_service import update_ticket_priority
+        success, message_text = update_ticket_priority(
+            ticket_id=ticket_id,
+            priority=priority,
+            admin_id=current_user.id
+        )
+        
+        if success:
+            flash(f"Ticket priority updated to '{priority}'.", "success")
+        else:
+            flash(message_text, "danger")
+        
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+    except Exception as e:
+        logger.error(f"Error updating ticket priority: {str(e)}")
+        flash(f"Error updating ticket priority: {str(e)}", "danger")
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+
+@admin.route('/support/ticket/<int:ticket_id>/print')
+@login_required
+@admin_required
+def print_ticket(ticket_id):
+    """
+    Print-friendly view of a ticket
+    """
+    try:
+        # Get ticket details
+        from app.services.support_service import get_ticket_details
+        ticket_details = get_ticket_details(ticket_id)
+        
+        if not ticket_details:
+            flash("Ticket not found.", "danger")
+            return redirect(url_for('admin.support'))
+        
+        return render_template('admin/print_ticket.html',
+                              title=f'Print Ticket #{ticket_details["ticket"].ticket_number}',
+                              ticket=ticket_details['ticket'],
+                              user=ticket_details['user'],
+                              responses=ticket_details['responses'],
+                              hide_header=True,
+                              hide_bottom_nav=True)
+    except Exception as e:
+        logger.error(f"Error printing ticket: {str(e)}")
+        flash(f"Error printing ticket: {str(e)}", "danger")
+        return redirect(url_for('admin.ticket_detail', ticket_id=ticket_id))
+
+@admin.route('/download/attachment/<filename>')
+@login_required
+@admin_required
+def download_attachment(filename):
+    """
+    Download support ticket attachment (admin access)
+    """
+    try:
+        from flask import send_from_directory
+        import os
+        
+        upload_dir = os.path.join(Config.UPLOAD_FOLDER, 'support_attachments')
+        return send_from_directory(upload_dir, filename)
+    except Exception as e:
+        logger.error(f"Error downloading attachment: {str(e)}")
+        flash(f"Error downloading attachment: {str(e)}", "danger")
+        return redirect(url_for('admin.support'))

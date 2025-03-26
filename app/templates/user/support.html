@@ -19,11 +19,17 @@
             <p class="text-sm text-gray-500 mt-1">We're here to help! Submit a ticket and we'll respond as soon as possible.</p>
         </div>
         
-        <form id="supportForm" class="p-4 space-y-4">
+        <form id="supportForm" action="{{ url_for('user.submit_ticket') }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
                 <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select id="subject" name="subject" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-                    <option value="" disabled selected>Select a topic</option>
+                <input type="text" id="subject" name="subject" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Brief description of your issue">
+            </div>
+            
+            <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select id="category" name="category" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="" disabled selected>Select a category</option>
                     <option value="account">Account Issues</option>
                     <option value="deposit">Deposit/Withdrawal</option>
                     <option value="trading">Trading Problems</option>
@@ -52,6 +58,43 @@
                 Submit Ticket
             </button>
         </form>
+    </div>
+    
+    <!-- My Tickets -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">My Tickets</h2>
+        </div>
+        
+        <div class="divide-y">
+            {% if tickets %}
+                {% for ticket in tickets %}
+                    <a href="{{ url_for('user.view_ticket', ticket_number=ticket.ticket_number) }}" class="block p-4 hover:bg-gray-50">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="font-medium">{{ ticket.subject }}</div>
+                            {% if ticket.status == 'open' %}
+                                <div class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Open</div>
+                            {% elif ticket.status == 'in_progress' %}
+                                <div class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">In Progress</div>
+                            {% elif ticket.status == 'closed' %}
+                                <div class="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">Closed</div>
+                            {% endif %}
+                        </div>
+                        <div class="text-sm text-gray-500 mb-1">
+                            Ticket #{{ ticket.ticket_number }} • {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                        <div class="text-sm text-gray-600 truncate">
+                            {{ ticket.message|truncate(100) }}
+                        </div>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-ticket-alt text-3xl mb-2"></i>
+                    <p>You haven't submitted any tickets yet.</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
     
     <!-- FAQs -->
@@ -112,37 +155,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Recent Tickets -->
-    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="p-4 border-b">
-            <h2 class="text-lg font-semibold">My Tickets</h2>
-        </div>
-        
-        <div class="divide-y">
-            <!-- Placeholder for when no tickets exist -->
-            <div class="p-6 text-center text-gray-500">
-                <i class="fas fa-ticket-alt text-3xl mb-2"></i>
-                <p>You haven't submitted any tickets yet.</p>
-            </div>
-            
-            <!-- Example ticket (would be populated from backend) -->
-            <!--
-            <div class="p-4">
-                <div class="flex justify-between items-center mb-1">
-                    <div class="font-medium">Account Verification Issue</div>
-                    <div class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">In Progress</div>
-                </div>
-                <div class="text-sm text-gray-500 mb-1">
-                    Ticket #12345 • Submitted on 2023-05-15
-                </div>
-                <div class="text-sm text-gray-600 truncate">
-                    I submitted my verification documents but they were rejected...
-                </div>
-            </div>
-            -->
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -162,23 +174,24 @@
             const file = e.target.files[0];
             if (file) {
                 fileLabel.textContent = file.name;
+                
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File is too large. Maximum size is 5MB.');
+                    this.value = '';
+                    fileLabel.textContent = 'Click or drag file to upload';
+                    return;
+                }
+                
+                // Check file type
+                const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+                if (!allowedTypes.includes(file.type)) {
+                    alert('Invalid file type. Allowed types: JPG, PNG, PDF');
+                    this.value = '';
+                    fileLabel.textContent = 'Click or drag file to upload';
+                    return;
+                }
             }
-        });
-        
-        // Support form submission
-        const supportForm = document.getElementById('supportForm');
-        
-        supportForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // In a real implementation, this would send the form data to the server
-            // For now, just show a success message
-            
-            alert('Your ticket has been submitted. We\'ll respond as soon as possible.');
-            
-            // Reset form
-            this.reset();
-            fileLabel.textContent = 'Click or drag file to upload';
         });
         
         // FAQ toggles

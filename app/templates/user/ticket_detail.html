@@ -1,0 +1,186 @@
+<!-- app/templates/user/ticket_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.ticket_number }} | Support{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4 pb-16">
+    <div class="flex items-center mb-4">
+        <a href="{{ url_for('user.support') }}" class="mr-2 text-gray-500">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="text-xl font-bold">Ticket #{{ ticket.ticket_number }}</h1>
+    </div>
+    
+    <!-- Ticket Details -->
+    <div class="bg-white rounded-lg shadow-sm mb-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold">{{ ticket.subject }}</h2>
+                {% if ticket.status == 'open' %}
+                    <div class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">Open</div>
+                {% elif ticket.status == 'in_progress' %}
+                    <div class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">In Progress</div>
+                {% elif ticket.status == 'closed' %}
+                    <div class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">Closed</div>
+                {% endif %}
+            </div>
+            <div class="mt-1 text-sm text-gray-500">
+                <span>Category: {{ ticket.category|capitalize }}</span>
+                <span class="mx-2">•</span>
+                <span>Created: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                {% if ticket.updated_at != ticket.created_at %}
+                    <span class="mx-2">•</span>
+                    <span>Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Message Thread -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Conversation</h2>
+        </div>
+        
+        <div class="divide-y">
+            <!-- Initial message -->
+            <div class="p-4">
+                <div class="flex items-start mb-2">
+                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-10 h-10 rounded-full mr-3 object-cover">
+                    <div>
+                        <div class="font-medium">{{ current_user.username }}</div>
+                        <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                </div>
+                <div class="ml-13 pl-1">
+                    <div class="text-gray-700 whitespace-pre-line">{{ ticket.message }}</div>
+                    
+                    {% if ticket.attachment_path %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('user.download_attachment', filename=ticket.attachment_path) }}" class="flex items-center text-primary-600 hover:text-primary-700">
+                            <i class="fas fa-paperclip mr-1"></i>
+                            <span>{{ ticket.attachment_path.split('_', 1)[1] }}</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Responses -->
+            {% for response in responses %}
+                <div class="p-4 {% if response.is_admin_response %}bg-gray-50{% endif %}">
+                    <div class="flex items-start mb-2">
+                        {% if response.is_admin_response %}
+                            <div class="w-10 h-10 rounded-full mr-3 bg-primary-100 text-primary-700 flex items-center justify-center">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">Support Team</div>
+                                <div class="text-xs text-gray-500">{{ response.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-10 h-10 rounded-full mr-3 object-cover">
+                            <div>
+                                <div class="font-medium">{{ current_user.username }}</div>
+                                <div class="text-xs text-gray-500">{{ response.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="ml-13 pl-1">
+                        <div class="text-gray-700 whitespace-pre-line">{{ response.message }}</div>
+                        
+                        {% if response.attachment_path %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('user.download_attachment', filename=response.attachment_path) }}" class="flex items-center text-primary-600 hover:text-primary-700">
+                                <i class="fas fa-paperclip mr-1"></i>
+                                <span>{{ response.attachment_path.split('_', 2)[2] }}</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Reply Form (only if ticket is not closed) -->
+    {% if ticket.status != 'closed' %}
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Reply to Ticket</h2>
+        </div>
+        
+        <form action="{{ url_for('user.reply_ticket', ticket_number=ticket.ticket_number) }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label for="replyMessage" class="block text-sm font-medium text-gray-700 mb-1">Your Message</label>
+                <textarea id="replyMessage" name="message" rows="4" required class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+            </div>
+            
+            <div>
+                <label for="replyAttachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (Optional)</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
+                    <input type="file" id="replyAttachment" name="attachment" class="hidden">
+                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-500" id="replyFileLabel">Click or drag file to upload</p>
+                    <p class="text-xs text-gray-400 mt-1">Max size: 5MB (JPG, PNG, PDF)</p>
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                Send Reply
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div class="bg-gray-100 rounded-lg p-4 text-center">
+        <p class="text-gray-600">This ticket is closed. If you need further assistance, please open a new ticket.</p>
+        <a href="{{ url_for('user.support') }}" class="mt-2 inline-block px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+            Create New Ticket
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // File upload handling for reply
+        const attachmentInput = document.getElementById('replyAttachment');
+        if (attachmentInput) {
+            const fileLabel = document.getElementById('replyFileLabel');
+            const uploadArea = attachmentInput.parentElement;
+            
+            uploadArea.addEventListener('click', function() {
+                attachmentInput.click();
+            });
+            
+            attachmentInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    fileLabel.textContent = file.name;
+                    
+                    // Check file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('File is too large. Maximum size is 5MB.');
+                        this.value = '';
+                        fileLabel.textContent = 'Click or drag file to upload';
+                        return;
+                    }
+                    
+                    // Check file type
+                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+                    if (!allowedTypes.includes(file.type)) {
+                        alert('Invalid file type. Allowed types: JPG, PNG, PDF');
+                        this.value = '';
+                        fileLabel.textContent = 'Click or drag file to upload';
+                        return;
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

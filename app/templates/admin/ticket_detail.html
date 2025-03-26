@@ -1,0 +1,325 @@
+<!-- app/templates/admin/ticket_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.ticket_number }} | Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4 pb-16">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+            <a href="{{ url_for('admin.support') }}" class="mr-2 text-gray-500">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-xl font-bold">Ticket #{{ ticket.ticket_number }}</h1>
+        </div>
+        <div class="flex space-x-2">
+            <div class="relative inline-block text-left" x-data="{ open: false }">
+                <button @click="open = !open" type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Actions
+                    <i class="fas fa-chevron-down ml-2"></i>
+                </button>
+                <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                    <div class="py-1">
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click.prevent="document.getElementById('changeStatusForm').classList.toggle('hidden'); open = false">
+                            Change Status
+                        </a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click.prevent="document.getElementById('changePriorityForm').classList.toggle('hidden'); open = false">
+                            Change Priority
+                        </a>
+                    </div>
+                    <div class="py-1">
+                        <a href="{{ url_for('admin.print_ticket', ticket_id=ticket.id) }}" target="_blank" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            Print Ticket
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status and Priority Forms (Hidden by default) -->
+    <div id="changeStatusForm" class="hidden bg-gray-100 rounded-lg p-4 mb-4">
+        <form action="{{ url_for('admin.update_ticket_status', ticket_id=ticket.id) }}" method="POST" class="flex items-end space-x-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Update Status</label>
+                <select id="status" name="status" class="rounded-md border-gray-300" required>
+                    <option value="">Select Status</option>
+                    <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Open</option>
+                    <option value="in_progress" {% if ticket.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="closed" {% if ticket.status == 'closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md">
+                Update Status
+            </button>
+            <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md" onclick="document.getElementById('changeStatusForm').classList.add('hidden')">
+                Cancel
+            </button>
+        </form>
+    </div>
+    
+    <div id="changePriorityForm" class="hidden bg-gray-100 rounded-lg p-4 mb-4">
+        <form action="{{ url_for('admin.update_ticket_priority', ticket_id=ticket.id) }}" method="POST" class="flex items-end space-x-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Update Priority</label>
+                <select id="priority" name="priority" class="rounded-md border-gray-300" required>
+                    <option value="">Select Priority</option>
+                    <option value="urgent" {% if ticket.priority == 'urgent' %}selected{% endif %}>Urgent</option>
+                    <option value="high" {% if ticket.priority == 'high' %}selected{% endif %}>High</option>
+                    <option value="normal" {% if ticket.priority == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="low" {% if ticket.priority == 'low' %}selected{% endif %}>Low</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-md">
+                Update Priority
+            </button>
+            <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md" onclick="document.getElementById('changePriorityForm').classList.add('hidden')">
+                Cancel
+            </button>
+        </form>
+    </div>
+    
+    <!-- Ticket Details -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Main ticket info -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden md:col-span-2">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">{{ ticket.subject }}</h2>
+                <div class="mt-1 text-sm text-gray-500">
+                    <span>Category: {{ ticket.category|capitalize }}</span>
+                    <span class="mx-2">•</span>
+                    <span>Created: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% if ticket.updated_at != ticket.created_at %}
+                        <span class="mx-2">•</span>
+                        <span>Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ticket status and details -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">Ticket Info</h2>
+            </div>
+            <div class="p-4 space-y-3">
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Status:</span>
+                    {% if ticket.status == 'open' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Open</span>
+                    {% elif ticket.status == 'in_progress' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">In Progress</span>
+                    {% elif ticket.status == 'closed' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Closed</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Priority:</span>
+                    {% if ticket.priority == 'urgent' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Urgent</span>
+                    {% elif ticket.priority == 'high' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800">High</span>
+                    {% elif ticket.priority == 'normal' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Normal</span>
+                    {% elif ticket.priority == 'low' %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Low</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Submitted by:</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ user.username }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Email:</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ user.email }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">User ID:</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ user.id }}</span>
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Verification Status:</span>
+                    {% if user.is_verified %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Verified</span>
+                    {% else %}
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Unverified</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="text-sm font-medium text-gray-500">Member Since:</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ user.created_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+                <div class="pt-2">
+                    <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="text-primary-600 hover:text-primary-900 text-sm">
+                        <i class="fas fa-external-link-alt mr-1"></i>
+                        View Full User Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Message Thread -->
+    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Conversation</h2>
+        </div>
+        
+        <div class="divide-y">
+            <!-- Initial message -->
+            <div class="p-4">
+                <div class="flex items-start mb-2">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                        <i class="fas fa-user text-gray-500"></i>
+                    </div>
+                    <div>
+                        <div class="font-medium">{{ user.username }}</div>
+                        <div class="text-xs text-gray-500">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                </div>
+                <div class="ml-13 pl-1">
+                    <div class="text-gray-700 whitespace-pre-line">{{ ticket.message }}</div>
+                    
+                    {% if ticket.attachment_path %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('admin.download_attachment', filename=ticket.attachment_path) }}" class="flex items-center text-primary-600 hover:text-primary-700">
+                            <i class="fas fa-paperclip mr-1"></i>
+                            <span>{{ ticket.attachment_path.split('_', 1)[1] }}</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Responses -->
+            {% for response in responses %}
+                <div class="p-4 {% if response.is_admin_response %}bg-gray-50{% endif %}">
+                    <div class="flex items-start mb-2">
+                        {% if response.is_admin_response %}
+                            <div class="w-10 h-10 rounded-full mr-3 bg-primary-100 text-primary-700 flex items-center justify-center">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">Support Team ({{ response.admin.username }})</div>
+                                <div class="text-xs text-gray-500">{{ response.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                        {% else %}
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                                <i class="fas fa-user text-gray-500"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">{{ user.username }}</div>
+                                <div class="text-xs text-gray-500">{{ response.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="ml-13 pl-1">
+                        <div class="text-gray-700 whitespace-pre-line">{{ response.message }}</div>
+                        
+                        {% if response.attachment_path %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('admin.download_attachment', filename=response.attachment_path) }}" class="flex items-center text-primary-600 hover:text-primary-700">
+                                <i class="fas fa-paperclip mr-1"></i>
+                                <span>{{ response.attachment_path.split('_', 2)[2] }}</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Reply Form (only if ticket is not closed) -->
+    {% if ticket.status != 'closed' %}
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">Reply to Ticket</h2>
+        </div>
+        
+        <form action="{{ url_for('admin.reply_ticket', ticket_id=ticket.id) }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label for="replyMessage" class="block text-sm font-medium text-gray-700 mb-1">Your Response</label>
+                <textarea id="replyMessage" name="message" rows="4" required class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+            </div>
+            
+            <div>
+                <label for="replyAttachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (Optional)</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
+                    <input type="file" id="replyAttachment" name="attachment" class="hidden">
+                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-500" id="replyFileLabel">Click or drag file to upload</p>
+                    <p class="text-xs text-gray-400 mt-1">Max size: 5MB (JPG, PNG, PDF)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center">
+                <input type="checkbox" id="closeAfterReply" name="close_ticket" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                <label for="closeAfterReply" class="ml-2 block text-sm text-gray-700">
+                    Close ticket after reply
+                </label>
+            </div>
+            
+            <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                Send Reply
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div class="bg-gray-100 rounded-lg p-4 text-center">
+        <p class="text-gray-600">This ticket is closed. To respond, you must first reopen the ticket.</p>
+        <form action="{{ url_for('admin.update_ticket_status', ticket_id=ticket.id) }}" method="POST" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="status" value="open">
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                Reopen Ticket
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // File upload handling for reply
+        const attachmentInput = document.getElementById('replyAttachment');
+        if (attachmentInput) {
+            const fileLabel = document.getElementById('replyFileLabel');
+            const uploadArea = attachmentInput.parentElement;
+            
+            uploadArea.addEventListener('click', function() {
+                attachmentInput.click();
+            });
+            
+            attachmentInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    fileLabel.textContent = file.name;
+                    
+                    // Check file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('File is too large. Maximum size is 5MB.');
+                        this.value = '';
+                        fileLabel.textContent = 'Click or drag file to upload';
+                        return;
+                    }
+                    
+                    // Check file type
+                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+                    if (!allowedTypes.includes(file.type)) {
+                        alert('Invalid file type. Allowed types: JPG, PNG, PDF');
+                        this.value = '';
+                        fileLabel.textContent = 'Click or drag file to upload';
+                        return;
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

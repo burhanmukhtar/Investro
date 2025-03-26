@@ -9,7 +9,7 @@ from flask_wtf.csrf import CSRFProtect
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from flask_wtf.csrf import CSRFProtect
+from datetime import datetime
 import re
 
 # Initialize extensions
@@ -83,8 +83,12 @@ def create_app(config_class='app.config.Config'):
     app.register_blueprint(user, url_prefix='/user')
     app.register_blueprint(wallet, url_prefix='/wallet')
 
+    # Add template context processor for current date
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
+
     # Add root route
-    from flask import redirect, url_for
     @app.route('/')
     def home():
         return redirect(url_for('auth.login'))
@@ -104,3 +108,10 @@ def create_app(config_class='app.config.Config'):
         app.logger.info('Investro startup')
 
     return app
+
+# Import models for proper DB initialization
+from app.models.user import User, VerificationDocument
+from app.models.wallet import Wallet
+from app.models.transaction import Transaction
+from app.models.user_settings import UserSettings
+from app.models.support_ticket import SupportTicket, TicketResponse  # Add this line

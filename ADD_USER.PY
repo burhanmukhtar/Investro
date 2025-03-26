@@ -1,4 +1,3 @@
-# add_user.py
 from app import create_app, db, bcrypt
 from app.models.user import User
 import random
@@ -9,6 +8,9 @@ def add_admin_user(username, email, phone, password):
     # Create app context
     app = create_app()
     with app.app_context():
+        # Create tables if they don't exist
+        db.create_all()
+        
         # Check if user already exists
         existing_user = User.query.filter((User.username == username) |
                                          (User.email == email) |
@@ -18,8 +20,6 @@ def add_admin_user(username, email, phone, password):
             return False
             
         # Create the user
-        # Based on your User model, we should pass the raw password to the constructor
-        # The User model will handle generating unique_id and referral_code
         user = User(
             username=username,
             email=email,
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # Default admin credentials
     username = "bazhar691"
     email = "bazhar691@gmail.com"
-    phone = "+1234567845540224"
+    phone = "+123456"
     password = "Naruto@007"
     
     # You can override these with command line arguments if needed

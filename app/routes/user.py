@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 from app.models.transaction import Transaction
 import json
 from app.models.user_settings import UserSettings
+from app.models.support_ticket import SupportTicket, TicketResponse
+from app.config import Config
 
 
 logger = logging.getLogger(__name__)
@@ -793,23 +795,179 @@ def referral():
         flash("Error loading referral data. Please try again later.", "danger")
         return redirect(url_for('user.home'))
 
+# Add these routes to app/routes/user.py
+
 @user.route('/support')
 @login_required
 def support():
     """
-    Support page
+    Support center page with ticket submission and FAQs
     """
     try:
-        # TODO: Get user's support tickets
-        support_tickets = []
+        # Get user's support tickets
+        from app.services.support_service import get_user_tickets
+        tickets = get_user_tickets(current_user.id)
         
         return render_template('user/support.html', 
-                              title='Support', 
-                              support_tickets=support_tickets)
+                              title='Support Center',
+                              tickets=tickets)
     except Exception as e:
         logger.error(f"Error loading support page: {str(e)}")
         flash("Error loading support page. Please try again later.", "danger")
         return redirect(url_for('user.home'))
+
+@user.route('/support/submit', methods=['POST'])
+@login_required
+def submit_ticket():
+    """
+    Submit a new support ticket
+    """
+    try:
+        subject = request.form.get('subject')
+        category = request.form.get('category')
+        message = request.form.get('message')
+        attachment = request.files.get('attachment')
+        
+        if not subject or not category or not message:
+            flash("Please fill out all required fields.", "danger")
+            return redirect(url_for('user.support'))
+        
+        # Create ticket
+        from app.services.support_service import create_support_ticket
+        success, message_text, ticket = create_support_ticket(
+            user_id=current_user.id,
+            category=category,
+            subject=subject,
+            message=message,
+            attachment=attachment
+        )
+        
+        if success:
+            flash(f"Support ticket #{ticket.ticket_number} created successfully. We'll respond as soon as possible.", "success")
+        else:
+            flash(message_text, "danger")
+            
+        return redirect(url_for('user.support'))
+    except Exception as e:
+        logger.error(f"Error submitting support ticket: {str(e)}")
+        flash(f"Error submitting support ticket: {str(e)}", "danger")
+        return redirect(url_for('user.support'))
+
+@user.route('/support/ticket/<ticket_number>')
+@login_required
+def view_ticket(ticket_number):
+    """
+    View a specific support ticket
+    """
+    try:
+        # Get ticket by number (with user access control)
+        from app.services.support_service import get_ticket_by_number
+        ticket = get_ticket_by_number(ticket_number, current_user.id)
+        
+        if not ticket:
+            flash("Ticket not found or you don't have permission to view it.", "danger")
+            return redirect(url_for('user.support'))
+        
+        # Get ticket responses
+        responses = ticket.responses.order_by(TicketResponse.created_at.asc()).all()
+        
+        return render_template('user/ticket_detail.html',
+                              title=f'Ticket #{ticket_number}',
+                              ticket=ticket,
+                              responses=responses)
+    except Exception as e:
+        logger.error(f"Error viewing ticket: {str(e)}")
+        flash(f"Error viewing ticket: {str(e)}", "danger")
+        return redirect(url_for('user.support'))
+
+@user.route('/support/ticket/<ticket_number>/reply', methods=['POST'])
+@login_required
+def reply_ticket(ticket_number):
+    """
+    Reply to a support ticket
+    """
+    try:
+        message = request.form.get('message')
+        attachment = request.files.get('attachment')
+        
+        if not message:
+            flash("Please enter a message.", "danger")
+            return redirect(url_for('user.view_ticket', ticket_number=ticket_number))
+        
+        # Get ticket by number (with user access control)
+        from app.services.support_service import get_ticket_by_number, add_ticket_response
+        ticket = get_ticket_by_number(ticket_number, current_user.id)
+        
+        if not ticket:
+            flash("Ticket not found or you don't have permission to reply to it.", "danger")
+            return redirect(url_for('user.support'))
+        
+        # Check if ticket is closed
+        if ticket.status == 'closed':
+            flash("This ticket is closed. Please create a new ticket if you need further assistance.", "warning")
+            return redirect(url_for('user.view_ticket', ticket_number=ticket_number))
+        
+        # Add response
+        success, message_text, response = add_ticket_response(
+            ticket_id=ticket.id,
+            message=message,
+            user_id=current_user.id,
+            attachment=attachment
+        )
+        
+        if success:
+            flash("Your response has been submitted.", "success")
+        else:
+            flash(message_text, "danger")
+            
+        return redirect(url_for('user.view_ticket', ticket_number=ticket_number))
+    except Exception as e:
+        logger.error(f"Error replying to ticket: {str(e)}")
+        flash(f"Error replying to ticket: {str(e)}", "danger")
+        return redirect(url_for('user.view_ticket', ticket_number=ticket_number))
+
+@user.route('/download/attachment/<filename>')
+@login_required
+def download_attachment(filename):
+    """
+    Download support ticket attachment
+    """
+    try:
+        from flask import send_from_directory
+        import os
+        
+        # Check if file belongs to a ticket that this user has access to
+        # This is a simple security check to prevent unauthorized access to attachments
+        from app.models.support_ticket import SupportTicket, TicketResponse
+        
+        # Check if attachment belongs to a ticket created by this user
+        ticket = SupportTicket.query.filter(
+            SupportTicket.user_id == current_user.id,
+            SupportTicket.attachment_path == filename
+        ).first()
+        
+        # If not found, check if attachment belongs to a response to a ticket created by this user
+        if not ticket:
+            ticket_response = TicketResponse.query.filter(
+                TicketResponse.attachment_path == filename
+            ).first()
+            
+            if ticket_response:
+                ticket = SupportTicket.query.filter(
+                    SupportTicket.id == ticket_response.ticket_id,
+                    SupportTicket.user_id == current_user.id
+                ).first()
+        
+        if not ticket and not current_user.is_admin:
+            flash("You don't have permission to access this file.", "danger")
+            return redirect(url_for('user.support'))
+        
+        upload_dir = os.path.join(Config.UPLOAD_FOLDER, 'support_attachments')
+        return send_from_directory(upload_dir, filename)
+    except Exception as e:
+        logger.error(f"Error downloading attachment: {str(e)}")
+        flash(f"Error downloading attachment: {str(e)}", "danger")
+        return redirect(url_for('user.support'))
 
 @user.route('/about')
 @login_required

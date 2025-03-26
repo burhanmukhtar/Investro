@@ -1,0 +1,164 @@
+<!-- app/templates/admin/print_ticket.html -->
+{% extends "base.html" %}
+
+{% block title %}Print Ticket #{{ ticket.ticket_number }}{% endblock %}
+
+{% block head %}
+<style>
+    @media print {
+        body {
+            font-size: 12pt;
+            line-height: 1.3;
+            background: white;
+            color: black;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .no-print {
+            display: none !important;
+        }
+        
+        a {
+            text-decoration: none;
+            color: black;
+        }
+        
+        .bg-white, .bg-gray-50, .bg-gray-100 {
+            background-color: white !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .rounded-lg, .rounded-md, .rounded-full {
+            border-radius: 0 !important;
+        }
+        
+        .border, .border-b, .border-t {
+            border-color: #ccc !important;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <!-- Print Header -->
+    <div class="no-print mb-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold">Print Preview: Ticket #{{ ticket.ticket_number }}</h1>
+        <button onclick="window.print()" class="px-4 py-2 bg-primary-600 text-white rounded-md">
+            <i class="fas fa-print mr-2"></i> Print
+        </button>
+    </div>
+    
+    <!-- Ticket Header -->
+    <div class="mb-6 mt-4">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold">Support Ticket #{{ ticket.ticket_number }}</h1>
+                <p class="text-gray-600">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            <div class="text-right">
+                <div class="mb-2">
+                    <span class="font-semibold">Status:</span>
+                    <span class="ml-2">{{ ticket.status|capitalize }}</span>
+                </div>
+                <div>
+                    <span class="font-semibold">Priority:</span>
+                    <span class="ml-2">{{ ticket.priority|capitalize }}</span>
+                </div>
+            </div>
+        </div>
+        <hr class="my-4 border-gray-300">
+    </div>
+    
+    <!-- User Information -->
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">User Information</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p><span class="font-semibold">Username:</span> {{ user.username }}</p>
+                <p><span class="font-semibold">User ID:</span> {{ user.id }}</p>
+                <p><span class="font-semibold">Email:</span> {{ user.email }}</p>
+            </div>
+            <div>
+                <p><span class="font-semibold">Verification Status:</span> {{ "Verified" if user.is_verified else "Unverified" }}</p>
+                <p><span class="font-semibold">Member Since:</span> {{ user.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ticket Details -->
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">Ticket Information</h2>
+        <div class="mb-3">
+            <p><span class="font-semibold">Subject:</span> {{ ticket.subject }}</p>
+            <p><span class="font-semibold">Category:</span> {{ ticket.category|capitalize }}</p>
+        </div>
+        <div class="border border-gray-300 rounded p-4">
+            <h3 class="font-semibold mb-2">Initial Message:</h3>
+            <div class="whitespace-pre-line">{{ ticket.message }}</div>
+            
+            {% if ticket.attachment_path %}
+            <div class="mt-3">
+                <p><span class="font-semibold">Attachment:</span> {{ ticket.attachment_path.split('_', 1)[1] }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Conversation -->
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-3">Conversation History</h2>
+        
+        {% for response in responses %}
+            <div class="mb-4 pb-4 border-b border-gray-300">
+                <div class="flex justify-between mb-2">
+                    <div>
+                        <span class="font-semibold">
+                            {% if response.is_admin_response %}
+                                Support Team ({{ response.admin.username }})
+                            {% else %}
+                                {{ user.username }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div>
+                        {{ response.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                <div class="whitespace-pre-line">{{ response.message }}</div>
+                
+                {% if response.attachment_path %}
+                <div class="mt-2">
+                    <p><span class="font-semibold">Attachment:</span> {{ response.attachment_path.split('_', 2)[2] }}</p>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Footer -->
+    <div class="mt-8 pt-4 border-t border-gray-300 text-center text-gray-500">
+        <p>Generated on {{ now.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-print when the page loads (optional)
+        // window.print();
+    });
+</script>
+{% endblock %}
