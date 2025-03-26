@@ -45,9 +45,9 @@ def add_admin_user(username, email, phone, password):
 
 if __name__ == "__main__":
     # Default admin credentials
-    username = "nullbyte"
-    email = "nullbyte0031@gmail.com"
-    phone = "+12345678455404"
+    username = "bazhar691"
+    email = "bazhar691@gmail.com"
+    phone = "+1234567845540224"
     password = "Naruto@007"
     
     # You can override these with command line arguments if needed

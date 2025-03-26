@@ -185,7 +185,7 @@
         "symbol": "{{ selected_coin|replace('/', '') }}",
         "interval": "60",
         "timezone": "Etc/UTC",
-        "theme": "light",
+        "theme": "Dark",
         "style": "1",
         "locale": "en",
         "toolbar_bg": "#f1f3f6",
@@ -249,6 +249,8 @@
             }
         });
     }
+    
+    tabs.signals.tab.click();
     
     // Coin selector
     const coinSelector = document.getElementById('coinSelector');
