@@ -6,10 +6,10 @@ from flask_login import LoginManager, current_user
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from flask_socketio import SocketIO
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from flask_wtf.csrf import CSRFProtect
 import re
 
 # Initialize extensions
@@ -19,6 +19,7 @@ login_manager = LoginManager()
 mail = Mail()
 migrate = Migrate()
 csrf = CSRFProtect()
+socketio = SocketIO()  # Initialize SocketIO
 
 def add_verification_middleware(app):
     """Add middleware to check verification requirements for certain routes"""
@@ -59,6 +60,9 @@ def create_app(config_class='app.config.Config'):
     mail.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    
+    # Initialize SocketIO with cors_allowed_origins
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
 
     # Configure login
     login_manager.login_view = 'auth.login'
@@ -75,6 +79,8 @@ def create_app(config_class='app.config.Config'):
     from app.routes.trade import trade
     from app.routes.user import user
     from app.routes.wallet import wallet
+    from app.routes.support import support  # New support routes
+    from app.routes.admin_support import admin_support  # New admin support routes
 
     app.register_blueprint(admin, url_prefix='/admin')
     app.register_blueprint(auth, url_prefix='/auth')
@@ -82,6 +88,8 @@ def create_app(config_class='app.config.Config'):
     app.register_blueprint(trade, url_prefix='/trade')
     app.register_blueprint(user, url_prefix='/user')
     app.register_blueprint(wallet, url_prefix='/wallet')
+    app.register_blueprint(support, url_prefix='/support')  # Register support blueprint
+    app.register_blueprint(admin_support, url_prefix='/admin_support')  # Register admin support blueprint
 
     # Add root route
     from flask import redirect, url_for
@@ -103,4 +111,7 @@ def create_app(config_class='app.config.Config'):
         app.logger.setLevel(logging.INFO)
         app.logger.info('Investro startup')
 
+    # Import and register Socket.IO event handlers after app creation
+    from app.services.chat_service import socketio as chat_socketio
+    
     return app

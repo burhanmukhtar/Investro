@@ -3,55 +3,449 @@
 
 {% block title %}Support Center | Crypto Trading Platform{% endblock %}
 
+{% block head %}
+<!-- Socket.IO client library -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<!-- Animate.css for chat animations -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<style>
+    /* Chat UI Styles */
+    .chat-container {
+        height: 400px;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    .message {
+        max-width: 75%;
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        position: relative;
+        animation-duration: 0.3s;
+    }
+    .message-user {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        margin-left: auto;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .message-admin {
+        background-color: #f5f5f5;
+        color: #424242;
+        margin-right: auto;
+        border-bottom-left-radius: 0.25rem;
+    }
+    .message-system {
+        background-color: #fff8e1;
+        color: #ff6f00;
+        width: 100%;
+        max-width: 100%;
+        text-align: center;
+        font-size: 0.85rem;
+        padding: 0.5rem;
+    }
+    .message-time {
+        font-size: 0.7rem;
+        position: absolute;
+        bottom: 0.25rem;
+        right: 0.75rem;
+        color: #9e9e9e;
+    }
+    .typing-indicator {
+        padding: 0.5rem;
+        background-color: #f1f1f1;
+        border-radius: 1rem;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+    .typing-indicator span {
+        height: 0.5rem;
+        width: 0.5rem;
+        float: left;
+        margin: 0 1px;
+        background-color: #9E9E9E;
+        display: block;
+        border-radius: 50%;
+        opacity: 0.4;
+    }
+    .typing-indicator span:nth-of-type(1) {
+        animation: 1s blink infinite 0.3333s;
+    }
+    .typing-indicator span:nth-of-type(2) {
+        animation: 1s blink infinite 0.6666s;
+    }
+    .typing-indicator span:nth-of-type(3) {
+        animation: 1s blink infinite 0.9999s;
+    }
+    @keyframes blink {
+        50% {
+            opacity: 1;
+        }
+    }
+    .chat-box {
+        position: fixed;
+        bottom: 5rem;
+        right: 1rem;
+        width: 350px;
+        max-width: calc(100vw - 2rem);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        z-index: 100;
+        transition: all 0.3s ease;
+        transform: translateY(calc(100% + 5rem));
+        opacity: 0;
+    }
+    .chat-box.active {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    .chat-header {
+        background-color: #3b82f6;
+        color: white;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .chat-header .actions button {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0.25rem;
+        font-size: 1.25rem;
+    }
+    .chat-body {
+        height: 300px;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f9fafb;
+    }
+    .chat-footer {
+        padding: 0.75rem;
+        background-color: white;
+        border-top: 1px solid #e5e7eb;
+    }
+    .chat-input-container {
+        display: flex;
+    }
+    .chat-input {
+        flex: 1;
+        border-radius: 9999px;
+        border: 1px solid #d1d5db;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    .chat-send {
+        margin-left: 0.5rem;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 9999px;
+        width: 2.5rem;
+        height: 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .chat-trigger {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 9999px;
+        width: 3.5rem;
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        z-index: 100;
+    }
+    .chat-trigger i {
+        font-size: 1.5rem;
+    }
+    .support-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .support-status.online {
+        background-color: #d1fae5;
+        color: #047857;
+    }
+    .support-status.offline {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    .support-status .indicator {
+        height: 0.5rem;
+        width: 0.5rem;
+        border-radius: 9999px;
+        margin-right: 0.5rem;
+    }
+    .support-status.online .indicator {
+        background-color: #10b981;
+    }
+    .support-status.offline .indicator {
+        background-color: #ef4444;
+    }
+    .ticket-card {
+        transition: all 0.2s ease;
+    }
+    .ticket-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .chat-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background-color: #ef4444;
+        color: white;
+        border-radius: 9999px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        min-width: 1.5rem;
+        text-align: center;
+    }
+    /* Dark mode overrides */
+    .dark .chat-container {
+        background-color: #1f2937;
+    }
+    .dark .message-user {
+        background-color: #3b82f6;
+        color: white;
+    }
+    .dark .message-admin {
+        background-color: #374151;
+        color: #e5e7eb;
+    }
+    .dark .message-system {
+        background-color: #374151;
+        color: #d1d5db;
+    }
+    .dark .typing-indicator {
+        background-color: #374151;
+    }
+    .dark .chat-body {
+        background-color: #111827;
+    }
+    .dark .chat-input {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: white;
+    }
+    .dark .support-status.online {
+        background-color: rgba(16, 185, 129, 0.2);
+    }
+    .dark .support-status.offline {
+        background-color: rgba(239, 68, 68, 0.2);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-4 pb-16">
-    <div class="flex items-center mb-4">
-        <a href="{{ url_for('user.home') }}" class="mr-2 text-gray-500">
-            <i class="fas fa-arrow-left"></i>
-        </a>
-        <h1 class="text-xl font-bold">Support Center</h1>
-    </div>
-    
-    <!-- Contact Support Form -->
-    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
-        <div class="p-4 border-b">
-            <h2 class="text-lg font-semibold">Contact Support</h2>
-            <p class="text-sm text-gray-500 mt-1">We're here to help! Submit a ticket and we'll respond as soon as possible.</p>
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+            <a href="{{ url_for('user.home') }}" class="mr-2 text-gray-500">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-xl font-bold">Support Center</h1>
         </div>
         
-        <form id="supportForm" class="p-4 space-y-4">
-            <div>
-                <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select id="subject" name="subject" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-                    <option value="" disabled selected>Select a topic</option>
-                    <option value="account">Account Issues</option>
-                    <option value="deposit">Deposit/Withdrawal</option>
-                    <option value="trading">Trading Problems</option>
-                    <option value="verification">Identity Verification</option>
-                    <option value="security">Security Concerns</option>
-                    <option value="other">Other</option>
-                </select>
+        <!-- Support status indicator -->
+        <div id="supportStatus" class="support-status offline">
+            <div class="indicator"></div>
+            <span>Support Offline</span>
+        </div>
+    </div>
+    
+    <!-- Support Options -->
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+        <!-- Ticket Submission Card -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">Submit a Support Ticket</h2>
+                <p class="text-sm text-gray-500 mt-1">We'll respond to your ticket within 24 hours.</p>
             </div>
             
-            <div>
-                <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                <textarea id="message" name="message" rows="4" required class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+            <form id="ticketForm" action="{{ url_for('support.create_ticket') }}" method="POST" enctype="multipart/form-data" class="p-4 space-y-4">
+                <div>
+                    <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                    <input type="text" id="subject" name="subject" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select id="category" name="category" required class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="" disabled selected>Select a category</option>
+                        <option value="account">Account Issues</option>
+                        <option value="deposit">Deposit/Withdrawal</option>
+                        <option value="trading">Trading Problems</option>
+                        <option value="verification">Identity Verification</option>
+                        <option value="security">Security Concerns</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                    <textarea id="message" name="message" rows="4" required class="w-full border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 resize-none"></textarea>
+                </div>
+                
+                <div>
+                    <label for="attachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (Optional)</label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
+                        <input type="file" id="attachment" name="attachment" class="hidden">
+                        <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-500" id="fileLabel">Click or drag file to upload</p>
+                        <p class="text-xs text-gray-400 mt-1">Max size: 5MB (JPG, PNG, PDF)</p>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Submit Ticket
+                </button>
+            </form>
+        </div>
+        
+        <!-- Live Chat Card -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="p-4 border-b">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">Live Chat Support</h2>
+                    <div id="liveChatStatus" class="support-status offline">
+                        <div class="indicator"></div>
+                        <span>Offline</span>
+                        <!-- app/templates/user/support.html (continued) -->
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">Get instant help from our support team.</p>
             </div>
             
-            <div>
-                <label for="attachment" class="block text-sm font-medium text-gray-700 mb-1">Attachment (Optional)</label>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors">
-                    <input type="file" id="attachment" name="attachment" class="hidden">
-                    <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-500" id="fileLabel">Click or drag file to upload</p>
-                    <p class="text-xs text-gray-400 mt-1">Max size: 5MB (JPG, PNG, PDF)</p>
+            <div class="p-4">
+                <div id="chatUnavailableMessage" class="bg-gray-100 rounded-lg p-4 text-center">
+                    <i class="fas fa-user-clock text-gray-500 text-4xl mb-3"></i>
+                    <h3 class="font-medium text-gray-700 mb-1">Live Support Unavailable</h3>
+                    <p class="text-sm text-gray-500 mb-4">Our support team is offline at the moment. Please submit a ticket instead.</p>
+                </div>
+                
+                <div id="chatAvailableMessage" class="bg-green-50 rounded-lg p-4 text-center hidden">
+                    <i class="fas fa-headset text-green-500 text-4xl mb-3"></i>
+                    <h3 class="font-medium text-green-600 mb-1">Live Support Available</h3>
+                    <p class="text-sm text-gray-600 mb-4">Connect with a support agent immediately to get help.</p>
+                    
+                    <form id="startChatForm" action="{{ url_for('support.start_chat') }}" method="POST">
+                        <div class="mb-4">
+                            <label for="chatSubject" class="block text-sm font-medium text-gray-700 mb-1">Subject (Optional)</label>
+                            <input type="text" id="chatSubject" name="subject" placeholder="What do you need help with?" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        
+                        <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            Start Chat
+                        </button>
+                    </form>
                 </div>
             </div>
-            
-            <button type="submit" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                Submit Ticket
-            </button>
-        </form>
+        </div>
+    </div>
+    
+    <!-- Recent Tickets & Chats -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-semibold">My Support History</h2>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="border-b">
+            <div class="flex">
+                <button id="ticketsTab" class="px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 flex-1">
+                    Tickets
+                </button>
+                <button id="chatsTab" class="px-4 py-3 text-sm font-medium text-gray-500 flex-1">
+                    Chat History
+                </button>
+            </div>
+        </div>
+        
+        <!-- Tickets Content -->
+        <div id="ticketsContent" class="divide-y">
+            {% if tickets %}
+                {% for ticket in tickets %}
+                <a href="{{ url_for('support.view_ticket', ticket_id=ticket.id) }}" class="block p-4 hover:bg-gray-50 ticket-card">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ ticket.subject }}</div>
+                        <div class="text-xs px-2 py-1 rounded-full 
+                            {% if ticket.status == 'open' %}bg-blue-100 text-blue-800
+                            {% elif ticket.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                            {% elif ticket.status == 'closed' %}bg-gray-100 text-gray-800
+                            {% elif ticket.status == 'reopened' %}bg-purple-100 text-purple-800
+                            {% endif %}">
+                            {{ ticket.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-1">
+                        Ticket #{{ ticket.ticket_number }} • {{ ticket.category|capitalize }}
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Created: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% if ticket.updated_at and ticket.updated_at != ticket.created_at %}
+                            • Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-ticket-alt text-3xl mb-2"></i>
+                    <p>You haven't submitted any tickets yet.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Chats Content -->
+        <div id="chatsContent" class="divide-y hidden">
+            {% if active_chats %}
+                {% for chat in active_chats %}
+                <a href="{{ url_for('support.chat', chat_id=chat.id) }}" class="block p-4 hover:bg-gray-50 ticket-card">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="font-medium">{{ chat.subject or 'Support Chat' }}</div>
+                        <div class="text-xs px-2 py-1 rounded-full 
+                            {% if chat.status == 'new' %}bg-green-100 text-green-800
+                            {% elif chat.status == 'waiting' %}bg-yellow-100 text-yellow-800
+                            {% elif chat.status == 'active' %}bg-blue-100 text-blue-800
+                            {% elif chat.status == 'closed' %}bg-gray-100 text-gray-800
+                            {% endif %}">
+                            {{ chat.status|capitalize }}
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Started: {{ chat.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% if chat.last_activity and chat.last_activity != chat.created_at %}
+                            • Last activity: {{ chat.last_activity.strftime('%Y-%m-%d %H:%M') }}
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-comments text-3xl mb-2"></i>
+                    <p>You have no chat history.</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
     
     <!-- FAQs -->
@@ -112,36 +506,40 @@
             </div>
         </div>
     </div>
-    
-    <!-- Recent Tickets -->
-    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="p-4 border-b">
-            <h2 class="text-lg font-semibold">My Tickets</h2>
+</div>
+
+<!-- Live Chat Button and Widget -->
+<button id="chatTrigger" class="chat-trigger">
+    <i class="fas fa-comment-dots"></i>
+    <span id="unreadBadge" class="chat-badge hidden">0</span>
+</button>
+
+<div id="chatBox" class="chat-box">
+    <div class="chat-header">
+        <div class="flex items-center">
+            <i class="fas fa-headset mr-2"></i>
+            <span>Support Chat</span>
         </div>
-        
-        <div class="divide-y">
-            <!-- Placeholder for when no tickets exist -->
-            <div class="p-6 text-center text-gray-500">
-                <i class="fas fa-ticket-alt text-3xl mb-2"></i>
-                <p>You haven't submitted any tickets yet.</p>
-            </div>
-            
-            <!-- Example ticket (would be populated from backend) -->
-            <!--
-            <div class="p-4">
-                <div class="flex justify-between items-center mb-1">
-                    <div class="font-medium">Account Verification Issue</div>
-                    <div class="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">In Progress</div>
-                </div>
-                <div class="text-sm text-gray-500 mb-1">
-                    Ticket #12345 • Submitted on 2023-05-15
-                </div>
-                <div class="text-sm text-gray-600 truncate">
-                    I submitted my verification documents but they were rejected...
-                </div>
-            </div>
-            -->
+        <div class="actions">
+            <button id="minimizeChat"><i class="fas fa-minus"></i></button>
+            <button id="closeChat"><i class="fas fa-times"></i></button>
         </div>
+    </div>
+    <div id="chatBody" class="chat-body">
+        <div id="chatMessages"></div>
+        <div id="typingIndicator" class="typing-indicator hidden">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+    <div class="chat-footer">
+        <form id="chatMessageForm" class="chat-input-container">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="chat-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -149,38 +547,6 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // File upload handling
-        const attachmentInput = document.getElementById('attachment');
-        const fileLabel = document.getElementById('fileLabel');
-        const uploadArea = attachmentInput.parentElement;
-        
-        uploadArea.addEventListener('click', function() {
-            attachmentInput.click();
-        });
-        
-        attachmentInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                fileLabel.textContent = file.name;
-            }
-        });
-        
-        // Support form submission
-        const supportForm = document.getElementById('supportForm');
-        
-        supportForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // In a real implementation, this would send the form data to the server
-            // For now, just show a success message
-            
-            alert('Your ticket has been submitted. We\'ll respond as soon as possible.');
-            
-            // Reset form
-            this.reset();
-            fileLabel.textContent = 'Click or drag file to upload';
-        });
-        
         // FAQ toggles
         const faqToggles = document.querySelectorAll('.faq-toggle');
         
@@ -204,6 +570,386 @@
                     icon.style.transform = 'rotate(180deg)';
                 }
             });
+        });
+        
+        // Tab switching
+        const ticketsTab = document.getElementById('ticketsTab');
+        const chatsTab = document.getElementById('chatsTab');
+        const ticketsContent = document.getElementById('ticketsContent');
+        const chatsContent = document.getElementById('chatsContent');
+        
+        if (ticketsTab && chatsTab && ticketsContent && chatsContent) {
+            ticketsTab.addEventListener('click', function() {
+                ticketsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                ticketsTab.classList.remove('text-gray-500');
+                chatsTab.classList.add('text-gray-500');
+                chatsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                
+                ticketsContent.classList.remove('hidden');
+                chatsContent.classList.add('hidden');
+            });
+            
+            chatsTab.addEventListener('click', function() {
+                chatsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+                chatsTab.classList.remove('text-gray-500');
+                ticketsTab.classList.add('text-gray-500');
+                ticketsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+                
+                chatsContent.classList.remove('hidden');
+                ticketsContent.classList.add('hidden');
+            });
+        }
+        
+        // File upload handling
+        const attachmentInput = document.getElementById('attachment');
+        const fileLabel = document.getElementById('fileLabel');
+        const uploadArea = attachmentInput?.parentElement;
+        
+        if (uploadArea && attachmentInput) {
+            uploadArea.addEventListener('click', function() {
+                attachmentInput.click();
+            });
+            
+            attachmentInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    fileLabel.textContent = file.name;
+                }
+            });
+        }
+        
+        // Live Chat Logic
+        const socket = io();
+        let activeChatId = null;
+        let unreadMessages = 0;
+        
+        // DOM Elements
+        const supportStatus = document.getElementById('supportStatus');
+        const liveChatStatus = document.getElementById('liveChatStatus');
+        const chatAvailableMessage = document.getElementById('chatAvailableMessage');
+        const chatUnavailableMessage = document.getElementById('chatUnavailableMessage');
+        const chatTrigger = document.getElementById('chatTrigger');
+        const chatBox = document.getElementById('chatBox');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const chatMessageForm = document.getElementById('chatMessageForm');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const minimizeChat = document.getElementById('minimizeChat');
+        const closeChat = document.getElementById('closeChat');
+        const unreadBadge = document.getElementById('unreadBadge');
+        
+        // Check if support is available
+        fetch('/api/support-status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.available) {
+                    updateSupportStatus(true);
+                } else {
+                    updateSupportStatus(false);
+                }
+            })
+            .catch(error => {
+                console.error('Error checking support status:', error);
+                updateSupportStatus(false);
+            });
+        
+        // Update the support status UI
+        function updateSupportStatus(isAvailable) {
+            if (isAvailable) {
+                supportStatus.classList.remove('offline');
+                supportStatus.classList.add('online');
+                supportStatus.querySelector('span').textContent = 'Support Online';
+                
+                liveChatStatus.classList.remove('offline');
+                liveChatStatus.classList.add('online');
+                liveChatStatus.querySelector('span').textContent = 'Online';
+                
+                chatAvailableMessage.classList.remove('hidden');
+                chatUnavailableMessage.classList.add('hidden');
+            } else {
+                supportStatus.classList.remove('online');
+                supportStatus.classList.add('offline');
+                supportStatus.querySelector('span').textContent = 'Support Offline';
+                
+                liveChatStatus.classList.remove('online');
+                liveChatStatus.classList.add('offline');
+                liveChatStatus.querySelector('span').textContent = 'Offline';
+                
+                chatAvailableMessage.classList.add('hidden');
+                chatUnavailableMessage.classList.remove('hidden');
+            }
+        }
+        
+        // Socket.io event listeners
+        socket.on('connect', function() {
+            console.log('Connected to support server');
+            
+            // Check support status on connect
+            socket.emit('get_support_status');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from support server');
+            updateSupportStatus(false);
+        });
+        
+        socket.on('support_status', function(data) {
+            updateSupportStatus(data.available);
+        });
+        
+        socket.on('support_status_update', function(data) {
+            updateSupportStatus(data.online);
+        });
+        
+        // Chat UI functionality
+        chatTrigger?.addEventListener('click', function() {
+            chatBox.classList.toggle('active');
+            if (chatBox.classList.contains('active')) {
+                // Reset unread count when opening chat
+                unreadMessages = 0;
+                updateUnreadBadge();
+                chatInput.focus();
+            }
+        });
+        
+        minimizeChat?.addEventListener('click', function() {
+            chatBox.classList.remove('active');
+        });
+        
+        closeChat?.addEventListener('click', function() {
+            chatBox.classList.remove('active');
+            // If we have an active chat, we would end it here
+            if (activeChatId) {
+                // TODO: Implement proper chat closing via API
+                console.log('Closing chat:', activeChatId);
+            }
+        });
+        
+        chatMessageForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            sendMessage(message);
+            chatInput.value = '';
+        });
+        
+        function sendMessage(message) {
+            if (!activeChatId) {
+                // If no active chat, create a new one
+                createNewChat(message);
+                return;
+            }
+            
+            // Send message to server
+            fetch(`/api/chat/${activeChatId}/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ content: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Message was sent successfully via API
+                    // The socket will handle displaying the message
+                } else {
+                    console.error('Error sending message:', data.message);
+                    addMessage({
+                        is_admin: true,
+                        sender_name: 'System',
+                        content: 'Failed to send message. Please try again.',
+                        timestamp: new Date().toISOString()
+                    }, 'system');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                addMessage({
+                    is_admin: true,
+                    sender_name: 'System',
+                    content: 'Failed to send message. Please try again.',
+                    timestamp: new Date().toISOString()
+                }, 'system');
+            });
+        }
+        
+        function createNewChat(initialMessage) {
+            // Create a new chat via API
+            const formData = new FormData();
+            formData.append('subject', 'Live Support Chat');
+            
+            fetch('/support/chat/start', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // The server has created a chat and redirected
+                    // Extract the chat ID from the URL
+                    const url = new URL(response.url);
+                    const pathParts = url.pathname.split('/');
+                    const chatId = pathParts[pathParts.length - 1];
+                    
+                    activeChatId = chatId;
+                    
+                    // Join the chat room
+                    socket.emit('join_chat', {
+                        chat_id: chatId,
+                        user_id: {{ current_user.id }},
+                        is_admin: false
+                    });
+                    
+                    // Clear existing messages
+                    chatMessages.innerHTML = '';
+                    
+                    // Add welcome message
+                    addMessage({
+                        is_admin: true,
+                        sender_name: 'System',
+                        content: 'Welcome to live support! Please wait while we connect you with a support agent.',
+                        timestamp: new Date().toISOString()
+                    }, 'system');
+                    
+                    // Now send the initial message
+                    setTimeout(() => {
+                        sendMessage(initialMessage);
+                    }, 500);
+                } else {
+                    // Something went wrong
+                    console.error('Error creating chat:', response.statusText);
+                    addMessage({
+                        is_admin: true,
+                        sender_name: 'System',
+                        content: 'Failed to start chat. Please try again or submit a ticket instead.',
+                        timestamp: new Date().toISOString()
+                    }, 'system');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating chat:', error);
+                addMessage({
+                    is_admin: true,
+                    sender_name: 'System',
+                    content: 'Failed to start chat. Please try again or submit a ticket instead.',
+                    timestamp: new Date().toISOString()
+                }, 'system');
+            });
+        }
+        
+        function addMessage(message, type = null) {
+            const messageDiv = document.createElement('div');
+            
+            if (type === 'system') {
+                messageDiv.className = 'message message-system animate__animated animate__fadeIn';
+                messageDiv.textContent = message.content;
+            } else {
+                messageDiv.className = `message ${message.is_admin ? 'message-admin' : 'message-user'} animate__animated ${message.is_admin ? 'animate__fadeInLeft' : 'animate__fadeInRight'}`;
+                
+                // Add message content
+                const contentSpan = document.createElement('span');
+                contentSpan.textContent = message.content;
+                messageDiv.appendChild(contentSpan);
+                
+                // Add timestamp
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'message-time';
+                const messageTime = new Date(message.timestamp);
+                timeSpan.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageDiv.appendChild(timeSpan);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatBody.scrollTop = chatBody.scrollHeight;
+            
+            // Increment unread count if chat is not active and message is from admin
+            if (!chatBox.classList.contains('active') && message.is_admin && type !== 'system') {
+                unreadMessages++;
+                updateUnreadBadge();
+            }
+        }
+        
+        function updateUnreadBadge() {
+            if (unreadMessages > 0) {
+                unreadBadge.textContent = unreadMessages > 9 ? '9+' : unreadMessages;
+                unreadBadge.classList.remove('hidden');
+            } else {
+                unreadBadge.classList.add('hidden');
+            }
+        }
+        
+        // Socket.io chat events
+        socket.on('chat_history', function(data) {
+            // Clear existing messages
+            chatMessages.innerHTML = '';
+            
+            // Add each message
+            data.history.forEach(msg => {
+                addMessage(msg);
+            });
+        });
+        
+        socket.on('new_message', function(data) {
+            addMessage(data);
+        });
+        
+        socket.on('admin_joined', function(data) {
+            addMessage({
+                is_admin: true,
+                sender_name: 'System',
+                content: `Support agent ${data.admin_name} has joined the chat.`,
+                timestamp: data.timestamp
+            }, 'system');
+        });
+        
+        socket.on('admin_left', function(data) {
+            addMessage({
+                is_admin: true,
+                sender_name: 'System',
+                content: 'Support agent has left the chat.',
+                timestamp: data.timestamp
+            }, 'system');
+        });
+        
+        socket.on('user_typing', function(data) {
+            if (data.is_admin && data.is_typing) {
+                typingIndicator.classList.remove('hidden');
+            } else {
+                typingIndicator.classList.add('hidden');
+            }
+        });
+        
+        // Typing indicator
+        let typingTimeout;
+        chatInput?.addEventListener('input', function() {
+            if (!activeChatId) return;
+            
+            clearTimeout(typingTimeout);
+            
+            // Emit typing status
+            socket.emit('typing_status', {
+                chat_id: activeChatId,
+                user_id: {{ current_user.id }},
+                is_admin: false,
+                is_typing: true
+            });
+            
+            // Clear typing status after 2 seconds of inactivity
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing_status', {
+                    chat_id: activeChatId,
+                    user_id: {{ current_user.id }},
+                    is_admin: false,
+                    is_typing: false
+                });
+            }, 2000);
         });
     });
 </script>

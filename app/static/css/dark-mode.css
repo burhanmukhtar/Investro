@@ -269,3 +269,199 @@ body {
   background-color: #374151;
 }
 
+/* Enhanced Dark Mode Styles for Announcements and Popular Coins */
+
+/* Announcement Styles in Dark Mode */
+.dark .announcement-slide {
+  transition: all 0.3s ease;
+}
+
+/* Feature announcement (indigo) */
+.dark .announcement-slide.bg-indigo-50.border-indigo-200 {
+  background-color: rgba(79, 70, 229, 0.15) !important;
+  border-color: rgba(79, 70, 229, 0.3) !important;
+}
+
+/* Promotion announcement (amber) */
+.dark .announcement-slide.bg-amber-50.border-amber-200 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Security announcement (rose) */
+.dark .announcement-slide.bg-rose-50.border-rose-200 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+/* Event announcement (emerald) */
+.dark .announcement-slide.bg-emerald-50.border-emerald-200 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Text colors in announcements */
+.dark .announcement-slide h3.text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark .announcement-slide p.text-gray-700,
+.dark .announcement-slide p.text-sm.text-gray-700 {
+  color: #d1d5db !important;
+}
+
+/* Announcement icons */
+.dark .announcement-slide .text-indigo-500 {
+  color: #818cf8 !important;
+}
+
+.dark .announcement-slide .text-amber-500 {
+  color: #fbbf24 !important;
+}
+
+.dark .announcement-slide .text-rose-500 {
+  color: #fb7185 !important;
+}
+
+.dark .announcement-slide .text-emerald-500 {
+  color: #34d399 !important;
+}
+
+/* Countdown and action areas */
+.dark .announcement-slide .bg-white.bg-opacity-80 {
+  background-color: rgba(31, 41, 55, 0.8) !important;
+  color: #f87171 !important;
+}
+
+.dark .announcement-slide .text-indigo-600,
+.dark .announcement-slide .hover\:text-indigo-800:hover {
+  color: #818cf8 !important;
+}
+
+.dark .announcement-slide .hover\:text-indigo-800:hover {
+  color: #a5b4fc !important;
+}
+
+/* Navigation dots */
+.dark .announcement-dot.bg-gray-300 {
+  background-color: #4b5563 !important;
+}
+
+.dark .announcement-dot.bg-indigo-600 {
+  background-color: #6366f1 !important;
+}
+
+/* Popular Coins / New Listings Section */
+.dark .bg-gradient-to-br.from-blue-50.to-indigo-50 {
+  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15)) !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+.dark .bg-blue-500 {
+  background-color: #3b82f6 !important;
+}
+
+/* Text colors in popular coins */
+.dark .bg-gradient-to-br .text-sm.font-semibold,
+.dark .bg-gradient-to-br .text-sm.font-bold {
+  color: #f3f4f6 !important;
+}
+
+.dark .bg-gradient-to-br .text-xs.text-gray-600 {
+  color: #d1d5db !important;
+}
+
+/* Market overview section headers */
+.dark .bg-white h2.text-lg.font-semibold {
+  color: #f3f4f6 !important;
+}
+
+/* TradingView widget dark theme toggle */
+.dark #tradingview_widget iframe {
+  filter: invert(0) !important; /* Prevent double inversion from dark theme */
+}
+
+/* Table headers and content for market overview */
+.dark th.text-xs.font-medium.text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .divide-gray-200 > tr {
+  border-color: #374151 !important;
+}
+
+.dark td .text-sm.font-medium.text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark td .text-xs.text-gray-500 {
+  color: #9ca3af !important;
+}
+
+/* Quick Actions */
+.dark .grid.grid-cols-4.gap-4 a,
+.dark .grid.grid-cols-4.gap-4 button {
+  background-color: var(--dark-card-bg) !important;
+  border: 1px solid var(--dark-border) !important;
+}
+
+/* Action backgrounds */
+.dark .w-10.h-10.rounded-full.bg-green-100,
+.dark .w-12.h-12.rounded-full.bg-green-100 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.dark .w-10.h-10.rounded-full.bg-red-100,
+.dark .w-12.h-12.rounded-full.bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.dark .w-10.h-10.rounded-full.bg-blue-100,
+.dark .w-12.h-12.rounded-full.bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .w-10.h-10.rounded-full.bg-gray-100,
+.dark .w-12.h-12.rounded-full.bg-gray-100 {
+  background-color: rgba(107, 114, 128, 0.2) !important;
+}
+
+.dark .w-12.h-12.rounded-full.bg-purple-100 {
+  background-color: rgba(139, 92, 246, 0.2) !important;
+}
+
+.dark .w-12.h-12.rounded-full.bg-yellow-100 {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark .w-12.h-12.rounded-full.bg-pink-100 {
+  background-color: rgba(236, 72, 153, 0.2) !important;
+}
+
+.dark .w-12.h-12.rounded-full.bg-indigo-100 {
+  background-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* More actions popup */
+.dark #moreActionsPopup .bg-white {
+  background-color: var(--dark-card-bg) !important;
+  border-top: 1px solid var(--dark-border) !important;
+}
+
+.dark #moreActionsPopup h3.text-lg.font-semibold {
+  color: var(--dark-text-primary) !important;
+}
+
+.dark #moreActionsPopup .text-xs.font-medium.text-center {
+  color: var(--dark-text-primary) !important;
+}
+
+/* Fix any specific dark mode issues with TradingView widget */
+.dark #tradingview_widget {
+  background-color: var(--dark-card-bg) !important;
+}
+
+/* Ensure TradingView is properly themed */
+.dark .tradingview-widget-container iframe {
+  filter: brightness(0.9) !important;
+}

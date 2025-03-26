@@ -1,0 +1,1317 @@
+<!-- app/templates/admin/live_support.html -->
+{% extends "base.html" %}
+
+{% block title %}Live Support Console | Admin Dashboard{% endblock %}
+
+{% block head %}
+<!-- Socket.IO client library -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<!-- Animate.css for animations -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<style>
+    /* Admin Live Support Dashboard Styles */
+    .support-dashboard {
+        height: calc(100vh - 64px - 64px);
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        grid-template-rows: 1fr;
+        overflow: hidden;
+    }
+    .chat-sidebar {
+        border-right: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .chats-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .chat-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+    .chat-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .chat-item:hover {
+        background-color: #f3f4f6;
+    }
+    .chat-item.active {
+        background-color: #e3f2fd;
+        border-left: 3px solid #3b82f6;
+    }
+    .chat-item .unread-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #ef4444;
+        display: none;
+    }
+    .chat-item.unread .unread-indicator {
+        display: block;
+    }
+    .chat-item .status-badge {
+        font-size: 0.65rem;
+        padding: 0.1rem 0.5rem;
+        border-radius: 9999px;
+    }
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .chat-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .chat-body {
+        flex: 1;
+        padding: 1rem;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+    }
+    .chat-message {
+        max-width: 75%;
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        position: relative;
+        animation-duration: 0.3s;
+    }
+    .message-admin {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        margin-left: auto;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .message-user {
+        background-color: #f5f5f5;
+        color: #424242;
+        margin-right: auto;
+        border-bottom-left-radius: 0.25rem;
+    }
+    .message-system {
+        background-color: #fff8e1;
+        color: #ff6f00;
+        width: 100%;
+        <!-- app/templates/admin/live_support.html (continued) -->
+        max-width: 100%;
+        text-align: center;
+        font-size: 0.85rem;
+        padding: 0.5rem;
+    }
+    .message-time {
+        font-size: 0.7rem;
+        position: absolute;
+        bottom: 0.25rem;
+        right: 0.75rem;
+        color: #9e9e9e;
+    }
+    .chat-footer {
+        padding: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    .typing-indicator {
+        padding: 0.5rem;
+        background-color: #f1f1f1;
+        border-radius: 1rem;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+    .typing-indicator span {
+        height: 0.5rem;
+        width: 0.5rem;
+        float: left;
+        margin: 0 1px;
+        background-color: #9E9E9E;
+        display: block;
+        border-radius: 50%;
+        opacity: 0.4;
+    }
+    .typing-indicator span:nth-of-type(1) {
+        animation: 1s blink infinite 0.3333s;
+    }
+    .typing-indicator span:nth-of-type(2) {
+        animation: 1s blink infinite 0.6666s;
+    }
+    .typing-indicator span:nth-of-type(3) {
+        animation: 1s blink infinite 0.9999s;
+    }
+    @keyframes blink {
+        50% {
+            opacity: 1;
+        }
+    }
+    .canned-responses {
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: none;
+    }
+    .canned-responses.active {
+        display: block;
+    }
+    .canned-response {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+    }
+    .canned-response:hover {
+        background-color: #f3f4f6;
+    }
+    .user-info-panel {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-left: 1px solid #e2e8f0;
+        width: 300px;
+        overflow-y: auto;
+    }
+    .chat-header-actions button {
+        background: none;
+        border: none;
+        color: #64748b;
+        margin-left: 0.5rem;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+    .chat-header-actions button:hover {
+        color: #0f172a;
+    }
+    .support-status-toggle {
+        background-color: #f3f4f6;
+        border-radius: 9999px;
+        padding: 0.25rem;
+        display: inline-flex;
+        margin-bottom: 1rem;
+    }
+    .support-status-toggle label {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    .support-status-toggle input:checked + label {
+        background-color: #3b82f6;
+        color: white;
+    }
+    .chat-input-container {
+        position: relative;
+    }
+    /* Dark mode overrides */
+    .dark .chat-sidebar {
+        border-color: #374151;
+    }
+    .dark .chats-header,
+    .dark .chat-header,
+    .dark .chat-footer {
+        border-color: #374151;
+    }
+    .dark .chat-item {
+        border-color: #374151;
+    }
+    .dark .chat-item:hover {
+        background-color: #1f2937;
+    }
+    .dark .chat-item.active {
+        background-color: #1e3a8a;
+        border-left-color: #3b82f6;
+    }
+    .dark .chat-body {
+        background-color: #111827;
+    }
+    .dark .message-admin {
+        background-color: #1e40af;
+        color: white;
+    }
+    .dark .message-user {
+        background-color: #374151;
+        color: #e5e7eb;
+    }
+    .dark .message-system {
+        background-color: #374151;
+        color: #d1d5db;
+    }
+    .dark .typing-indicator {
+        background-color: #374151;
+    }
+    .dark .canned-responses {
+        background-color: #1f2937;
+        border-color: #374151;
+    }
+    .dark .canned-response:hover {
+        background-color: #111827;
+    }
+    .dark .user-info-panel {
+        background-color: #1f2937;
+        border-color: #374151;
+    }
+    .dark .support-status-toggle {
+        background-color: #374151;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mx-auto p-0">
+    <!-- Support Agent Toggle -->
+    <div class="bg-white p-4 flex justify-between items-center border-b">
+        <h1 class="text-xl font-bold">Live Support Console</h1>
+        
+        <div class="flex items-center">
+            <div class="support-status-toggle">
+                <input type="radio" id="offline" name="support_status" value="offline" class="hidden" checked>
+                <label for="offline" class="offline-label">Offline</label>
+                
+                <input type="radio" id="online" name="support_status" value="online" class="hidden">
+                <label for="online" class="online-label">Online</label>
+            </div>
+            
+            <div class="ml-4 text-sm text-gray-500">
+                <span id="waitingChatsCount" class="font-semibold text-yellow-600">0</span> waiting • 
+                <span id="activeChatsCount" class="font-semibold text-green-600">0</span> active
+            </div>
+        </div>
+    </div>
+    
+    <div class="support-dashboard">
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chats-header">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-semibold">Chats</h2>
+                    <div class="text-xs">
+                        <select id="chatStatusFilter" class="text-xs border-gray-300 rounded-md">
+                            <option value="all">All Chats</option>
+                            <option value="waiting" selected>Waiting</option>
+                            <option value="active">My Active</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="relative">
+                    <input type="text" id="chatSearch" placeholder="Search chats..." class="w-full pl-8 pr-4 py-1 text-sm border border-gray-300 rounded-md">
+                    <div class="absolute left-2 top-1/2 transform -translate-y-1/2">
+                        <i class="fas fa-search text-gray-400 text-xs"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chatList" class="chat-list">
+                <!-- Chat items will be loaded here -->
+                <div class="p-4 text-center text-gray-500">
+                    <p>No chats available</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Main Area -->
+        <div class="flex flex-1">
+            <!-- Chat Content -->
+            <div id="chatContainer" class="chat-container flex-1">
+                <!-- Empty state when no chat is selected -->
+                <div id="emptyChatState" class="flex flex-col items-center justify-center h-full text-gray-500">
+                    <i class="fas fa-comments text-6xl mb-4"></i>
+                    <h3 class="text-xl font-medium mb-2">No chat selected</h3>
+                    <p class="text-sm">Select a chat from the sidebar to start helping a user</p>
+                </div>
+                
+                <!-- Chat interface (initially hidden) -->
+                <div id="chatInterface" class="h-full flex flex-col hidden">
+                    <div id="chatHeader" class="chat-header">
+                        <div class="flex items-center">
+                            <div class="mr-2 w-2 h-2 rounded-full bg-green-500" id="chatStatusIndicator"></div>
+                            <div>
+                                <h3 id="chatTitle" class="font-medium"></h3>
+                                <div class="text-xs text-gray-500" id="chatSubtitle"></div>
+                            </div>
+                        </div>
+                        <div class="chat-header-actions">
+                            <button id="viewUserBtn" title="View User Info"><i class="fas fa-user"></i></button>
+                            <button id="transferChatBtn" title="Transfer Chat"><i class="fas fa-exchange-alt"></i></button>
+                            <button id="closeCurrentChatBtn" title="Close Chat"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div id="chatBody" class="chat-body">
+                        <div id="chatMessages"></div>
+                        <div id="typingIndicator" class="typing-indicator hidden">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-footer">
+                        <div class="flex mb-2">
+                            <button id="cannedResponsesBtn" class="text-xs flex items-center text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-bolt mr-1"></i> Canned Responses
+                            </button>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <div id="cannedResponsesList" class="canned-responses"></div>
+                            <form id="chatMessageForm" class="flex">
+                                <input type="text" id="chatInput" class="flex-1 border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Type a message...">
+                                <button type="submit" class="ml-2 bg-primary-600 text-white rounded-md px-4 py-2 hover:bg-primary-700 transition-colors">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Info Panel (initially hidden) -->
+            <div id="userInfoPanel" class="user-info-panel hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-semibold">User Information</h3>
+                    <button id="closeUserInfoBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="userInfoContent">
+                    <!-- User info will be loaded here -->
+                    <div class="text-center text-gray-500 py-4">
+                        <i class="fas fa-spinner fa-spin text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Chat Modal -->
+<div id="transferModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg w-full max-w-md mx-4 overflow-hidden">
+        <div class="p-4 border-b">
+            <h3 class="font-semibold">Transfer Chat</h3>
+        </div>
+        <div class="p-4">
+            <p class="mb-4 text-sm">Select an admin to transfer this chat to:</p>
+            <select id="transferAdminSelect" class="w-full border border-gray-300 rounded-md py-2 px-3 mb-4">
+                <!-- Admin options will be populated here -->
+                <option value="" disabled selected>Select an admin</option>
+            </select>
+            
+            <div class="flex justify-end space-x-2">
+                <button id="cancelTransferBtn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                    Cancel
+                </button>
+                <button id="confirmTransferBtn" class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
+                    Transfer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Socket.io connection
+        const socket = io();
+        
+        // DOM Elements
+        const supportStatus = document.querySelectorAll('input[name="support_status"]');
+        const waitingChatsCount = document.getElementById('waitingChatsCount');
+        const activeChatsCount = document.getElementById('activeChatsCount');
+        const chatStatusFilter = document.getElementById('chatStatusFilter');
+        const chatSearch = document.getElementById('chatSearch');
+        const chatList = document.getElementById('chatList');
+        const emptyChatState = document.getElementById('emptyChatState');
+        const chatInterface = document.getElementById('chatInterface');
+        const chatTitle = document.getElementById('chatTitle');
+        const chatSubtitle = document.getElementById('chatSubtitle');
+        const chatStatusIndicator = document.getElementById('chatStatusIndicator');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const chatMessageForm = document.getElementById('chatMessageForm');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const viewUserBtn = document.getElementById('viewUserBtn');
+        const transferChatBtn = document.getElementById('transferChatBtn');
+        const closeCurrentChatBtn = document.getElementById('closeCurrentChatBtn');
+        const userInfoPanel = document.getElementById('userInfoPanel');
+        const userInfoContent = document.getElementById('userInfoContent');
+        const closeUserInfoBtn = document.getElementById('closeUserInfoBtn');
+        const cannedResponsesBtn = document.getElementById('cannedResponsesBtn');
+        const cannedResponsesList = document.getElementById('cannedResponsesList');
+        const transferModal = document.getElementById('transferModal');
+        const transferAdminSelect = document.getElementById('transferAdminSelect');
+        const cancelTransferBtn = document.getElementById('cancelTransferBtn');
+        const confirmTransferBtn = document.getElementById('confirmTransferBtn');
+        
+        // State variables
+        let activeChatId = null;
+        let activeUserId = null;
+        let userTypingTimeout = null;
+        let cannedResponses = [];
+        let onlineAdmins = [];
+        let chatData = {};
+        
+        // Register admin as support agent when clicking "Online"
+        supportStatus.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const isOnline = this.value === 'online';
+                if (isOnline) {
+                    registerSupportAgent();
+                } else {
+                    unregisterSupportAgent();
+                }
+            });
+        });
+        
+        function registerSupportAgent() {
+            socket.emit('admin_register', {
+                admin_id: {{ current_user.id }}
+            });
+            
+            fetch('/admin_support/api/register-support-agent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .catch(error => {
+                console.error('Error registering support agent:', error);
+            });
+        }
+        
+        function unregisterSupportAgent() {
+            socket.emit('admin_deregister', {
+                admin_id: {{ current_user.id }}
+            });
+            
+            fetch('/admin_support/api/unregister-support-agent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            })
+            .catch(error => {
+                console.error('Error unregistering support agent:', error);
+            });
+            
+            // If we have an active chat, leave it
+            if (activeChatId) {
+                socket.emit('leave_chat', {
+                    chat_id: activeChatId,
+                    user_id: {{ current_user.id }},
+                    is_admin: true
+                });
+            }
+        }
+        
+        // Socket.io event handlers
+        socket.on('connect', function() {
+            console.log('Connected to support server');
+            
+            // Load initial data
+            loadChatList();
+            fetchCannedResponses();
+            fetchOnlineAdmins();
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from support server');
+            
+            // Mark the admin as offline
+            document.getElementById('offline').checked = true;
+        });
+        
+        socket.on('waiting_chats_update', function(data) {
+            if (data.waiting_chats) {
+                refreshChatList(data.waiting_chats);
+            }
+        });
+        
+        socket.on('new_chat_notification', function(data) {
+            // Add the new chat to the list if it's not already there
+            if (!chatData[data.chat_id]) {
+                chatData[data.chat_id] = {
+                    id: data.chat_id,
+                    username: data.username,
+                    last_message: data.content_preview,
+                    timestamp: data.timestamp,
+                    status: 'waiting',
+                    unread: true
+                };
+                
+                updateChatList();
+            }
+            
+            // Update waiting chats count
+            loadChatStats();
+            
+            // Play notification sound if enabled
+            playNotificationSound();
+        });
+        
+        socket.on('chat_history', function(data) {
+            // Clear existing messages
+            chatMessages.innerHTML = '';
+            
+            // Add each message
+            data.history.forEach(msg => {
+                addMessage(msg);
+            });
+            
+            // Mark all messages as read
+            markMessagesAsRead();
+        });
+        
+        socket.on('new_message', function(data) {
+            // If this is for our active chat, add the message
+            if (data.chat_id === activeChatId) {
+                addMessage(data);
+                
+                // If the message is from the user, mark it as read
+                if (!data.is_admin) {
+                    markMessagesAsRead();
+                }
+            } else {
+                // Update the chat list to show unread message
+                if (chatData[data.chat_id]) {
+                    chatData[data.chat_id].last_message = data.content;
+                    chatData[data.chat_id].timestamp = data.timestamp;
+                    chatData[data.chat_id].unread = true;
+                    updateChatList();
+                }
+                
+                // Play notification sound
+                playNotificationSound();
+            }
+        });
+        
+        socket.on('user_typing', function(data) {
+            if (data.chat_id === activeChatId && !data.is_admin && data.is_typing) {
+                typingIndicator.classList.remove('hidden');
+            } else {
+                typingIndicator.classList.add('hidden');
+            }
+        });
+        
+        socket.on('user_joined', function(data) {
+            if (data.chat_id === activeChatId) {
+                addMessage({
+                    is_admin: true,
+                    sender_name: 'System',
+                    content: `${data.user_name} has reconnected to the chat.`,
+                    timestamp: data.timestamp
+                }, 'system');
+            }
+        });
+        
+        socket.on('user_left', function(data) {
+            if (data.chat_id === activeChatId) {
+                addMessage({
+                    is_admin: true,
+                    sender_name: 'System',
+                    content: 'User has disconnected from the chat.',
+                    timestamp: data.timestamp
+                }, 'system');
+            }
+        });
+        
+        // Chat list functionality
+        function loadChatList() {
+            fetch('/admin_support/api/chat-stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update waiting chats count
+                        waitingChatsCount.textContent = data.waiting_chats;
+                        activeChatsCount.textContent = data.my_active_chats;
+                        
+                        // Update chat list
+                        if (data.waiting_list && data.waiting_list.length > 0) {
+                            refreshChatList(data.waiting_list);
+                        } else {
+                            chatList.innerHTML = '<div class="p-4 text-center text-gray-500"><p>No chats available</p></div>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat stats:', error);
+                });
+        }
+        
+        function refreshChatList(chats) {
+            // Update chat data
+            chats.forEach(chat => {
+                chatData[chat.id] = {
+                    id: chat.id,
+                    username: chat.username,
+                    subject: chat.subject,
+                    status: chat.status,
+                    timestamp: chat.last_activity || chat.created_at,
+                    user_id: chat.user_id,
+                    unread: false
+                };
+            });
+            
+            updateChatList();
+        }
+        
+        function updateChatList() {
+            // Filter chats based on selected status
+            const statusFilter = chatStatusFilter.value;
+            const searchTerm = chatSearch.value.toLowerCase();
+            
+            let filteredChats = Object.values(chatData);
+            
+            // Apply status filter
+            if (statusFilter !== 'all') {
+                filteredChats = filteredChats.filter(chat => {
+                    if (statusFilter === 'active' && chat.status === 'active' && chat.admin_id === {{ current_user.id }}) {
+                        return true;
+                    } else if (statusFilter === chat.status) {
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            
+            // Apply search filter
+            if (searchTerm) {
+                filteredChats = filteredChats.filter(chat => 
+                    chat.username?.toLowerCase().includes(searchTerm) || 
+                    chat.subject?.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Sort by timestamp (most recent first)
+            filteredChats.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Update the chat list
+            if (filteredChats.length === 0) {
+                chatList.innerHTML = '<div class="p-4 text-center text-gray-500"><p>No chats available</p></div>';
+                return;
+            }
+            
+            chatList.innerHTML = '';
+            filteredChats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = `chat-item ${chat.id === activeChatId ? 'active' : ''} ${chat.unread ? 'unread' : ''}`;
+                chatItem.dataset.chatId = chat.id;
+                chatItem.dataset.userId = chat.user_id;
+                
+                // Format timestamp
+                const timestamp = new Date(chat.timestamp);
+                const timeStr = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                chatItem.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center">
+                            <div class="unread-indicator mr-2"></div>
+                            <div>
+                                <div class="font-medium">${chat.username || 'Unknown User'}</div>
+                                <div class="text-xs text-gray-500">${chat.subject || 'Support Chat'}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">${timeStr}</div>
+                            <div class="status-badge ${getStatusBadgeClass(chat.status)}">${chat.status}</div>
+                        </div>
+                    </div>
+                    ${chat.last_message ? `<div class="text-xs text-gray-500 mt-1 truncate">${chat.last_message}</div>` : ''}
+                `;
+                
+                chatItem.addEventListener('click', () => {
+                    selectChat(chat.id, chat.user_id);
+                });
+                
+                chatList.appendChild(chatItem);
+            });
+        }
+        
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'new':
+                    return 'bg-green-100 text-green-800';
+                case 'waiting':
+                    return 'bg-yellow-100 text-yellow-800';
+                case 'active':
+                    return 'bg-blue-100 text-blue-800';
+                case 'closed':
+                    return 'bg-gray-100 text-gray-800';
+                default:
+                    return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        // Chat functionality
+        function selectChat(chatId, userId) {
+            // Update active chat state
+            activeChatId = chatId;
+            activeUserId = userId;
+            
+            // Update UI to show selected chat
+            const chatItems = document.querySelectorAll('.chat-item');
+            chatItems.forEach(item => {
+                if (item.dataset.chatId === chatId) {
+                    item.classList.add('active');
+                    item.classList.remove('unread');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // If there's already a chat data, mark it as read
+            if (chatData[chatId]) {
+                chatData[chatId].unread = false;
+            }
+            
+            // Show chat interface
+            emptyChatState.classList.add('hidden');
+            chatInterface.classList.remove('hidden');
+            
+            // Join the chat
+            socket.emit('join_chat', {
+                chat_id: chatId,
+                user_id: {{ current_user.id }},
+                is_admin: true
+            });
+            
+            // Fetch chat details and history
+            fetch(`/admin_support/api/chat-history/${chatId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update chat header
+                        chatTitle.textContent = data.chat.subject || 'Support Chat';
+                        chatSubtitle.textContent = `${data.user?.username || 'Unknown User'} • ${data.chat.status}`;
+                        
+                        // Update status indicator
+                        updateStatusIndicator(data.chat.status);
+                        
+                        // If the chat was waiting, update it to active by joining
+                        if (data.chat.status === 'waiting') {
+                            fetch(`/admin_support/api/chat/${chatId}/join`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error joining chat:', error);
+                            });
+                        }
+                        
+                        // Clear existing messages
+                        chatMessages.innerHTML = '';
+                        
+                        // Add messages
+                        data.messages.forEach(msg => {
+                            addMessage(msg);
+                        });
+                        
+                        // Mark all messages as read
+                        markMessagesAsRead();
+                        
+                        // Focus on input
+                        chatInput.focus();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat history:', error);
+                });
+                
+            // Also fetch user info if panel is open
+            if (!userInfoPanel.classList.contains('hidden')) {
+                fetchUserInfo(userId);
+            }
+        }
+        
+        function updateStatusIndicator(status) {
+            chatStatusIndicator.className = 'mr-2 w-2 h-2 rounded-full';
+            
+            switch (status) {
+                case 'new':
+                    chatStatusIndicator.classList.add('bg-green-500');
+                    break;
+                case 'waiting':
+                    chatStatusIndicator.classList.add('bg-yellow-500');
+                    break;
+                case 'active':
+                    chatStatusIndicator.classList.add('bg-blue-500');
+                    break;
+                case 'closed':
+                    chatStatusIndicator.classList.add('bg-gray-500');
+                    break;
+                default:
+                    chatStatusIndicator.classList.add('bg-gray-500');
+            }
+        }
+        
+        function addMessage(message, type = null) {
+            const messageDiv = document.createElement('div');
+            
+            if (type === 'system') {
+                messageDiv.className = 'chat-message message-system animate__animated animate__fadeIn';
+                messageDiv.textContent = message.content;
+            } else {
+                messageDiv.className = `chat-message ${message.is_admin ? 'message-admin' : 'message-user'} animate__animated ${message.is_admin ? 'animate__fadeInRight' : 'animate__fadeInLeft'}`;
+                
+                // Add message content
+                const contentSpan = document.createElement('span');
+                contentSpan.textContent = message.content;
+                messageDiv.appendChild(contentSpan);
+                
+                // Add timestamp
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'message-time';
+                const messageTime = new Date(message.timestamp);
+                timeSpan.textContent = messageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageDiv.appendChild(timeSpan);
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+        
+        function markMessagesAsRead() {
+            if (!activeChatId) return;
+            
+            socket.emit('mark_messages_read', {
+                chat_id: activeChatId,
+                user_id: {{ current_user.id }},
+                is_admin: true
+            });
+        }
+        
+        chatMessageForm?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message || !activeChatId) return;
+            
+            sendMessage(message);
+            chatInput.value = '';
+        });
+        
+        function sendMessage(message) {
+            // Send message to server
+            fetch(`/api/chat/${activeChatId}/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ content: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error sending message:', data.message);
+                    addMessage({
+                        is_admin: true,
+                        sender_name: 'System',
+                        content: 'Failed to send message. Please try again.',
+                        timestamp: new Date().toISOString()
+                    }, 'system');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                addMessage({
+                    is_admin: true,
+                    sender_name: 'System',
+                    content: 'Failed to send message. Please try again.',
+                    timestamp: new Date().toISOString()
+                }, 'system');
+            });
+            
+            // Also emit the message via socket to make it appear instantly
+            socket.emit('send_message', {
+                chat_id: activeChatId,
+                sender_id: {{ current_user.id }},
+                content: message,
+                is_admin: true
+            });
+        }
+        
+        // Typing indicator
+        chatInput?.addEventListener('input', function() {
+            if (!activeChatId) return;
+            
+            clearTimeout(userTypingTimeout);
+            
+            // Emit typing status
+            socket.emit('typing_status', {
+                chat_id: activeChatId,
+                user_id: {{ current_user.id }},
+                is_admin: true,
+                is_typing: true
+            });
+            
+            // Clear typing status after 2 seconds of inactivity
+            userTypingTimeout = setTimeout(() => {
+                socket.emit('typing_status', {
+                    chat_id: activeChatId,
+                    user_id: {{ current_user.id }},
+                    is_admin: true,
+                    is_typing: false
+                });
+            }, 2000);
+        });
+        
+        // User info panel
+        viewUserBtn?.addEventListener('click', function() {
+            if (!activeUserId) return;
+            
+            userInfoPanel.classList.toggle('hidden');
+            
+            if (!userInfoPanel.classList.contains('hidden')) {
+                fetchUserInfo(activeUserId);
+            }
+        });
+        
+        closeUserInfoBtn?.addEventListener('click', function() {
+            userInfoPanel.classList.add('hidden');
+        });
+        
+        function fetchUserInfo(userId) {
+            userInfoContent.innerHTML = `
+                <div class="text-center text-gray-500 py-4">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                </div>
+            `;
+            
+            fetch(`/admin_support/api/user-info/${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const { user, tickets, wallets } = data;
+                        
+                        let ticketsHtml = '';
+                        if (tickets && tickets.length > 0) {
+                            ticketsHtml = `
+                                <div class="mb-4">
+                                    <h4 class="font-medium text-sm mb-2">Recent Tickets</h4>
+                                    <div class="space-y-2">
+                                        ${tickets.map(ticket => `
+                                            <div class="text-xs p-2 bg-gray-100 rounded">
+                                                <div class="font-medium">${ticket.subject}</div>
+                                                <div class="text-gray-500">#${ticket.ticket_number} - ${ticket.status}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        let walletsHtml = '';
+                        if (wallets && wallets.length > 0) {
+                            walletsHtml = `
+                                <div class="mb-4">
+                                    <h4 class="font-medium text-sm mb-2">Wallet Balances</h4>
+                                    <div class="space-y-2">
+                                        ${wallets.map(wallet => `
+                                            <div class="flex justify-between text-xs">
+                                                <span>${wallet.currency}</span>
+                                                <span class="font-medium">
+                                                    ${wallet.spot_balance} (spot) / 
+                                                    ${wallet.futures_balance} (futures)
+                                                </span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        userInfoContent.innerHTML = `
+                            <div class="mb-4 p-3 bg-gray-100 rounded-lg">
+                                <div class="flex items-center mb-2">
+                                    <div class="w-10 h-10 rounded-full bg-primary-200 flex items-center justify-center mr-3">
+                                        <span class="text-lg font-bold text-primary-700">${user.username.charAt(0).toUpperCase()}</span>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">${user.username}</div>
+                                        <div class="text-xs text-gray-500">${user.unique_id}</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs space-y-1">
+                                    <div><span class="text-gray-500">Email:</span> ${user.email}</div>
+                                    <div><span class="text-gray-500">Phone:</span> ${user.phone}</div>
+                                    <div><span class="text-gray-500">Verification:</span> ${user.is_verified ? 'Verified' : 'Not Verified'}</div>
+                                    <div><span class="text-gray-500">Joined:</span> ${new Date(user.created_at).toLocaleDateString()}</div>
+                                </div>
+                            </div>
+                            
+                            ${ticketsHtml}
+                            ${walletsHtml}
+                            
+                            <div class="mt-4 flex">
+                                <a href="/admin/user/${user.id}" class="text-xs text-primary-600 hover:text-primary-800" target="_blank">
+                                    View Full User Profile <i class="fas fa-external-link-alt ml-1"></i>
+                                </a>
+                            </div>
+                        `;
+                    } else {
+                        userInfoContent.innerHTML = `
+                            <div class="text-center text-gray-500 py-4">
+                                <p>Failed to load user information</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching user info:', error);
+                    userInfoContent.innerHTML = `
+                        <div class="text-center text-gray-500 py-4">
+                            <p>Error loading user information</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        // Canned responses
+        cannedResponsesBtn?.addEventListener('click', function() {
+            cannedResponsesList.classList.toggle('active');
+            
+            if (cannedResponsesList.classList.contains('active') && !cannedResponsesList.children.length) {
+                displayCannedResponses();
+            }
+        });
+        
+        // Hide canned responses when clicking outside
+        document.addEventListener('click', function(e) {
+            if (cannedResponsesList.classList.contains('active') && 
+                !cannedResponsesList.contains(e.target) && 
+                e.target !== cannedResponsesBtn) {
+                cannedResponsesList.classList.remove('active');
+            }
+        });
+        
+        function fetchCannedResponses() {
+            fetch('/admin_support/api/canned-responses')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        cannedResponses = data.canned_responses;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching canned responses:', error);
+                });
+        }
+        
+        function displayCannedResponses() {
+            cannedResponsesList.innerHTML = '';
+            
+            if (cannedResponses.length === 0) {
+                const noResponses = document.createElement('div');
+                noResponses.className = 'p-3 text-center text-gray-500';
+                noResponses.textContent = 'No canned responses available';
+                cannedResponsesList.appendChild(noResponses);
+                return;
+            }
+            
+            cannedResponses.forEach(response => {
+                const responseItem = document.createElement('div');
+                responseItem.className = 'canned-response';
+                
+                responseItem.innerHTML = `
+                    <div class="font-medium text-sm">${response.title}</div>
+                    <div class="text-xs text-gray-500 truncate">${response.content}</div>
+                `;
+                
+                responseItem.addEventListener('click', function() {
+                    chatInput.value = response.content;
+                    cannedResponsesList.classList.remove('active');
+                    chatInput.focus();
+                });
+                
+                cannedResponsesList.appendChild(responseItem);
+            });
+        }
+        
+        // Close current chat
+        closeCurrentChatBtn?.addEventListener('click', function() {
+            if (!activeChatId) return;
+            
+            if (confirm('Are you sure you want to leave this chat?')) {
+                // Leave the chat
+                socket.emit('leave_chat', {
+                    chat_id: activeChatId,
+                    user_id: {{ current_user.id }},
+                    is_admin: true
+                });
+                
+                fetch(`/admin_support/api/chat/${activeChatId}/leave`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reset UI
+                        resetChatInterface();
+                        
+                        // Refresh chat list
+                        loadChatList();
+                    } else {
+                        console.error('Error leaving chat:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error leaving chat:', error);
+                });
+            }
+        });
+        
+        function resetChatInterface() {
+            // Hide chat interface
+            chatInterface.classList.add('hidden');
+            emptyChatState.classList.remove('hidden');
+            
+            // Hide user info panel
+            userInfoPanel.classList.add('hidden');
+            
+            // Reset active chat
+            activeChatId = null;
+            activeUserId = null;
+            
+            // Clear input
+            chatInput.value = '';
+        }
+        
+        // Transfer chat functionality
+        transferChatBtn?.addEventListener('click', function() {
+            if (!activeChatId) return;
+            
+            transferModal.classList.remove('hidden');
+            populateAdminSelect();
+        });
+        
+        cancelTransferBtn?.addEventListener('click', function() {
+            transferModal.classList.add('hidden');
+        });
+        
+        confirmTransferBtn?.addEventListener('click', function() {
+            const adminId = transferAdminSelect.value;
+            
+            if (!adminId || !activeChatId) {
+                alert('Please select an admin to transfer the chat to.');
+                return;
+            }
+            
+            fetch(`/admin_support/api/chat/${activeChatId}/transfer`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ admin_id: adminId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    transferModal.classList.add('hidden');
+                    
+                    // Reset chat interface
+                    resetChatInterface();
+                    
+                    // Refresh chat list
+                    loadChatList();
+                } else {
+                    console.error('Error transferring chat:', data.message);
+                    alert('Error transferring chat: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error transferring chat:', error);
+                alert('Error transferring chat. Please try again.');
+            });
+        });
+        
+        function fetchOnlineAdmins() {
+            // In a real implementation, this would fetch online admins from the server
+            // For now, we'll use a dummy list
+            onlineAdmins = [
+                { id: 1, username: 'SuperAdmin' },
+                { id: {{ current_user.id }}, username: '{{ current_user.username }}' }
+            ];
+        }
+        
+        function populateAdminSelect() {
+            transferAdminSelect.innerHTML = '<option value="" disabled selected>Select an admin</option>';
+            
+            onlineAdmins.forEach(admin => {
+                // Don't include the current admin
+                if (admin.id !== {{ current_user.id }}) {
+                    const option = document.createElement('option');
+                    option.value = admin.id;
+                    option.textContent = admin.username;
+                    transferAdminSelect.appendChild(option);
+                }
+            });
+            
+            if (transferAdminSelect.childElementCount <= 1) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No other admins available';
+                option.disabled = true;
+                transferAdminSelect.appendChild(option);
+            }
+        }
+        
+        function loadChatStats() {
+            fetch('/admin_support/api/chat-stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        waitingChatsCount.textContent = data.waiting_chats;
+                        activeChatsCount.textContent = data.my_active_chats;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat stats:', error);
+                });
+        }
+        
+        function playNotificationSound() {
+            // Play notification sound if enabled
+            // In a real implementation, this would check user settings first
+            try {
+                const audio = new Audio('/static/sounds/notification.mp3');
+                audio.volume = 0.5;
+                audio.play();
+            } catch (error) {
+                console.error('Error playing notification sound:', error);
+            }
+        }
+        
+        // Periodic updates
+        setInterval(loadChatStats, 30000); // Update stats every 30 seconds
+        
+        // Event listeners for filters
+        chatStatusFilter?.addEventListener('change', updateChatList);
+        chatSearch?.addEventListener('input', updateChatList);
+    });
+</script>
+{% endblock %}

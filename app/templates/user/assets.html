@@ -258,6 +258,47 @@
     let originalBalances = {}; // Store original balance values
     let rates = {}; // Store currency rates
     
+    // Improved coin icon mapping with multiple sources
+    const coinIcons = {
+        // CoinGecko IDs
+        'usdt': 'tether',
+        'btc': 'bitcoin',
+        'eth': 'ethereum',
+        'bnb': 'binancecoin',
+        'xrp': 'ripple',
+        'ada': 'cardano',
+        'doge': 'dogecoin',
+        'sol': 'solana',
+        'dot': 'polkadot',
+        'shib': 'shiba-inu',
+        'avax': 'avalanche-2',
+        'matic': 'polygon',
+        'ltc': 'litecoin',
+        'uni': 'uniswap',
+        'link': 'chainlink',
+        'xlm': 'stellar'
+    };
+    
+    // Common cryptocurrency full names
+    const coinNames = {
+        'usdt': 'Tether',
+        'btc': 'Bitcoin',
+        'eth': 'Ethereum',
+        'bnb': 'Binance Coin',
+        'xrp': 'Ripple',
+        'ada': 'Cardano',
+        'doge': 'Dogecoin',
+        'sol': 'Solana',
+        'dot': 'Polkadot',
+        'shib': 'Shiba Inu',
+        'avax': 'Avalanche',
+        'matic': 'Polygon',
+        'ltc': 'Litecoin',
+        'uni': 'Uniswap',
+        'link': 'Chainlink',
+        'xlm': 'Stellar'
+    };
+
     // Initialize by capturing all original balance values
     function captureOriginalBalances() {
         document.querySelectorAll('.balance-value').forEach(item => {
@@ -511,6 +552,72 @@
         // Similarly update funding and futures balances if displayed
     }
     
+    // Load coin icons and full names - Improved approach
+    function loadCoinData() {
+        try {
+            // Process each coin element
+            document.querySelectorAll('[data-symbol]').forEach(el => {
+                const symbol = el.dataset.symbol.toLowerCase();
+                
+                // Set the full name if this is a name element
+                if (el.classList.contains('crypto-name')) {
+                    // Use the common names mapping
+                    el.textContent = coinNames[symbol] || symbol.charAt(0).toUpperCase() + symbol.slice(1);
+                }
+                
+                // If it's an icon element, find and set the right image
+                if (el.classList.contains('coin-icon') || el.classList.contains('coin-icon-small')) {
+                    const imgElement = el.querySelector('.coin-image, .coin-image-small');
+                    const fallbackElement = el.querySelector('.coin-fallback, .coin-fallback-small');
+                    
+                    if (imgElement) {
+                        // First try with CoinGecko
+                        const coinId = coinIcons[symbol] || symbol;
+                        const isSmall = el.classList.contains('coin-icon-small');
+                        const size = isSmall ? 'small' : 'large';
+                        
+                        // Set image sources in order of priority, with multiple fallbacks
+                        const imageSources = [
+                            `https://assets.coingecko.com/coins/images/325/${size}/${coinId}.png`,
+                            `https://assets.coingecko.com/coins/images/1/${size}/${coinId}.png`,
+                            `https://cdn.jsdelivr.net/gh/atomiclabs/cryptocurrency-icons/128/color/${symbol}.png`,
+                            `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png` // USDT specific
+                        ];
+                        
+                        // Only use USDT specific fallback for USDT
+                        if (symbol !== 'usdt') {
+                            imageSources.pop();
+                        }
+                        
+                        // Try each image source
+                        let imageLoaded = false;
+                        function tryNextImage(index) {
+                            if (index >= imageSources.length || imageLoaded) return;
+                            
+                            const img = new Image();
+                            img.onload = function() {
+                                if (!imageLoaded) {
+                                    imgElement.src = imageSources[index];
+                                    imgElement.classList.remove('hidden');
+                                    if (fallbackElement) fallbackElement.classList.add('hidden');
+                                    imageLoaded = true;
+                                }
+                            };
+                            img.onerror = function() {
+                                tryNextImage(index + 1);
+                            };
+                            img.src = imageSources[index];
+                        }
+                        
+                        tryNextImage(0);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading coin data:', error);
+        }
+    }
+    
     // Helper function to format currency values
     function formatCurrency(value, decimals = 2) {
         if (value === undefined || value === null) return '0.00';
@@ -521,95 +628,6 @@
         return parsedValue.toFixed(decimals).replace(/\.?0+$/, '');
     }
     
-    // Load coin icons and full names
-    function loadCoinData() {
-        try {
-            // Collect all unique symbols
-            const coinElements = document.querySelectorAll('[data-symbol]');
-            const symbols = new Set();
-            
-            coinElements.forEach(el => {
-                const symbol = el.dataset.symbol;
-                if (symbol) symbols.add(symbol.toLowerCase());
-            });
-            
-            // Create a mapping for common symbols
-            const symbolMapping = {
-                'btc': 'bitcoin',
-                'eth': 'ethereum',
-                'usdt': 'tether',
-                'bnb': 'binancecoin',
-                'xrp': 'ripple',
-                'ada': 'cardano',
-                'doge': 'dogecoin',
-                'sol': 'solana',
-                'trx': 'tron',
-                'dot': 'polkadot',
-                'avax': 'avalanche-2',
-                'matic': 'polygon',
-                'link': 'chainlink',
-                'ltc': 'litecoin',
-                'uni': 'uniswap',
-                'atom': 'cosmos',
-                'xlm': 'stellar',
-                'etc': 'ethereum-classic',
-                'near': 'near',
-                'algo': 'algorand',
-                'vet': 'vechain',
-                'fil': 'filecoin'
-            };
-            
-            // Process each coin element
-            coinElements.forEach(el => {
-                const symbol = el.dataset.symbol.toLowerCase();
-                
-                // Try to use the mapping or fetch the full data
-                const coinId = symbolMapping[symbol] || symbol;
-                
-                if (el.classList.contains('crypto-name')) {
-                    // Use built-in names for common coins
-                    const commonNames = {
-                        'btc': 'Bitcoin',
-                        'eth': 'Ethereum',
-                        'usdt': 'Tether',
-                        'bnb': 'Binance Coin',
-                        'xrp': 'Ripple',
-                        'ada': 'Cardano',
-                        'doge': 'Dogecoin',
-                        'sol': 'Solana',
-                        'dot': 'Polkadot',
-                        'avax': 'Avalanche'
-                    };
-                    
-                    const name = commonNames[symbol] || symbol.charAt(0).toUpperCase() + symbol.slice(1);
-                    el.textContent = name;
-                }
-                
-                // If it's an icon element, update with the coin image
-                if (el.classList.contains('coin-icon') || el.classList.contains('coin-icon-small')) {
-                    const imageUrl = `https://assets.coingecko.com/coins/images/1/${el.classList.contains('coin-icon-small') ? 'small' : 'large'}/${coinId}.png`;
-                    
-                    // Try to load the image
-                    const img = new Image();
-                    img.onload = function() {
-                        const imgElement = el.querySelector('.coin-image, .coin-image-small');
-                        if (imgElement) {
-                            imgElement.src = imageUrl;
-                            imgElement.classList.remove('hidden');
-                            
-                            // Hide fallback
-                            const fallback = el.querySelector('.coin-fallback, .coin-fallback-small');
-                            if (fallback) fallback.classList.add('hidden');
-                        }
-                    };
-                    img.src = imageUrl;
-                }
-            });
-        } catch (error) {
-            console.error('Error loading coin data:', error);
-        }
-    }
-    
     // Initialize
     captureOriginalBalances();
     loadCoinData();
@@ -618,7 +636,7 @@
     fetchPortfolioData();
     
     // Refresh portfolio data periodically
-    const REFRESH_INTERVAL = 1000; // 60 seconds
+    const REFRESH_INTERVAL = 60000; // 60 seconds
     
     // Set up interval for periodic refresh
     const refreshInterval = setInterval(fetchPortfolioData, REFRESH_INTERVAL);
