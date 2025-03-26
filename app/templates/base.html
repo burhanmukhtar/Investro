@@ -1,11 +1,77 @@
 <!-- app/templates/base.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark text-sm">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Crypto Trading Platform{% endblock %}</title>
+
+    <!-- Add at the very top of the <head> section in base.html -->
+<!-- Add this at the very top of the <head> section in base.html -->
+<!-- Add at the very top of the <head> section in base.html -->
+    <script>
+        // Dark mode implementation that prevents flicker but allows toggling
+        (function() {
+          // Check user preference
+          const userPrefersDark = localStorage.getItem('darkMode') !== 'false';
+          
+          // Set initial state
+          if (userPrefersDark) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          
+          // Create a flag to track when dark mode changes are intentional
+          window.darkModeChangeAllowed = false;
+          
+          // Watch for class changes only if dark mode should be on
+          if (userPrefersDark) {
+            const observer = new MutationObserver(function(mutations) {
+              if (!window.darkModeChangeAllowed && !document.documentElement.classList.contains('dark')) {
+                console.log('Unauthorized dark mode removal - restoring it');
+                document.documentElement.classList.add('dark');
+              }
+            });
+            
+            // Start observing the HTML element for class changes
+            observer.observe(document.documentElement, { 
+              attributes: true,
+              attributeFilter: ['class']
+            });
+          }
+          
+          // Add a global function to properly toggle dark mode from settings
+          window.toggleDarkMode = function(enable) {
+            // Set the flag to allow changes
+            window.darkModeChangeAllowed = true;
+            
+            // Update localStorage
+            localStorage.setItem('darkMode', enable ? 'true' : 'false');
+            
+            // Update class
+            if (enable) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+            
+            // Reset flag after operation
+            setTimeout(() => {
+              window.darkModeChangeAllowed = false;
+            }, 100);
+            
+            return enable;
+          };
+        })();
+      </script>
+    
+    <!-- App settings script must be loaded first to prevent flash of unstyled content -->
+    <script src="{{ url_for('static', filename='js/app-settings.js') }}"></script>
+    
+    <!-- Dark mode CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
     
     <!-- TailwindCSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,7 +121,8 @@
                         dark: '#111827',
                     }
                 }
-            }
+            },
+            darkMode: 'class', // Enable Tailwind's dark mode with class strategy
         }
     </script>
     
@@ -143,6 +210,49 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Font sizes for global application */
+        html.text-xs {
+            font-size: 0.75rem; /* Small */
+        }
+
+        html.text-sm {
+            font-size: 0.875rem; /* Medium (default) */
+        }
+
+        html.text-base {
+            font-size: 1rem; /* Large */
+        }
+
+        html.text-lg {
+            font-size: 1.125rem; /* Extra Large */
+        }
+        
+        /* Transitions for smoother theme switching */
+        body, 
+        div, 
+        nav, 
+        header, 
+        footer, 
+        input, 
+        select, 
+        textarea, 
+        button,
+        .bg-white,
+        .bg-gray-50,
+        .bg-gray-100,
+        .bg-gray-200,
+        .text-gray-500,
+        .text-gray-700,
+        .border,
+        .border-gray-200,
+        .border-gray-300 {
+            transition: 
+                background-color 0.3s ease, 
+                color 0.3s ease, 
+                border-color 0.3s ease, 
+                box-shadow 0.3s ease;
+        }
     </style>
     
     <!-- Font Awesome -->
@@ -156,8 +266,17 @@
     
     <!-- Block for additional head content -->
     {% block head %}{% endblock %}
+    
+    <!-- Mark the body with authentication class for app-settings.js -->
+    {% if current_user.is_authenticated %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('logged-in');
+        });
+    </script>
+    {% endif %}
 </head>
-<body class="bg-gray-50 text-gray-900 min-h-screen">
+<body class="min-h-screen {% if current_user.is_authenticated %}logged-in{% endif %} {% if current_user.is_admin %}user-admin{% endif %}">
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -422,12 +541,25 @@
             }
         });
     </script>
-    <!-- Add these before your closing </body> tag -->
-<script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-<script src="https://unpkg.com/lucide-react@latest"></script>
+    <!-- React dependencies -->
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@latest"></script>
+    
     <!-- Block for additional scripts -->
     {% block scripts %}{% endblock %}
+    <!-- Add at the end of your body tag -->
+<!-- Add at the end of your body tag -->
+<script>
+    // Debug which script might be removing dark mode
+    const originalRemove = DOMTokenList.prototype.remove;
+    DOMTokenList.prototype.remove = function(...args) {
+      if (this === document.documentElement.classList && args.includes('dark')) {
+        console.trace('Script trying to remove dark class:');
+      }
+      return originalRemove.apply(this, args);
+    };
+  </script>
 </body>
 </html>

@@ -827,31 +827,25 @@ def about():
 @user.route('/settings', methods=['GET'])
 @login_required
 def settings():
-    """User settings page"""
+    """User settings page with improved error handling"""
     # Get user settings
     user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
     
     if not user_settings:
         # Create default settings if none exist
-        user_settings = UserSettings(user_id=current_user.id)
-        db.session.add(user_settings)
-        db.session.commit()
+        try:
+            user_settings = UserSettings(user_id=current_user.id)
+            db.session.add(user_settings)
+            db.session.commit()
+            logger.info(f"Created default settings for user {current_user.id}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating default settings: {str(e)}")
+            flash("Error loading settings. Please try again later.", "danger")
+            return redirect(url_for('user.home'))
     
-    # Format settings for the template
-    settings_data = {
-        'darkMode': user_settings.theme,
-        'language': user_settings.language,
-        'currency': user_settings.currency,
-        'defaultCrypto': user_settings.default_crypto,
-        'timeFormat': user_settings.time_format,
-        'dateFormat': user_settings.date_format,
-        'notifications': json.loads(user_settings.notifications_json) if user_settings.notifications_json else {},
-        'security': json.loads(user_settings.security_json) if user_settings.security_json else {},
-        'trading': json.loads(user_settings.trading_json) if user_settings.trading_json else {},
-        'display': json.loads(user_settings.display_json) if user_settings.display_json else {},
-        'privacy': json.loads(user_settings.privacy_json) if user_settings.privacy_json else {},
-        'lastSaved': user_settings.updated_at.isoformat() if user_settings.updated_at else None
-    }
+    # Get all settings in a client-friendly format
+    settings_data = user_settings.get_all_settings()
     
     return render_template('user/settings.html', 
                           title='Settings',
@@ -861,7 +855,7 @@ def settings():
 @user.route('/api/settings', methods=['GET', 'POST'])
 @login_required
 def api_settings():
-    """API endpoint for settings management using UserSettings model"""
+    """API endpoint for settings management with improved error handling"""
     try:
         # Get or create user settings
         user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
@@ -870,6 +864,7 @@ def api_settings():
             user_settings = UserSettings(user_id=current_user.id)
             db.session.add(user_settings)
             db.session.commit()
+            logger.info(f"Created default settings for user {current_user.id}")
         
         if request.method == 'POST':
             # Get settings data from JSON request
@@ -878,74 +873,40 @@ def api_settings():
             if not settings_data:
                 return jsonify({'success': False, 'message': 'No settings data provided'}), 400
             
-            # Update direct columns
-            user_settings.theme = settings_data.get('darkMode', False)
-            user_settings.language = settings_data.get('language', 'en')
-            user_settings.currency = settings_data.get('currency', 'USD')
-            user_settings.default_crypto = settings_data.get('defaultCrypto', 'USDT')
-            user_settings.time_format = settings_data.get('timeFormat', '12h')
-            user_settings.date_format = settings_data.get('dateFormat', 'MM/DD/YYYY')
+            # Use the model's set_from_json method for better error handling
+            success, error_message = user_settings.set_from_json(settings_data)
             
-            # Update JSON fields
-            if 'notifications' in settings_data:
-                user_settings.notifications_json = json.dumps(settings_data['notifications'])
-            
-            if 'security' in settings_data:
-                user_settings.security_json = json.dumps(settings_data['security'])
-            
-            if 'trading' in settings_data:
-                user_settings.trading_json = json.dumps(settings_data['trading'])
-            
-            if 'display' in settings_data:
-                user_settings.display_json = json.dumps(settings_data['display'])
-            
-            if 'privacy' in settings_data:
-                user_settings.privacy_json = json.dumps(settings_data['privacy'])
+            if not success:
+                return jsonify({'success': False, 'message': f'Error updating settings: {error_message}'}), 500
             
             # Update timestamp and save
             user_settings.updated_at = datetime.utcnow()
             db.session.commit()
             
+            # Return success with the last saved timestamp
             return jsonify({
                 'success': True, 
                 'message': 'Settings saved successfully',
-                'lastSaved': user_settings.updated_at.isoformat()
+                'lastSaved': user_settings.updated_at.isoformat() if user_settings.updated_at else None
             })
         
         else:
-            # GET request - format and return current settings
-            notifications = json.loads(user_settings.notifications_json) if user_settings.notifications_json else {}
-            security = json.loads(user_settings.security_json) if user_settings.security_json else {}
-            trading = json.loads(user_settings.trading_json) if user_settings.trading_json else {}
-            display = json.loads(user_settings.display_json) if user_settings.display_json else {}
-            privacy = json.loads(user_settings.privacy_json) if user_settings.privacy_json else {}
-            
-            settings = {
-                'darkMode': user_settings.theme,
-                'language': user_settings.language,
-                'currency': user_settings.currency,
-                'defaultCrypto': user_settings.default_crypto,
-                'timeFormat': user_settings.time_format,
-                'dateFormat': user_settings.date_format,
-                'notifications': notifications,
-                'security': security,
-                'trading': trading,
-                'display': display,
-                'privacy': privacy,
-                'lastSaved': user_settings.updated_at.isoformat() if user_settings.updated_at else None
-            }
-            
-            return jsonify({'success': True, 'settings': settings})
+            # GET request - use the model's get_all_settings method
+            return jsonify({
+                'success': True, 
+                'settings': user_settings.get_all_settings()
+            })
             
     except Exception as e:
         db.session.rollback()
-        print(f"Error in settings API: {str(e)}")
+        logger.error(f"Error in settings API: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
 
 @user.route('/api/settings/reset', methods=['POST'])
 @login_required
 def reset_settings():
-    """Reset user settings to default"""
+    """Reset user settings to default with improved error handling"""
     try:
         # Get user settings
         user_settings = UserSettings.query.filter_by(user_id=current_user.id).first()
@@ -960,8 +921,17 @@ def reset_settings():
             db.session.add(new_settings)
             db.session.commit()
             
-        return jsonify({'success': True, 'message': 'Settings reset to default'})
+            logger.info(f"Reset settings to default for user {current_user.id}")
+            return jsonify({'success': True, 'message': 'Settings reset to default'})
+        else:
+            # Create new settings if none exist
+            new_settings = UserSettings(user_id=current_user.id)
+            db.session.add(new_settings)
+            db.session.commit()
+            
+            logger.info(f"Created new default settings for user {current_user.id}")
+            return jsonify({'success': True, 'message': 'Settings initialized to default'})
     except Exception as e:
         db.session.rollback()
-        print(f"Error resetting settings: {str(e)}")
+        logger.error(f"Error resetting settings: {str(e)}")
         return jsonify({'success': False, 'message': f'Error resetting settings: {str(e)}'}), 500

@@ -1,0 +1,271 @@
+/* dark-mode.css - Comprehensive dark mode styling for all pages */
+
+/* CSS Variables for theming */
+:root {
+  /* Light mode colors */
+  --light-bg: #f9fafb;
+  --light-card-bg: #ffffff;
+  --light-text-primary: #1f2937;
+  --light-text-secondary: #6b7280;
+  --light-border: #e5e7eb;
+  --light-input-bg: #ffffff;
+  --light-hover: #f3f4f6;
+  --light-accent: #3b82f6; /* primary blue */
+  --light-accent-hover: #2563eb;
+  --light-error: #ef4444;
+  --light-warning: #f59e0b;
+  --light-success: #10b981;
+  
+  /* Dark mode colors */
+  --dark-bg: #111827;
+  --dark-card-bg: #1f2937;
+  --dark-text-primary: #f3f4f6;
+  --dark-text-secondary: #9ca3af;
+  --dark-border: #374151;
+  --dark-input-bg: #374151;
+  --dark-hover: #2d3748;
+  --dark-accent: #3b82f6; /* same blue but will appear different on dark */
+  --dark-accent-hover: #60a5fa;
+  --dark-error: #f87171;
+  --dark-warning: #fbbf24;
+  --dark-success: #34d399;
+}
+
+/* Base Styles */
+body {
+  background-color: var(--light-bg);
+  color: var(--light-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Apply dark mode when class is present on html element */
+.dark body {
+  background-color: var(--dark-bg);
+  color: var(--dark-text-primary);
+}
+
+/* Global Background Colors */
+.bg-white {
+  background-color: var(--light-card-bg);
+}
+
+.dark .bg-white {
+  background-color: var(--dark-card-bg);
+}
+
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+.dark .bg-gray-50 {
+  background-color: #1a202c;
+}
+
+.bg-gray-100 {
+  background-color: #f3f4f6;
+}
+
+.dark .bg-gray-100 {
+  background-color: #2d3748;
+}
+
+.bg-gray-200 {
+  background-color: #e5e7eb;
+}
+
+.dark .bg-gray-200 {
+  background-color: #374151;
+}
+
+.bg-gray-300 {
+  background-color: #d1d5db;
+}
+
+.dark .bg-gray-300 {
+  background-color: #4b5563;
+}
+
+/* Text Colors */
+.text-gray-500 {
+  color: var(--light-text-secondary);
+}
+
+.dark .text-gray-500 {
+  color: var(--dark-text-secondary);
+}
+
+.text-gray-600 {
+  color: #4b5563;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db;
+}
+
+.text-gray-700 {
+  color: #374151;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+.text-gray-800 {
+  color: #1f2937;
+}
+
+.dark .text-gray-800 {
+  color: #f3f4f6;
+}
+
+.text-gray-900 {
+  color: #111827;
+}
+
+.dark .text-gray-900 {
+  color: #f9fafb;
+}
+
+/* Border colors */
+.border {
+  border-color: var(--light-border);
+}
+
+.dark .border {
+  border-color: var(--dark-border);
+}
+
+.border-gray-200 {
+  border-color: #e5e7eb;
+}
+
+.dark .border-gray-200 {
+  border-color: #374151;
+}
+
+.border-gray-300 {
+  border-color: #d1d5db;
+}
+
+.dark .border-gray-300 {
+  border-color: #4b5563;
+}
+
+.dark .border-t, .dark .border-b, .dark .border-l, .dark .border-r {
+  border-color: var(--dark-border);
+}
+
+/* Navigation */
+.dark .fixed.top-0,
+.dark .fixed.bottom-0 {
+  background-color: var(--dark-card-bg);
+  border-color: var(--dark-border);
+}
+
+/* Form elements */
+.dark input,
+.dark select,
+.dark textarea,
+.dark .ios-input {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+.dark ::placeholder {
+  color: var(--dark-text-secondary);
+}
+
+.dark option {
+  background-color: var(--dark-input-bg);
+}
+
+/* Buttons */
+.dark .ios-button {
+  background-color: var(--dark-accent);
+}
+
+.dark .bg-primary-500 {
+  background-color: var(--dark-accent);
+}
+
+.dark .bg-primary-600, 
+.dark .hover\:bg-primary-600:hover {
+  background-color: var(--dark-accent-hover);
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--dark-hover);
+}
+
+.dark .hover\:bg-gray-300:hover {
+  background-color: #4b5563;
+}
+
+/* Alerts and notifications */
+.dark .flash-message {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* Toggle switch */
+.dark .toggle-checkbox:checked {
+  border-color: var(--dark-accent);
+}
+
+.dark .toggle-checkbox:checked + .toggle-label {
+  background-color: var(--dark-accent);
+}
+
+/* Shadows */
+.dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.dark .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.7);
+}
+
+/* Scrollbar styling */
+.dark ::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Sidebar specific */
+.dark #sidebar .bg-white {
+  background-color: var(--dark-card-bg);
+}
+
+.dark #sidebar .text-gray-800 {
+  color: var(--dark-text-primary);
+}
+
+.dark #sidebar .hover\:bg-gray-100:hover {
+  background-color: var(--dark-hover);
+}
+
+/* Modal and popup styling */
+.dark #verificationReminderPopup .bg-white {
+  background-color: var(--dark-card-bg);
+}
+
+.dark #verificationReminderPopup .text-gray-600,
+.dark #verificationReminderPopup .text-gray-800 {
+  color: var(--dark-text-primary);
+}
+
+.dark #verificationReminderPopup .bg-gray-50 {
+  background-color: #1a202c;
+}
+
+.dark #verificationReminderPopup .bg-gray-200 {
+  background-color: #374151;
+}
+
