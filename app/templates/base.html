@@ -482,7 +482,7 @@
                 <button id="closeVerificationPopup" class="flex-1 py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
                     Later
                 </button>
-                <a href="{{ url_for('user.verification') }}" class="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg text-center hover:bg-primary-700 transition-colors">
+                <a id="verifyNowButton" href="{{ url_for('user.verification') }}" class="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg text-center hover:bg-primary-700 transition-colors">
                     Verify Now
                 </a>
             </div>
@@ -494,6 +494,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         const verificationPopup = document.getElementById('verificationReminderPopup');
         const closeButton = document.getElementById('closeVerificationPopup');
+        const verifyNowButton = document.getElementById('verifyNowButton');
+        
+        // Function to set the session flag
+        function setHideVerificationFlag() {
+            fetch('{{ url_for("user.hide_verification_popup") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            });
+        }
         
         if (verificationPopup && closeButton) {
             closeButton.addEventListener('click', function() {
@@ -501,17 +513,22 @@
                 verificationPopup.classList.add('opacity-0', 'pointer-events-none');
                 
                 // Set a session flag to hide the popup for this session
-                fetch('{{ url_for("user.hide_verification_popup") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
-                    }
-                });
+                setHideVerificationFlag();
+            });
+        }
+        
+        if (verificationPopup && verifyNowButton) {
+            verifyNowButton.addEventListener('click', function() {
+                // Hide popup with animation
+                verificationPopup.classList.add('opacity-0', 'pointer-events-none');
+                
+                // Set a temporary session flag (we'll reset it when they come back if they didn't complete verification)
+                setHideVerificationFlag();
             });
         }
     });
 </script>
+
 {% endif %}
     {% endif %}
     

@@ -40,6 +40,15 @@ def home():
     User home page with announcements and market overview
     """
     try:
+        # Check if user visited verification page but didn't complete it
+        # If verification_in_progress is True, they started but didn't finish
+        if session.get('verification_in_progress') and not current_user.is_verified:
+            # Reset the popup to show again
+            if 'hide_verification_popup' in session:
+                session.pop('hide_verification_popup', None)
+            # Clear the in-progress flag
+            session.pop('verification_in_progress', None)
+        
         # Get active announcements
         announcements = Announcement.query.filter(
             Announcement.is_active == True,
@@ -72,7 +81,7 @@ def home():
         logger.error(f"Error loading home page: {str(e)}")
         flash("Error loading dashboard. Please try again later.", "danger")
         # Fallback to a simpler page if needed
-        return render_template('user/home_basic.html', title='Home')
+        return render_template('user/home.html', title='Home')
     
     
 
@@ -413,9 +422,16 @@ def set_withdrawal_pin():
 @login_required
 def verification():
     """
-    Handle KYC verification document submission
+    Handle KYC verification document submission with improved popup handling
     """
     try:
+        # When user enters verification page, temporarily hide the popup
+        if 'hide_verification_popup' not in session:
+            session['hide_verification_popup'] = True
+        
+        # Track that user has visited the verification page but not completed it
+        session['verification_in_progress'] = True
+        
         if request.method == 'POST':
             document_type = request.form.get('document_type')
             
@@ -449,6 +465,12 @@ def verification():
             if current_user.verification_status == 'unverified' or current_user.verification_status == 'rejected':
                 current_user.verification_status = 'pending'
                 db.session.commit()
+            
+            # Mark verification as being submitted
+            session['verification_in_progress'] = False
+            
+            # Keep the popup hidden now that they've submitted documents
+            session['hide_verification_popup'] = True
             
             flash('Verification documents submitted successfully!', 'success')
             return redirect(url_for('user.verification'))
@@ -795,7 +817,28 @@ def referral():
         flash("Error loading referral data. Please try again later.", "danger")
         return redirect(url_for('user.home'))
 
-# Add these routes to app/routes/user.py
+# Add this to app/routes/user.py
+
+@user.route('/check-verification-status', methods=['GET'])
+@login_required
+def check_verification_status():
+    """
+    Check if verification is complete and reset popup flag if needed
+    This is called when returning from the verification page
+    """
+    # If the user is still not verified and they were on the verification page
+    # Show the popup again
+    if not current_user.is_verified:
+        # Only clear the flag if they're coming from the verification page
+        referrer = request.headers.get('Referer', '')
+        if 'verification' in referrer:
+            if 'hide_verification_popup' in session:
+                session.pop('hide_verification_popup', None)
+    
+    # Return to the page they were trying to access
+    next_page = request.args.get('next', url_for('user.home'))
+    return redirect(next_page)
+
 
 @user.route('/support')
 @login_required

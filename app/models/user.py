@@ -113,21 +113,12 @@ class User(db.Model, UserMixin):
         deposits = Transaction.query.filter_by(
             user_id=self.id,
             transaction_type='deposit',
-            status='completed'
+            status='completed',
+            currency='USDT'  # Only count USDT deposits for referral qualification
         ).all()
         
-        total_amount = 0
-        for deposit in deposits:
-            # Sum all deposits in USDT or convert to USDT equivalent
-            if deposit.currency == 'USDT':
-                total_amount += deposit.amount
-            else:
-                from app.services.wallet_service import get_conversion_rate
-                try:
-                    rate = get_conversion_rate(deposit.currency, 'USDT')
-                    total_amount += deposit.amount * rate
-                except:
-                    total_amount += deposit.amount
+        # Sum all deposits
+        total_amount = sum(deposit.amount for deposit in deposits) if deposits else 0
         
         return total_amount
     
@@ -187,6 +178,7 @@ class ReferralReward(db.Model):
     currency = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(20), default='completed')  # pending, completed, failed
     transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=True)
+    referred_username = db.Column(db.String(100), nullable=True)  # Store username for display
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -194,8 +186,5 @@ class ReferralReward(db.Model):
     referred = db.relationship('User', foreign_keys=[referred_id], backref='received_rewards')
     transaction = db.relationship('Transaction', backref='referral_reward')
     
-    @property
-    def referred_username(self):
-        """Get the username of the referred user."""
-        user = User.query.get(self.referred_id)
-        return user.username if user else "Unknown"
+    def __repr__(self):
+        return f"ReferralReward(Referrer: {self.referrer_id}, Referred: {self.referred_id}, Amount: {self.amount} {self.currency})"

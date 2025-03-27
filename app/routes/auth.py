@@ -137,6 +137,7 @@ def signup():
         
         return redirect(url_for('auth.verify_otp', source='signup'))
     
+    # For GET requests, render the signup template with the referral code
     return render_template('auth/signup.html', title='Sign Up', referral_code=referral_code)
 
 @auth.route('/verify-otp/<source>', methods=['GET', 'POST'])

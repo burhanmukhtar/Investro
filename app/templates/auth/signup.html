@@ -72,7 +72,7 @@
                         Referral Code (Optional)
                     </label>
                     <div class="mt-1">
-                        <input id="referral_code" name="referral_code" type="text" class="ios-input w-full">
+                        <input id="referral_code" name="referral_code" type="text" class="ios-input w-full" value="{{ referral_code }}">
                     </div>
                 </div>
 
@@ -111,4 +111,19 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Extract referral code from URL if it exists
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        
+        if (refCode) {
+            // Set the value in the referral code input field
+            document.getElementById('referral_code').value = refCode;
+        }
+    });
+</script>
 {% endblock %}

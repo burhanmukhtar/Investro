@@ -1,4 +1,4 @@
-<!-- app/templates/user/referral.html -->
+<!-- app/templates/user/referral.html - Fixed version avoiding hasattr usage -->
 {% extends "base.html" %}
 
 {% block title %}Referral Program | Crypto Trading Platform{% endblock %}
@@ -17,7 +17,7 @@
                 </div>
                 
                 <div class="bg-gray-50 rounded-lg p-4 text-center">
-                    <div class="text-3xl font-bold text-green-600">{{ referral_rewards|sum('amount', 0)|round(2) }} USDT</div>
+                    <div class="text-3xl font-bold text-green-600">{{ total_rewards|default(0) }} USDT</div>
                     <div class="text-sm text-gray-500 mt-1">Total Rewards</div>
                 </div>
                 
@@ -193,7 +193,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    {% if user.is_verified and user.get_total_deposits() >= 90 %}
+                                    {% if user.is_verified and deposit_amount >= 90 %}
                                         {% set reward = get_reward_by_referred_user(user.id) %}
                                         {% if reward %}
                                             <span class="text-green-600">Paid 80 USDT</span>
@@ -249,7 +249,13 @@
                                     <div class="text-sm text-gray-900">{{ reward.created_at.strftime('%b %d, %Y') }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ reward.referred_username }}</div>
+                                    <div class="text-sm text-gray-900">
+                                        {% if reward.referred_username %}
+                                            {{ reward.referred_username }}
+                                        {% else %}
+                                            Referred User
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <span class="text-green-600">{{ reward.amount }} USDT</span>

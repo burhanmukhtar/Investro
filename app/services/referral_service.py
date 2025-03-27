@@ -76,6 +76,9 @@ def process_referral_reward(user_id):
         if not referrer:
             return False, "Referrer not found."
         
+        # Generate a unique transaction ID
+        transaction_id = f"REF{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        
         # Create a transaction for the reward
         transaction = Transaction(
             user_id=referrer.id,
@@ -86,7 +89,8 @@ def process_referral_reward(user_id):
             fee=0,
             from_wallet='system',
             to_wallet='spot',
-            notes=f"Referral reward for {user.username}"
+            notes=f"Referral reward for {user.username}",
+            transaction_id=transaction_id
         )
         
         db.session.add(transaction)
@@ -98,7 +102,9 @@ def process_referral_reward(user_id):
             referred_id=user_id,
             amount=80.0,
             currency='USDT',
-            transaction_id=transaction.id
+            transaction_id=transaction.id,
+            referred_username=user.username,
+            status='completed'
         )
         
         db.session.add(reward)
