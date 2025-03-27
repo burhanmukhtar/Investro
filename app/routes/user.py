@@ -80,7 +80,7 @@ def home():
     except Exception as e:
         logger.error(f"Error loading home page: {str(e)}")
         flash("Error loading dashboard. Please try again later.", "danger")
-        # Fallback to a simpler page if needed
+        # Fallback to a simpler page if needed 
         return render_template('user/home.html', title='Home')
     
     

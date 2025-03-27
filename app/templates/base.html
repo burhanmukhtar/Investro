@@ -7,64 +7,49 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Crypto Trading Platform{% endblock %}</title>
 
-    <!-- Add at the very top of the <head> section in base.html -->
-<!-- Add this at the very top of the <head> section in base.html -->
-<!-- Add at the very top of the <head> section in base.html -->
     <script>
-        // Dark mode implementation that prevents flicker but allows toggling
+        // Immediately set dark mode before any rendering occurs
         (function() {
-          // Check user preference
-          const userPrefersDark = localStorage.getItem('darkMode') !== 'false';
+          // Check user preference synchronously
+          const userPrefersDark = localStorage.getItem('darkMode') === 'true';
           
-          // Set initial state
+          // Apply class immediately - no transitions or delays
+          if (userPrefersDark) {
+            document.documentElement.classList.add('dark');
+          }
+          
+          // Store the preference in a data attribute for later reference
+          document.documentElement.dataset.prefersDark = userPrefersDark;
+        })();
+      </script>
+      <script>
+        // Initialize dark mode properly
+        document.addEventListener('DOMContentLoaded', function() {
+          // Initialize dark mode toggle functionality once the DOM is ready
+          const userPrefersDark = document.documentElement.dataset.prefersDark === 'true';
+          
+          // Ensure the dark mode is correctly set
           if (userPrefersDark) {
             document.documentElement.classList.add('dark');
           } else {
             document.documentElement.classList.remove('dark');
           }
           
-          // Create a flag to track when dark mode changes are intentional
-          window.darkModeChangeAllowed = false;
-          
-          // Watch for class changes only if dark mode should be on
-          if (userPrefersDark) {
-            const observer = new MutationObserver(function(mutations) {
-              if (!window.darkModeChangeAllowed && !document.documentElement.classList.contains('dark')) {
-                console.log('Unauthorized dark mode removal - restoring it');
-                document.documentElement.classList.add('dark');
-              }
-            });
-            
-            // Start observing the HTML element for class changes
-            observer.observe(document.documentElement, { 
-              attributes: true,
-              attributeFilter: ['class']
-            });
-          }
-          
-          // Add a global function to properly toggle dark mode from settings
+          // Update the dark mode toggle functionality
           window.toggleDarkMode = function(enable) {
-            // Set the flag to allow changes
-            window.darkModeChangeAllowed = true;
-            
             // Update localStorage
             localStorage.setItem('darkMode', enable ? 'true' : 'false');
             
-            // Update class
+            // Update the HTML class immediately
             if (enable) {
               document.documentElement.classList.add('dark');
             } else {
               document.documentElement.classList.remove('dark');
             }
             
-            // Reset flag after operation
-            setTimeout(() => {
-              window.darkModeChangeAllowed = false;
-            }, 100);
-            
             return enable;
           };
-        })();
+        });
       </script>
     
     <!-- App settings script must be loaded first to prevent flash of unstyled content -->
@@ -129,131 +114,109 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-        
         body {
-            font-family: 'SF Pro Text', 'SF Pro Icons', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+          font-family: 'SF Pro Text', 'SF Pro Icons', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          /* Ensure proper header spacing */
+          padding-top: 56px; /* Match the header height */
+          /* Force page to be at least viewport height tall */
+          min-height: 100vh;
         }
         
+        /* Ensure header is fixed properly */
+        header.fixed {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          height: 56px;
+          /* Prevent box-shadow from being clipped */
+          padding-bottom: 1px;
+        }
+      
+        main {
+          /* Start content below the fixed header */
+          padding-top: 0 !important; /* Override inline padding */
+        }
+      
+        /* Other styles remain unchanged... */
         .ios-scrolling {
-            -webkit-overflow-scrolling: touch;
-            overflow-y: scroll;
+          -webkit-overflow-scrolling: touch;
+          overflow-y: scroll;
         }
         
         .no-scrollbar::-webkit-scrollbar {
-            display: none;
+          display: none;
         }
         
         .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
         
         /* iOS style toggle */
         .toggle-checkbox:checked {
-            right: 0;
-            border-color: #68D391;
+          right: 0;
+          border-color: #68D391;
         }
         
         .toggle-checkbox:checked + .toggle-label {
-            background-color: #68D391;
+          background-color: #68D391;
         }
         
         /* iOS style inputs */
         .ios-input {
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            padding: 12px 16px;
-            font-size: 16px;
-            appearance: none;
-            -webkit-appearance: none;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          padding: 12px 16px;
+          font-size: 16px;
+          appearance: none;
+          -webkit-appearance: none;
         }
         
         .ios-input:focus {
-            outline: none;
-            border-color: #0ea5e9;
-            box-shadow: 0 0 0 1px #0ea5e9;
+          outline: none;
+          border-color: #0ea5e9;
+          box-shadow: 0 0 0 1px #0ea5e9;
         }
         
         /* iOS style buttons */
         .ios-button {
-            border-radius: 8px;
-            padding: 12px 20px;
-            font-weight: 500;
-            transition: all 0.2s;
+          border-radius: 8px;
+          padding: 12px 20px;
+          font-weight: 500;
+          transition: all 0.2s;
         }
         
         .ios-button:active {
-            transform: scale(0.98);
+          transform: scale(0.98);
         }
         
         /* Chart styles */
         .chart-container {
-            width: 100%;
-            height: 300px;
+          width: 100%;
+          height: 300px;
         }
         
         /* Loading animation */
         .loader {
-            border-top-color: #3498db;
-            -webkit-animation: spinner 1.5s linear infinite;
-            animation: spinner 1.5s linear infinite;
+          border-top-color: #3498db;
+          -webkit-animation: spinner 1.5s linear infinite;
+          animation: spinner 1.5s linear infinite;
         }
-
+      
         @-webkit-keyframes spinner {
-            0% { -webkit-transform: rotate(0deg); }
-            100% { -webkit-transform: rotate(360deg); }
+          0% { -webkit-transform: rotate(0deg); }
+          100% { -webkit-transform: rotate(360deg); }
         }
-
+      
         @keyframes spinner {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
-        
-        /* Font sizes for global application */
-        html.text-xs {
-            font-size: 0.75rem; /* Small */
-        }
-
-        html.text-sm {
-            font-size: 0.875rem; /* Medium (default) */
-        }
-
-        html.text-base {
-            font-size: 1rem; /* Large */
-        }
-
-        html.text-lg {
-            font-size: 1.125rem; /* Extra Large */
-        }
-        
-        /* Transitions for smoother theme switching */
-        body, 
-        div, 
-        nav, 
-        header, 
-        footer, 
-        input, 
-        select, 
-        textarea, 
-        button,
-        .bg-white,
-        .bg-gray-50,
-        .bg-gray-100,
-        .bg-gray-200,
-        .text-gray-500,
-        .text-gray-700,
-        .border,
-        .border-gray-200,
-        .border-gray-300 {
-            transition: 
-                background-color 0.3s ease, 
-                color 0.3s ease, 
-                border-color 0.3s ease, 
-                box-shadow 0.3s ease;
-        }
-    </style>
+      </style>
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -308,32 +271,32 @@
     
     {% if not hide_header %}
     <!-- Header -->
-    <header class="bg-white shadow-sm fixed top-0 left-0 right-0 z-40">
+    <header class="fixed bg-white dark:bg-gray-800 shadow-sm z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-            <!-- Logo -->
-            <div class="flex items-center">
-                <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="flex items-center">
-                    <img src="../static/uploads/logo.png" alt="Investro" class="h-20 w-auto">
-                </a>
-            </div>
+          <!-- Logo with absolute URL -->
+          <div class="flex items-center">
+            <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="flex items-center">
+              <img src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Investro" class="h-20 w-auto">
+            </a>
+          </div>
             
             <!-- Profile/Login -->
             <div class="flex items-center">
                 {% if current_user.is_authenticated %}
-                    <button id="profileButton" class="flex items-center space-x-2 text-gray-700 hover:text-primary-600 focus:outline-none">
-                        <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-8 h-8 rounded-full object-cover border-2 border-primary-500">
-                        {% if current_user.is_verified %}
-                            <span class="text-blue-500"><i class="fas fa-check-circle"></i></span>
-                        {% endif %}
-                    </button>
+                  <button id="profileButton" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 focus:outline-none">
+                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-8 h-8 rounded-full object-cover border-2 border-primary-500">
+                    {% if current_user.is_verified %}
+                      <span class="text-blue-500"><i class="fas fa-check-circle"></i></span>
+                    {% endif %}
+                  </button>
                 {% else %}
-                    <a href="{{ url_for('auth.login') }}" class="ios-button bg-primary-500 text-white hover:bg-primary-600">
-                        Login
-                    </a>
+                  <a href="{{ url_for('auth.login') }}" class="ios-button bg-primary-500 text-white hover:bg-primary-600">
+                    Login
+                  </a>
                 {% endif %}
+              </div>
             </div>
-        </div>
-    </header>
+          </header>
     {% endif %}
     
     <!-- Sidebar (mobile) -->
