@@ -1,6 +1,396 @@
-{# Import components at the top of base.html #}
-{% from "components/verification_reminder.html" import verification_reminder %}
-{% from "components/notification.html" import notification %}
+<!-- app/templates/base.html (Optimized) -->
+<!DOCTYPE html>
+<html lang="en" class="dark text-sm">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Crypto Trading Platform{% endblock %}</title>
+
+    <!-- Preload critical assets -->
+    <link rel="preload" href="{{ url_for('static', filename='uploads/logo.png') }}" as="image">
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://code.jquery.com">
+
+    <!-- Critical inline script for immediate dark mode setting (prevents flash) -->
+    <script>
+        // Immediately set dark mode before any rendering occurs
+        (function() {
+          // Check user preference synchronously
+          const userPrefersDark = localStorage.getItem('darkMode') !== 'false';
+          
+          // Apply class immediately - no transitions or delays
+          if (userPrefersDark) {
+            document.documentElement.classList.add('dark');
+          }
+        })();
+    </script>
+    
+    <!-- Dark mode CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+    
+    <!-- Critical CSS inline for fast initial render -->
+    <style>
+        body {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          padding-top: 56px; /* Match the header height */
+          min-height: 100vh;
+        }
+        
+        /* Ensure header is fixed properly */
+        header.fixed {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          height: 56px;
+          padding-bottom: 1px;
+        }
+      
+        main {
+          padding-top: 0 !important;
+        }
+      
+        .ios-scrolling {
+          -webkit-overflow-scrolling: touch;
+          overflow-y: scroll;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+    </style>
+    
+    <!-- Page-specific styles -->
+    {% block head %}{% endblock %}
+    
+    <!-- Minimal initial Tailwind config -->
+    <script>
+        tailwind = {
+            config: {
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: {
+                                600: '#0284c7',
+                                700: '#0369a1'
+                            }
+                        }
+                    }
+                },
+                darkMode: 'class'
+            }
+        };
+    </script>
+</head>
+<body class="min-h-screen {% if current_user.is_authenticated %}logged-in{% endif %} {% if current_user.is_admin %}user-admin{% endif %}">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-0 left-0 right-0 z-50 p-4 space-y-2">
+                {% for category, message in messages %}
+                    {% set alert_color = 'bg-green-500' if category == 'success' else 'bg-red-500' if category == 'danger' else 'bg-yellow-500' if category == 'warning' else 'bg-blue-500' %}
+                    <div class="flash-message {{ alert_color }} text-white p-3 rounded-lg shadow-lg flex justify-between items-center transition-all duration-300 ease-in-out">
+                        <span>{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200 focus:outline-none">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    {% if not hide_header %}
+    <!-- Header -->
+    <header class="fixed bg-white dark:bg-gray-800 shadow-sm z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <!-- Logo with absolute URL -->
+          <div class="flex items-center">
+            <a href="{{ url_for('user.home') if current_user.is_authenticated else url_for('auth.login') }}" class="flex items-center">
+              <img src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Investro" class="h-20 w-auto">
+            </a>
+          </div>
+            
+            <!-- Profile/Login -->
+            <div class="flex items-center">
+                {% if current_user.is_authenticated %}
+                  <button id="profileButton" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 focus:outline-none">
+                    <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-8 h-8 rounded-full object-cover border-2 border-primary-500">
+                    {% if current_user.is_verified %}
+                      <span class="text-blue-500"><i class="fas fa-check-circle"></i></span>
+                    {% endif %}
+                  </button>
+                {% else %}
+                  <a href="{{ url_for('auth.login') }}" class="ios-button bg-primary-500 text-white hover:bg-primary-600">
+                    Login
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          </header>
+    {% endif %}
+    
+    <!-- Sidebar (mobile) -->
+    {% if current_user.is_authenticated %}
+    <div id="sidebar" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out">
+        <div class="bg-white h-full w-3/4 max-w-xs shadow-xl flex flex-col">
+            <!-- Sidebar header -->
+            <div class="p-4 border-b">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <img src="{{ url_for('static', filename='uploads/profile_pictures/' + current_user.profile_image) }}" alt="{{ current_user.username }}" class="w-10 h-10 rounded-full object-cover border-2 border-primary-500">
+                        <div>
+                            <div class="font-semibold text-gray-800 flex items-center">
+                                {{ current_user.username }}
+                                {% if current_user.is_verified %}
+                                    <span class="ml-1 text-blue-500"><i class="fas fa-check-circle"></i></span>
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500">{{ current_user.unique_id }}</div>
+                        </div>
+                    </div>
+                    <button id="closeSidebar" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sidebar content -->
+            <div class="flex-1 overflow-y-auto ios-scrolling">
+                <div class="p-5 flex justify-start">
+                    <img src="https://theinvestro.io/Assets/logo.png" alt="Investro" class="h-20">
+                </div>
+                <nav class="py-4">
+                    <a href="{{ url_for('user.profile') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-user-circle w-6 text-gray-600"></i>
+                        <span class="ml-3">Profile</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.transaction_history') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-history w-6 text-gray-600"></i>
+                        <span class="ml-3">Transaction History</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.referral') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-user-plus w-6 text-gray-600"></i>
+                        <span class="ml-3">Referral</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.support') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-headset w-6 text-gray-600"></i>
+                        <span class="ml-3">Support Center</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.about') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-info-circle w-6 text-gray-600"></i>
+                        <span class="ml-3">About Us</span>
+                    </a>
+                    
+                    <a href="{{ url_for('user.settings') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                        <i class="fas fa-cog w-6 text-gray-600"></i>
+                        <span class="ml-3">Settings</span>
+                    </a>
+                    
+                    {% if current_user.is_admin %}
+                    <div class="border-t border-gray-200 my-2 pt-2">
+                        <a href="{{ url_for('admin.dashboard') }}" class="flex items-center px-4 py-3 hover:bg-gray-100">
+                            <i class="fas fa-user-shield w-6 text-gray-600"></i>
+                            <span class="ml-3 text-primary-600 font-medium">Admin Panel</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </nav>
+            </div>
+            
+            <!-- Sidebar footer -->
+            <div class="border-t p-4">
+                <a href="{{ url_for('auth.logout') }}" class="block w-full py-2 px-4 rounded-md bg-gray-200 text-gray-700 text-center hover:bg-gray-300">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main content -->
+    <main class="{% if not hide_header %}pt-14{% endif %} {% if not hide_bottom_nav %}pb-16{% endif %} min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Bottom navigation -->
+    {% if current_user.is_authenticated and not hide_bottom_nav %}
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+        <div class="grid grid-cols-4 h-16">
+            <a href="{{ url_for('user.home') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.home') }}">
+                <i class="fas fa-home text-lg"></i>
+                <span class="text-xs mt-1">Home</span>
+            </a>
+            
+            <a href="{{ url_for('user.market') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.market') }}">
+                <i class="fas fa-chart-line text-lg"></i>
+                <span class="text-xs mt-1">Market</span>
+            </a>
+            
+            <a href="{{ url_for('user.future') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.future') }}">
+                <i class="fas fa-chart-bar text-lg"></i>
+                <span class="text-xs mt-1">Futures</span>
+            </a>
+            
+            <a href="{{ url_for('user.assets') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-primary-600 {{ 'text-primary-600' if request.path == url_for('user.assets') }}">
+                <i class="fas fa-wallet text-lg"></i>
+                <span class="text-xs mt-1">Assets</span>
+            </a>
+        </div>
+    </nav>
+
+    {% if current_user.is_authenticated and not current_user.is_verified %}
+    <div id="verificationReminderPopup" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform transition-opacity duration-300 ease-in-out {% if session.get('hide_verification_popup') %}opacity-0 pointer-events-none{% endif %}">
+        <div class="bg-white rounded-xl w-full max-w-md mx-4 shadow-xl">
+            <div class="p-6">
+                <div class="mb-4 text-center">
+                    <div class="inline-block w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-3">
+                        <i class="fas fa-id-card text-yellow-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-1">Verification Required</h3>
+                    <p class="text-gray-600">Complete identity verification to access all features.</p>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <ul class="space-y-2">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                            <span class="text-sm">Deposit & withdraw funds</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                            <span class="text-sm">Trade cryptocurrencies</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                            <span class="text-sm">Convert between currencies</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button id="closeVerificationPopup" class="flex-1 py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                        Later
+                    </button>
+                    <a id="verifyNowButton" href="{{ url_for('user.verification') }}" class="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg text-center hover:bg-primary-700 transition-colors">
+                        Verify Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    <!-- Core libraries (loaded first) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Core JS (minimal version) -->
+    <script>
+        // Simple toggle for sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            const profileButton = document.getElementById('profileButton');
+            const sidebar = document.getElementById('sidebar');
+            const closeSidebar = document.getElementById('closeSidebar');
+            
+            if (profileButton && sidebar && closeSidebar) {
+                profileButton.addEventListener('click', function() {
+                    sidebar.classList.remove('-translate-x-full');
+                });
+                
+                closeSidebar.addEventListener('click', function() {
+                    sidebar.classList.add('-translate-x-full');
+                });
+                
+                sidebar.addEventListener('click', function(e) {
+                    if (e.target === sidebar) {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                });
+            }
+            
+            // Auto-hide flash messages
+            setTimeout(function() {
+                const messages = document.querySelectorAll('.flash-message');
+                messages.forEach(message => {
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 300);
+                });
+            }, 5000);
+            
+            // Verification popup
+            const verificationPopup = document.getElementById('verificationReminderPopup');
+            const closeButton = document.getElementById('closeVerificationPopup');
+            
+            if (verificationPopup && closeButton) {
+                closeButton.addEventListener('click', function() {
+                    verificationPopup.classList.add('opacity-0', 'pointer-events-none');
+                    
+                    // Set session flag via AJAX
+                    fetch('{{ url_for("user.hide_verification_popup") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+    
+    <!-- Page-specific scripts loaded conditionally -->
+    {% if request.endpoint == 'user.home' %}
+    <script src="{{ url_for('static', filename='js/chart.js') }}" defer></script>
+    {% elif request.endpoint == 'user.market' %}
+    <script src="{{ url_for('static', filename='js/market.js') }}" defer></script>
+    {% elif request.endpoint == 'user.future' %}
+    <script src="https://s3.tradingview.com/tv.js" defer></script>
+    {% elif 'auth.' in request.endpoint|string %}
+    <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
+    {% endif %}
+    
+    <!-- Core functionality needed on all pages -->
+    <script src="{{ url_for('static', filename='js/app-settings.js') }}" defer></script>
+    
+    <!-- Add TradingView widget only when needed -->
+    {% if request.endpoint in ['user.home', 'user.market', 'user.future'] %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% endif %}
+    
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+
 <!-- app/templates/base.html (Optimized) -->
 <!DOCTYPE html>
 <html lang="en" class="dark text-sm">
@@ -208,36 +598,34 @@
     {% endif %}
 </head>
 <body class="min-h-screen {% if current_user.is_authenticated %}logged-in{% endif %} {% if current_user.is_admin %}user-admin{% endif %}">
-    <!-- Floating Toast-style Flash Messages -->
-    {# Use notification component for flash messages #}
+    <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-<div id="flash-messages" class="fixed right-4 top-20 z-[1000] flex flex-col space-y-4 max-w-sm">
-    {% for category, message in messages %}
-        {{ notification(message, category) }}
-    {% endfor %}
-</div>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Animate in the flash messages with a slight delay between each
-            const messages = document.querySelectorAll('.flash-message');
-            messages.forEach((message, index) => {
-                setTimeout(() => {
-                    message.classList.remove('opacity-0', 'translate-x-full');
-                }, 100 * index); // Stagger the animations
-                
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-0 left-0 right-0 z-50 p-4 space-y-2">
+                {% for category, message in messages %}
+                    {% set alert_color = 'bg-green-500' if category == 'success' else 'bg-red-500' if category == 'danger' else 'bg-yellow-500' if category == 'warning' else 'bg-blue-500' %}
+                    <div class="flash-message {{ alert_color }} text-white p-3 rounded-lg shadow-lg flex justify-between items-center transition-all duration-300 ease-in-out">
+                        <span>{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200 focus:outline-none">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+            <script>
                 // Auto-hide flash messages after 5 seconds
-                setTimeout(() => {
-                    message.classList.add('opacity-0', 'translate-x-full');
-                    setTimeout(() => {
-                        message.remove();
-                    }, 300);
-                }, 5000 + (100 * index));
-            });
-        });
-    </script>
-{% endif %}
-{% endwith %}
+                setTimeout(function() {
+                    const messages = document.querySelectorAll('.flash-message');
+                    messages.forEach(message => {
+                        message.style.opacity = '0';
+                        setTimeout(function() {
+                            message.remove();
+                        }, 300);
+                    });
+                }, 5000);
+            </script>
+        {% endif %}
+    {% endwith %}
     
     {% if not hide_header %}
     <!-- Header -->
@@ -512,9 +900,6 @@
     {% elif 'auth.' in request.endpoint|string %}
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     {% endif %}
-
-    {# Use verification reminder component #}
-    {{ verification_reminder() }}
     
     <!-- Block for additional scripts -->
     {% block scripts %}{% endblock %}
