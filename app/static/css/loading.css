@@ -1,0 +1,154 @@
+/* app/static/css/loading.css */
+
+/* Loading spinner animation */
+@keyframes spinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Basic loader styling */
+.loader {
+    border-top-color: #3498db; /* Default blue color */
+    -webkit-animation: spinner 1.5s linear infinite;
+    animation: spinner 1.5s linear infinite;
+}
+
+/* Adjust color in dark mode */
+.dark .loader {
+    border-top-color: #60a5fa;
+}
+
+/* Button loading styles */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading .spinner {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -0.5rem;
+    margin-top: -0.5rem;
+}
+
+/* Overlay styles */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-container {
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    max-width: 300px;
+    width: 100%;
+}
+
+.dark .loading-container {
+    background-color: #1f2937;
+    color: #e5e7eb;
+}
+
+/* Different loader sizes */
+.loader-sm {
+    height: 1rem;
+    width: 1rem;
+    border-width: 2px;
+}
+
+.loader-md {
+    height: 2rem;
+    width: 2rem;
+    border-width: 3px;
+}
+
+.loader-lg {
+    height: 3rem;
+    width: 3rem;
+    border-width: 4px;
+}
+
+/* Animation for fade in/out */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(20px); }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeOut {
+    animation: fadeOut 0.3s ease-in forwards;
+}
+
+/* iOS-style loading spinner for buttons */
+.ios-button .spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spinner 0.8s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+/* Form loading state */
+form.is-loading {
+    position: relative;
+}
+
+form.is-loading::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.dark form.is-loading::after {
+    background-color: rgba(30, 41, 59, 0.7);
+}
+
+form.is-loading::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid rgba(59, 130, 246, 0.2);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spinner 1s linear infinite;
+    z-index: 11;
+}

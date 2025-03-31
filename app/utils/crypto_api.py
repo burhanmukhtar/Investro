@@ -118,7 +118,7 @@ def get_coin_data(symbol, force_refresh=False):
                     'include_platform': 'false',
                     'x_cg_pro_api_key': Config.COINGECKO_API_KEY
                 },
-                timeout=10
+                timeout=1000
             )
             
             if response.status_code == 200:
@@ -232,7 +232,7 @@ def get_exchange_rates(base_currency='USDT', quote_currencies=None):
                         'vs_currencies': 'usd',
                         'x_cg_pro_api_key': Config.COINGECKO_API_KEY
                     },
-                    timeout=10
+                    timeout=1000
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -254,7 +254,7 @@ def get_exchange_rates(base_currency='USDT', quote_currencies=None):
                     'vs_currencies': 'usd',
                     'x_cg_pro_api_key': Config.COINGECKO_API_KEY
                 },
-                timeout=10
+                timeout=1000
             )
             base_response.raise_for_status()
             base_data = base_response.json()
@@ -276,7 +276,7 @@ def get_exchange_rates(base_currency='USDT', quote_currencies=None):
                         'vs_currencies': 'usd',
                         'x_cg_pro_api_key': Config.COINGECKO_API_KEY
                     },
-                    timeout=10
+                    timeout=1000
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -318,7 +318,7 @@ def get_coin_details(symbol):
                 'developer_data': 'false',
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()
@@ -400,7 +400,7 @@ def get_market_overview(limit=100, offset=0):
                 'sparkline': 'false',
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()
@@ -469,7 +469,7 @@ def get_chart_data(symbol, interval='1d', limit=100):
                 'interval': 'daily',
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()
@@ -551,7 +551,7 @@ def get_current_price(currency_pair):
                 'vs_currencies': vs_currency,
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()
@@ -572,7 +572,7 @@ def get_current_price(currency_pair):
                         'ids': coin_id,
                         'x_cg_pro_api_key': Config.COINGECKO_API_KEY
                     },
-                    timeout=10
+                    timeout=1000
                 )
                 market_response.raise_for_status()
                 market_data = market_response.json()
@@ -618,7 +618,7 @@ def get_popular_coins(limit=5):
                 'sparkline': 'false',
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()
@@ -664,7 +664,7 @@ def get_new_listings(limit=5):
                 'sparkline': 'false',
                 'x_cg_pro_api_key': Config.COINGECKO_API_KEY
             },
-            timeout=10
+            timeout=1000
         )
         
         response.raise_for_status()

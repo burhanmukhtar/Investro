@@ -1,7 +1,7 @@
 <!-- app/templates/user/profile.html -->
 {% extends "base.html" %}
 
-{% block title %}Profile | Crypto Trading Platform{% endblock %}
+{% block title %}Profile | Investro{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-4">
@@ -208,41 +208,7 @@
     </div>
     
     <!-- Verification History (Read-only) -->
-    <div class="bg-white border rounded-lg p-4">
-        <h4 class="font-medium mb-2">Verification History</h4>
-        
-        <div id="verificationHistory" class="divide-y">
-            {% if verification_documents %}
-                {% for doc in verification_documents %}
-                <div class="py-4">
-                    <div class="flex justify-between items-center mb-1">
-                        <div class="font-medium">{{ doc.document_type|replace('_', ' ')|title }}</div>
-                        <div class="text-sm 
-                            {% if doc.status == 'approved' %}
-                            text-green-600
-                            {% elif doc.status == 'rejected' %}
-                            text-red-600
-                            {% else %}
-                            text-yellow-600
-                            {% endif %}">
-                            {{ doc.status|capitalize }}
-                        </div>
-                    </div>
-                    <div class="text-sm text-gray-500">
-                        {% if doc.document_side %}
-                        Side: {{ doc.document_side|capitalize }} • 
-                        {% endif %}
-                        Submitted on {{ doc.submitted_at.strftime('%Y-%m-%d') }}
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="py-4 text-center text-gray-500">
-                    <p>No verification attempts yet.</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+
 </div>
         
         <!-- Referral Tab Content -->
@@ -293,17 +259,6 @@
                     <a href="#" class="text-gray-500 hover:text-blue-500">
                         <i class="fab fa-telegram fa-lg"></i>
                     </a>
-                </div>
-            </div>
-            
-            <div class="bg-white border rounded-lg p-4">
-                <h4 class="font-medium mb-3">Referred Users</h4>
-                
-                <div id="referredUsers" class="divide-y">
-                    <!-- Referred users will be loaded here -->
-                    <div class="py-4 text-center text-gray-500">
-                        <p>You haven't referred anyone yet.</p>
-                    </div>
                 </div>
             </div>
         </div>

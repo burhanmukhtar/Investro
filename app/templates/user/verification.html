@@ -48,33 +48,79 @@
                 </p>
             </div>
             
-            <!-- Verification steps progress -->
+            <!-- Verification steps progress - Mobile-friendly design -->
             <div class="mb-8">
-                <h3 class="text-base font-medium mb-2">Verification Progress</h3>
-                <div class="relative">
+                <h3 class="text-base font-medium mb-4">Verification Progress</h3>
+                
+                <!-- Steps for mobile - Vertical layout -->
+                <div class="md:hidden space-y-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full bg-primary-500 text-white text-sm">1</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-900">Register</p>
+                            <p class="text-xs text-gray-500">Complete</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if current_user.email_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">2</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium {% if current_user.email_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Email Verification</p>
+                            <p class="text-xs text-gray-500">{% if current_user.email_verified %}Complete{% else %}Pending{% endif %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if verification_documents|length > 0 %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">3</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium {% if verification_documents|length > 0 %}text-gray-900{% else %}text-gray-500{% endif %}">ID Submission</p>
+                            <p class="text-xs text-gray-500">{% if verification_documents|length > 0 %}Complete{% else %}Pending{% endif %}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if current_user.is_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">4</span>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium {% if current_user.is_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Approved</p>
+                            <p class="text-xs text-gray-500">{% if current_user.is_verified %}Complete{% else %}Pending{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Steps for desktop - Horizontal layout -->
+                <div class="hidden md:block relative">
                     <!-- Progress line -->
                     <div class="absolute inset-0 flex items-center" aria-hidden="true">
                         <div class="h-0.5 w-full bg-gray-200"></div>
                     </div>
+                    
                     <!-- Steps -->
                     <ul class="relative flex justify-between">
                         <li class="flex items-center">
-                            <span class="h-7 w-7 flex items-center justify-center rounded-full bg-primary-500 text-white text-sm">1</span>
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full bg-primary-500 text-white text-sm">1</span>
                             <span class="ml-2 text-sm font-medium text-gray-900">Register</span>
                         </li>
                         
                         <li class="flex items-center">
-                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if current_user.email_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">2</span>
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if current_user.email_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">2</span>
                             <span class="ml-2 text-sm font-medium {% if current_user.email_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Email Verification</span>
                         </li>
                         
                         <li class="flex items-center">
-                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if verification_documents|length > 0 %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">3</span>
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if verification_documents|length > 0 %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">3</span>
                             <span class="ml-2 text-sm font-medium {% if verification_documents|length > 0 %}text-gray-900{% else %}text-gray-500{% endif %}">ID Submission</span>
                         </li>
                         
                         <li class="flex items-center">
-                            <span class="h-7 w-7 flex items-center justify-center rounded-full {% if current_user.is_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">4</span>
+                            <span class="h-8 w-8 flex items-center justify-center rounded-full {% if current_user.is_verified %}bg-primary-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %} text-sm">4</span>
                             <span class="ml-2 text-sm font-medium {% if current_user.is_verified %}text-gray-900{% else %}text-gray-500{% endif %}">Approved</span>
                         </li>
                     </ul>
@@ -82,71 +128,81 @@
             </div>
             
             {% if not current_user.is_verified and current_user.verification_status != 'pending' %}
-<!-- Document Upload Form -->
-<div class="bg-gray-50 border rounded-lg p-4 mb-4">
-    <h3 class="font-medium mb-3">Submit Verification Documents</h3>
-    
-    <form id="verificationForm" action="{{ url_for('user.verification') }}" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="mb-4">
-            <label for="document_type" class="block text-sm font-medium text-gray-700 mb-1">
-                Document Type
-            </label>
-            <select id="document_type" name="document_type" required class="w-full ios-input">
-                <option value="">Select document type</option>
-                <option value="passport">Passport</option>
-                <option value="id_card">ID Card</option>
-                <option value="driver_license">Driver's License</option>
-            </select>
-        </div>
-        
-        <!-- Front Document Upload -->
-        <div class="mb-4">
-            <label for="front_document" class="block text-sm font-medium text-gray-700 mb-1">
-                Front Side of Document <span class="text-red-500">*</span>
-            </label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="frontDocUploadArea">
-                <input type="file" id="front_document" name="front_document" required class="hidden" accept=".jpg,.jpeg,.png,.pdf">
-                <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
-                <p class="text-sm text-gray-500" id="frontDocLabel">Click or drag file to upload front side</p>
-                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, PDF</p>
+            <!-- Document Upload Form - Mobile-optimized -->
+            <div class="bg-gray-50 border rounded-lg p-4 mb-4">
+                <h3 class="font-medium mb-3">Submit Verification Documents</h3>
+                
+                <form id="verificationForm" action="{{ url_for('user.verification') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <!-- Document Type Selection -->
+                    <div class="mb-4">
+                        <label for="document_type" class="block text-sm font-medium text-gray-700 mb-1">
+                            Document Type
+                        </label>
+                        <select id="document_type" name="document_type" required class="w-full ios-input">
+                            <option value="">Select document type</option>
+                            <option value="passport">Passport</option>
+                            <option value="id_card">ID Card</option>
+                            <option value="driver_license">Driver's License</option>
+                            <option value="tax_id">Tax ID Card</option>
+                            <option value="residence_permit">Residence Permit</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Primary ID Document Upload - Regular file upload, no camera -->
+                    <div class="mb-4">
+                        <label for="front_document" class="block text-sm font-medium text-gray-700 mb-1">
+                            Primary ID (showing Full Name with Address) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="frontDocUploadArea">
+                            <input type="file" id="front_document" name="front_document" required class="hidden" accept="image/*,.pdf">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
+                                <p class="text-sm text-gray-500" id="frontDocLabel">Tap to take photo or upload</p>
+                                <p class="text-xs text-gray-400 mt-1">JPG, PNG, PDF supported</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tax ID Document Upload - Regular file upload, no camera -->
+                    <div class="mb-4">
+                        <label for="back_document" class="block text-sm font-medium text-gray-700 mb-1">
+                            Tax ID <span class="text-red-500">*</span>
+                        </label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="backDocUploadArea">
+                            <input type="file" id="back_document" name="back_document" required class="hidden" accept="image/*,.pdf">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-file-invoice text-2xl text-gray-400 mb-2"></i>
+                                <p class="text-sm text-gray-500" id="backDocLabel">Tap to take photo or upload</p>
+                                <p class="text-xs text-gray-400 mt-1">JPG, PNG, PDF supported</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Selfie Upload - With camera access -->
+                    <div class="mb-6">
+                        <label for="selfie_document" class="block text-sm font-medium text-gray-700 mb-1">
+                            Selfie With The Document <span class="text-red-500">*</span>
+                        </label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="selfieDocUploadArea">
+                            <input type="file" id="selfie_document" name="selfie_document" required class="hidden" accept="image/*" capture="user">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-camera text-2xl text-gray-400 mb-2"></i>
+                                <p class="text-sm text-gray-500" id="selfieDocLabel">Tap to take selfie</p>
+                                <p class="text-xs text-gray-400 mt-1">JPG, PNG supported</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="submitVerification" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Submit for Verification
+                    </button>
+                </form>
             </div>
-        </div>
-        
-        <!-- Back Document Upload -->
-        <div class="mb-4">
-            <label for="back_document" class="block text-sm font-medium text-gray-700 mb-1">
-                Back Side of Document <span class="text-red-500">*</span>
-            </label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="backDocUploadArea">
-                <input type="file" id="back_document" name="back_document" required class="hidden" accept=".jpg,.jpeg,.png,.pdf">
-                <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
-                <p class="text-sm text-gray-500" id="backDocLabel">Click or drag file to upload back side</p>
-                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG, PDF</p>
-            </div>
-        </div>
-        
-        <!-- Selfie Upload (Optional) -->
-        <div class="mb-6">
-            <label for="selfie_document" class="block text-sm font-medium text-gray-700 mb-1">
-                Selfie with Document <span class="text-gray-500 text-xs">(Optional)</span>
-            </label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors" id="selfieDocUploadArea">
-                <input type="file" id="selfie_document" name="selfie_document" class="hidden" accept=".jpg,.jpeg,.png">
-                <i class="fas fa-camera text-2xl text-gray-400 mb-2"></i>
-                <p class="text-sm text-gray-500" id="selfieDocLabel">Click or drag file to upload selfie</p>
-                <p class="text-xs text-gray-400 mt-1">Supported formats: JPG, PNG</p>
-            </div>
-        </div>
-        
-        <button type="submit" id="submitVerification" class="w-full ios-button bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-            Submit for Verification
-        </button>
-    </form>
-</div>
-{% endif %}
+            {% endif %}
             
-            <!-- Verification Document History -->
+            <!-- Verification Document History - Mobile-optimized -->
             <div class="bg-white border rounded-lg p-4 mt-6">
                 <h3 class="font-medium mb-3">Submitted Documents</h3>
                 
@@ -188,25 +244,25 @@
                 {% endif %}
             </div>
             
-            <!-- Verification Benefits -->
+            <!-- Verification Benefits - Better mobile spacing -->
             <div class="bg-gray-50 border rounded-lg p-4 mt-6">
                 <h3 class="font-medium mb-3">Benefits of Verification</h3>
                 
-                <ul class="space-y-2">
+                <ul class="space-y-3">
                     <li class="flex items-start">
-                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <i class="fas fa-check-circle text-green-500 mt-0.5 mr-2 flex-shrink-0"></i>
                         <span class="text-sm">Higher withdrawal limits</span>
                     </li>
                     <li class="flex items-start">
-                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <i class="fas fa-check-circle text-green-500 mt-0.5 mr-2 flex-shrink-0"></i>
                         <span class="text-sm">Access to all trading features</span>
                     </li>
                     <li class="flex items-start">
-                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                        <span class="text-sm">Lower transaction fees</span>
+                        <i class="fas fa-check-circle text-green-500 mt-0.5 mr-2 flex-shrink-0"></i>
+                        <span class="text-sm">Access To All Trade Signals</span>
                     </li>
                     <li class="flex items-start">
-                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <i class="fas fa-check-circle text-green-500 mt-0.5 mr-2 flex-shrink-0"></i>
                         <span class="text-sm">Enhanced account security</span>
                     </li>
                 </ul>
@@ -215,12 +271,35 @@
     </div>
 </div>
 
+<!-- Upload Progress Indicator Modal -->
+<div id="uploadProgressModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-0 transition-transform duration-300">
+    <div class="bg-white rounded-xl w-full max-w-xs mx-4 p-6 text-center">
+        <div class="mb-4">
+            <div class="inline-block rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 animate-spin"></div>
+        </div>
+        <h3 class="text-lg font-medium mb-2">Uploading Documents</h3>
+        <p class="text-gray-600 text-sm">Please wait while we upload your verification documents...</p>
+    </div>
+</div>
+
+<!-- Floating Notification with Close Button -->
+<div id="floatingNotification" class="fixed right-4 bottom-20 z-50 bg-blue-100 text-blue-800 px-4 py-3 rounded-lg shadow-lg max-w-xs animate-bounce hidden">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            <i class="fas fa-info-circle mr-2"></i>
+            <span id="notificationMessage">Remember to ensure all documents are clearly visible.</span>
+        </div>
+        <button id="closeNotification" class="ml-2 text-blue-500 hover:text-blue-700 focus:outline-none">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Front document upload handling
+        // Front document upload handling - regular file selection, no camera
         const frontDocInput = document.getElementById('front_document');
         const frontDocLabel = document.getElementById('frontDocLabel');
         const frontDocUploadArea = document.getElementById('frontDocUploadArea');
@@ -233,13 +312,20 @@
             frontDocInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    frontDocLabel.textContent = file.name;
+                    // Display file name with ellipsis if too long
+                    const fileName = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
+                    frontDocLabel.textContent = fileName;
                     frontDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                    
+                    // Check file size and display warning if needed
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('Warning: Primary ID file size exceeds 5MB. This may cause slow uploads.');
+                    }
                 }
             });
         }
         
-        // Back document upload handling
+        // Back document upload handling - regular file selection, no camera
         const backDocInput = document.getElementById('back_document');
         const backDocLabel = document.getElementById('backDocLabel');
         const backDocUploadArea = document.getElementById('backDocUploadArea');
@@ -252,13 +338,20 @@
             backDocInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    backDocLabel.textContent = file.name;
+                    // Display file name with ellipsis if too long
+                    const fileName = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
+                    backDocLabel.textContent = fileName;
                     backDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                    
+                    // Check file size and display warning if needed
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('Warning: Tax ID file size exceeds 5MB. This may cause slow uploads.');
+                    }
                 }
             });
         }
         
-        // Selfie document upload handling
+        // Selfie document upload handling - with camera access
         const selfieDocInput = document.getElementById('selfie_document');
         const selfieDocLabel = document.getElementById('selfieDocLabel');
         const selfieDocUploadArea = document.getElementById('selfieDocUploadArea');
@@ -271,18 +364,93 @@
             selfieDocInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    selfieDocLabel.textContent = file.name;
+                    // Display file name with ellipsis if too long
+                    const fileName = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
+                    selfieDocLabel.textContent = fileName;
                     selfieDocUploadArea.classList.add('border-primary-500', 'bg-primary-50');
+                    
+                    // Check file size and display warning if needed
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('Warning: Selfie file size exceeds 5MB. This may cause slow uploads.');
+                    }
                 }
             });
         }
         
+        // Floating notification handling
+        const floatingNotification = document.getElementById('floatingNotification');
+        const closeNotification = document.getElementById('closeNotification');
+        const notificationMessage = document.getElementById('notificationMessage');
+        
+        // Show a floating notification with custom message
+        function showNotification(message, duration = 5000) {
+            if (floatingNotification && notificationMessage) {
+                notificationMessage.textContent = message;
+                floatingNotification.classList.remove('hidden');
+                
+                // Auto-hide after duration (if not manually closed)
+                if (duration > 0) {
+                    setTimeout(() => {
+                        floatingNotification.classList.add('hidden');
+                    }, duration);
+                }
+            }
+        }
+        
+        // Close button for notification
+        if (closeNotification) {
+            closeNotification.addEventListener('click', function() {
+                floatingNotification.classList.add('hidden');
+            });
+        }
+        
+        // Show initial notification after a short delay
+        setTimeout(() => {
+            showNotification('Make sure all documents are clear, recent, and show your full name and address.');
+        }, 1000);
+        
         // Form submission handling - prevent duplicate submissions
         const verificationForm = document.getElementById('verificationForm');
         const submitButton = document.getElementById('submitVerification');
+        const uploadProgressModal = document.getElementById('uploadProgressModal');
         
         if (verificationForm) {
             verificationForm.addEventListener('submit', function(e) {
+                // Validate form inputs
+                const documentType = document.getElementById('document_type').value;
+                const frontDoc = document.getElementById('front_document').files[0];
+                const backDoc = document.getElementById('back_document').files[0];
+                const selfieDoc = document.getElementById('selfie_document').files[0];
+                
+                if (!documentType) {
+                    e.preventDefault();
+                    showNotification('Please select a document type.');
+                    return;
+                }
+                
+                if (!frontDoc) {
+                    e.preventDefault();
+                    showNotification('Please upload your primary ID document.');
+                    return;
+                }
+                
+                if (!backDoc) {
+                    e.preventDefault();
+                    showNotification('Please upload your Tax ID document.');
+                    return;
+                }
+                
+                if (!selfieDoc) {
+                    e.preventDefault();
+                    showNotification('Please upload a selfie with your document.');
+                    return;
+                }
+                
+                // Show upload progress modal
+                if (uploadProgressModal) {
+                    uploadProgressModal.classList.remove('scale-0');
+                }
+                
                 // Disable the submit button to prevent multiple submissions
                 if (submitButton) {
                     submitButton.disabled = true;
@@ -291,6 +459,17 @@
                 }
             });
         }
+        
+        // Handle orientation change - refresh upload areas
+        window.addEventListener('orientationchange', function() {
+            // Small delay to allow the browser to complete the rotation
+            setTimeout(function() {
+                // Reset upload areas if needed
+                if (frontDocUploadArea) frontDocUploadArea.style.height = 'auto';
+                if (backDocUploadArea) backDocUploadArea.style.height = 'auto';
+                if (selfieDocUploadArea) selfieDocUploadArea.style.height = 'auto';
+            }, 300);
+        });
     });
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 <!-- app/templates/user/settings.html -->
 {% extends "base.html" %}
-{% block title %}Settings | Crypto Trading Platform{% endblock %}
+{% block title %}Settings | Investro{% endblock %}
 {% block head %}
 <style>
     /* Toggle switch styles */
@@ -168,18 +168,7 @@
         
         <div class="divide-y">
             <!-- Theme Settings -->
-            <div class="p-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h2 class="text-base font-medium">Dark Mode</h2>
-                        <p class="text-sm text-gray-500">Switch between light and dark theme</p>
-                    </div>
-                    <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                        <input type="checkbox" id="themeToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer">
-                        <label for="themeToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
-                    </div>
-                </div>
-            </div>
+            
             
             <!-- Language Settings -->
             <div class="p-4">
@@ -545,14 +534,6 @@
     </div>
     
     <!-- Action Buttons -->
-    <div class="flex justify-end space-x-3">
-        <button id="resetSettings" class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-            Reset to Default
-        </button>
-        <button id="saveSettings" class="bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors">
-            Save Changes
-        </button>
-    </div>
 
     <!-- 2FA Setup Modal -->
     <div id="twoFactorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">

@@ -1,7 +1,7 @@
 <!-- app/templates/user/future.html -->
 {% extends "base.html" %}
 
-{% block title %}Futures | Crypto Trading Platform{% endblock %}
+{% block title %}Futures | Investro{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-4">
@@ -10,8 +10,8 @@
         <div class="p-3 border-b">
             <select id="coinSelector" class="w-full bg-white border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 {% for coin in available_coins %}
-                <option value="{{ coin.symbol }}/USDT" {% if coin.symbol + '/USDT' == selected_coin %}selected{% endif %}>
-                    {{ coin.symbol }}/USDT
+                <option value="{{ coin.symbol }}/USD" {% if coin.symbol + '/USD' == selected_coin %}selected{% endif %}>
+                    {{ coin.symbol }}/USD
                 </option>
                 {% endfor %}
             </select>

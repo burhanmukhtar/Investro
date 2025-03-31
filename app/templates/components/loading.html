@@ -1,7 +1,69 @@
-{# app/templates/components/loading.html #}
-{% macro spinner(size="medium", message="Loading...") %}
-<div class="flex flex-col items-center justify-center py-6 text-gray-500">
-    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8 mb-4 animate-spin"></div>
-    <p>{{ message }}</p>
-</div>
+{# app/templates/components/enhanced_loading.html #}
+{% macro enhanced_spinner(size="medium", message="Loading...", centered=True, fullscreen=False, id=None) %}
+    {% if fullscreen %}
+    <div id="{{ id if id else 'loading-wrapper' }}" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center transform scale-100 transition-transform duration-300">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg max-w-sm mx-auto">
+    {% else %}
+    <div id="{{ id if id else 'loading-wrapper' }}" class="{{ 'flex flex-col items-center justify-center' if centered else '' }} py-6 text-gray-500">
+    {% endif %}
+    
+        <div class="flex flex-col items-center justify-center">
+            {% if size == "small" %}
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mb-3 animate-spin"></div>
+            {% elif size == "large" %}
+                <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16 mb-6 animate-spin"></div>
+            {% else %}
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-10 w-10 mb-4 animate-spin"></div>
+            {% endif %}
+            {% if message %}
+                <p class="text-gray-700 dark:text-gray-300">{{ message }}</p>
+            {% endif %}
+        </div>
+        
+    {% if fullscreen %}
+        </div>
+    </div>
+    {% else %}
+    </div>
+    {% endif %}
 {% endmacro %}
+
+{# Simplified API for showing a button loading state #}
+{% macro button_loading(id, text="Loading...") %}
+<script>
+    (function() {
+        const button = document.getElementById('{{ id }}');
+        if (!button) return;
+        
+        // Store original button content
+        const originalContent = button.innerHTML;
+        const originalDisabled = button.disabled;
+        
+        // Function to show loading
+        button.showLoading = function() {
+            this.disabled = true;
+            this.innerHTML = `
+                <span class="inline-block h-4 w-4 border-2 border-t-2 border-white rounded-full animate-spin mr-2"></span>
+                {{ text }}
+            `;
+            return this;
+        };
+        
+        // Function to restore original state
+        button.hideLoading = function() {
+            this.disabled = originalDisabled;
+            this.innerHTML = originalContent;
+            return this;
+        };
+    })();
+</script>
+{% endmacro %}
+
+{# Usage examples:
+   - Regular spinner: {{ enhanced_spinner() }}
+   - Fullscreen overlay: {{ enhanced_spinner(fullscreen=True, message="Processing your request...") }}
+   - Button loading: {{ button_loading("submit-button", "Submitting...") }}
+   
+   - In JavaScript: document.getElementById("submit-button").showLoading();
+   - In JavaScript: document.getElementById("submit-button").hideLoading();
+#}

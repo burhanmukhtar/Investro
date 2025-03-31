@@ -1,4 +1,4 @@
-<!-- app/templates/user/assets.html -->
+<!-- app/templates/user/assets.html with optimized number formatting -->
 {% extends "base.html" %}
 
 {% block title %}Assets | Crypto Trading Platform{% endblock %}
@@ -20,23 +20,23 @@
                 </div>
             </div>
             <div class="flex flex-col">
-                <div class="text-2xl font-bold balance-value">{{ total_balance }} USDT</div>
-                <div class="text-sm text-gray-500">≈ ${{ total_balance }}</div>
+                <div class="text-2xl font-bold balance-value" data-currency="USDT">{{ total_balance }} USDT</div>
+                <div class="text-sm text-gray-500">≈ $<span class="fiat-value">{{ total_balance }}</span></div>
             </div>
         </div>
         
         <div class="grid grid-cols-3 divide-x">
             <div class="p-4">
                 <div class="text-sm text-gray-500 mb-1">Spot</div>
-                <div class="text-base font-semibold balance-value">{{ total_spot_balance }} USDT</div>
+                <div class="text-base font-semibold balance-value" data-currency="USDT">{{ total_spot_balance }} USDT</div>
             </div>
             <div class="p-4">
                 <div class="text-sm text-gray-500 mb-1">Funding</div>
-                <div class="text-base font-semibold balance-value">{{ total_funding_balance }} USDT</div>
+                <div class="text-base font-semibold balance-value" data-currency="USDT">{{ total_funding_balance }} USDT</div>
             </div>
             <div class="p-4">
                 <div class="text-sm text-gray-500 mb-1">Futures</div>
-                <div class="text-base font-semibold balance-value">{{ total_futures_balance }} USDT</div>
+                <div class="text-base font-semibold balance-value" data-currency="USDT">{{ total_futures_balance }} USDT</div>
             </div>
         </div>
     </div>
@@ -140,10 +140,10 @@
                         </div>
                     </div>
                     <div class="text-right">
-                        <div class="font-medium balance-value">{{ format_currency_amount(total_balance, wallet.currency) }}</div>
+                        <div class="font-medium balance-value" data-currency="{{ wallet.currency }}">{{ total_balance }} {{ wallet.currency }}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm balance-value">{{ format_currency_amount(total_balance * (rates.get(wallet.currency, 1)|float), 'USDT', 2) }}</div>
+                        <div class="text-sm balance-value" data-currency="USDT">{{ (total_balance * (rates.get(wallet.currency, 1)|float)) }} USDT</div>
                     </div>
                 </div>
                 {% endfor %}
@@ -171,7 +171,7 @@
                             </div>
                             <span class="text-sm">{{ wallet.currency }}</span>
                         </div>
-                        <div class="text-sm balance-value">{{ format_currency_amount(spot_balance, wallet.currency) }}</div>
+                        <div class="text-sm balance-value" data-currency="{{ wallet.currency }}">{{ spot_balance }} {{ wallet.currency }}</div>
                     </div>
                     {% endif %}
                     {% endfor %}
@@ -197,7 +197,7 @@
                             </div>
                             <span class="text-sm">{{ wallet.currency }}</span>
                         </div>
-                        <div class="text-sm balance-value">{{ format_currency_amount(funding_balance, wallet.currency) }}</div>
+                        <div class="text-sm balance-value" data-currency="{{ wallet.currency }}">{{ funding_balance }} {{ wallet.currency }}</div>
                     </div>
                     {% endif %}
                     {% endfor %}
@@ -223,7 +223,7 @@
                             </div>
                             <span class="text-sm">{{ wallet.currency }}</span>
                         </div>
-                        <div class="text-sm balance_value">{{ format_currency_amount(futures_balance, wallet.currency) }}</div>
+                        <div class="text-sm balance-value" data-currency="{{ wallet.currency }}">{{ futures_balance }} {{ wallet.currency }}</div>
                     </div>
                     {% endif %}
                     {% endfor %}
@@ -256,7 +256,250 @@
     let hideZero = false;
     let balancesHidden = false;
     let originalBalances = {}; // Store original balance values
-    let rates = {}; // Store currency rates
+    
+    // Intelligent formatting function for crypto balances
+    function formatCryptoBalance(amount, currency) {
+        // Parse amount to number if it's a string
+        amount = typeof amount === 'string' ? parseFloat(amount.replace(/,/g, '')) : amount;
+        
+        // Return 0 for invalid or zero amounts
+        if (isNaN(amount) || amount === 0) return '0';
+        
+        // Define decimal precision by currency
+        const decimalPlaces = {
+            // Stablecoins show 2 decimals
+            'USDT': 2,
+            'USDC': 2,
+            'BUSD': 2,
+            'DAI': 2,
+            // Major cryptos with varying precision
+            'BTC': 8,  // Bitcoin needs high precision
+            'ETH': 6,  // Ethereum needs medium-high precision
+            'BNB': 4,  // Binance Coin needs medium precision
+            'SOL': 3,
+            'ADA': 2,
+            'DOGE': 2,
+            'XRP': 2,
+            // Default for others
+            'default': 4
+        };
+        
+        // Get decimal precision for this currency
+        const precision = decimalPlaces[currency] || decimalPlaces.default;
+        
+        // For extremely small values, use scientific notation
+        if (amount > 0 && amount < 0.00001) {
+            return amount.toExponential(2);
+        }
+        
+        // Format the number
+        let formattedAmount = amount.toFixed(precision);
+        
+        // Remove trailing zeros
+        formattedAmount = formattedAmount.replace(/\.?0+$/, '');
+        
+        return formattedAmount;
+    }
+    
+    // Format fiat values
+    function formatFiatValue(amount) {
+        amount = parseFloat(amount);
+        if (isNaN(amount)) return '0.00';
+        return amount.toFixed(2);
+    }
+    
+    // Apply formatting to all balance values
+    function formatAllBalances() {
+        document.querySelectorAll('.balance-value').forEach(el => {
+            if (balancesHidden) return; // Skip if balances are hidden
+            
+            const text = el.textContent;
+            const matches = text.match(/([0-9,.]+)\s*([A-Z]+)/);
+            
+            if (matches && matches.length >= 3) {
+                const amount = parseFloat(matches[1].replace(/,/g, ''));
+                const currency = matches[2];
+                
+                if (!isNaN(amount)) {
+                    const formatted = formatCryptoBalance(amount, currency);
+                    el.textContent = text.replace(matches[1], formatted);
+                    
+                    // Store original formatted value for when toggling hide
+                    const id = Math.random().toString(36).substr(2, 9);
+                    el.dataset.balanceId = id;
+                    originalBalances[id] = el.textContent;
+                }
+            } else if (el.dataset.currency) {
+                // Handle cases where currency is in a data attribute
+                const currency = el.dataset.currency;
+                const amountMatch = text.match(/([0-9,.]+)/);
+                
+                if (amountMatch && amountMatch.length >= 2) {
+                    const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+                    if (!isNaN(amount)) {
+                        const formatted = formatCryptoBalance(amount, currency);
+                        el.textContent = text.replace(amountMatch[1], formatted);
+                        
+                        // Store original formatted value
+                        const id = Math.random().toString(36).substr(2, 9);
+                        el.dataset.balanceId = id;
+                        originalBalances[id] = el.textContent;
+                    }
+                }
+            }
+        });
+        
+        // Format fiat values
+        document.querySelectorAll('.fiat-value').forEach(el => {
+            if (balancesHidden) return;
+            
+            const text = el.textContent;
+            const amount = parseFloat(text.replace(/,/g, ''));
+            
+            if (!isNaN(amount)) {
+                el.textContent = formatFiatValue(amount);
+                
+                // Store original formatted value
+                const id = Math.random().toString(36).substr(2, 9);
+                el.dataset.balanceId = id;
+                originalBalances[id] = el.textContent;
+            }
+        });
+    }
+    
+    // Initialize by formatting all balances
+    formatAllBalances();
+    
+    // Hide balances functionality
+    if (hideBalances && hideBalanceSwitch) {
+        hideBalances.addEventListener('click', function() {
+            balancesHidden = !balancesHidden;
+            
+            if (balancesHidden) {
+                hideBalanceSwitch.classList.add('translate-x-4');
+                hideBalanceSwitch.parentElement.classList.add('bg-primary-500');
+                
+                // Hide all balance values
+                document.querySelectorAll('.balance-value, .fiat-value').forEach(item => {
+                    const id = item.dataset.balanceId;
+                    if (id) {
+                        originalBalances[id] = item.textContent;
+                    }
+                    item.textContent = '******';
+                });
+            } else {
+                hideBalanceSwitch.classList.remove('translate-x-4');
+                hideBalanceSwitch.parentElement.classList.remove('bg-primary-500');
+                
+                // Restore original balance values
+                document.querySelectorAll('.balance-value, .fiat-value').forEach(item => {
+                    const id = item.dataset.balanceId;
+                    if (id && originalBalances[id]) {
+                        item.textContent = originalBalances[id];
+                    } else {
+                        // If no stored value, try to reformat
+                        formatAllBalances();
+                    }
+                });
+            }
+        });
+    }
+    
+    // Toggle hide zero balances
+    if (hideZeroBalances && hideZeroSwitch) {
+        hideZeroBalances.addEventListener('click', function() {
+            hideZero = !hideZero;
+            
+            if (hideZero) {
+                hideZeroSwitch.classList.add('translate-x-4');
+                hideZeroSwitch.parentElement.classList.add('bg-primary-500');
+                
+                // Hide zero balances
+                document.querySelectorAll('.wallet-item').forEach(item => {
+                    const balance = parseFloat(item.dataset.balance || 0);
+                    if (balance === 0) {
+                        item.classList.add('hidden');
+                    }
+                });
+            } else {
+                hideZeroSwitch.classList.remove('translate-x-4');
+                hideZeroSwitch.parentElement.classList.remove('bg-primary-500');
+                
+                // Show all wallets
+                document.querySelectorAll('.wallet-item').forEach(item => {
+                    item.classList.remove('hidden');
+                });
+            }
+            
+            // Apply search filter again if there's a search term
+            if (assetSearch && assetSearch.value) {
+                filterAssets(assetSearch.value);
+            }
+        });
+    }
+    
+    // Asset search functionality
+    function filterAssets(searchTerm) {
+        searchTerm = searchTerm.toLowerCase();
+        
+        document.querySelectorAll('.wallet-item').forEach(item => {
+            const symbol = item.dataset.symbol.toLowerCase();
+            const name = item.querySelector('.crypto-name')?.textContent.toLowerCase() || '';
+            
+            // Get visibility based on search term
+            const matchesSearch = symbol.includes(searchTerm) || name.includes(searchTerm);
+            
+            // Also check zero balance filter
+            const balance = parseFloat(item.dataset.balance || 0);
+            const hideForZero = hideZero && balance === 0;
+            
+            // Only show if it matches search and doesn't have zero balance when filtered
+            if (matchesSearch && !hideForZero) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    }
+    
+    if (assetSearch) {
+        assetSearch.addEventListener('input', function() {
+            filterAssets(this.value);
+        });
+    }
+    
+    // Tab switching functionality
+    if (cryptoTab && accountsTab && cryptoContent && accountsContent) {
+        cryptoTab.addEventListener('click', function() {
+            cryptoTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            cryptoTab.classList.remove('text-gray-500');
+            accountsTab.classList.add('text-gray-500');
+            accountsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            
+            cryptoContent.classList.remove('hidden');
+            accountsContent.classList.add('hidden');
+            
+            // Reformat visible balances when switching tabs
+            if (!balancesHidden) {
+                setTimeout(formatAllBalances, 50);
+            }
+        });
+        
+        accountsTab.addEventListener('click', function() {
+            accountsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
+            accountsTab.classList.remove('text-gray-500');
+            cryptoTab.classList.add('text-gray-500');
+            cryptoTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
+            
+            accountsContent.classList.remove('hidden');
+            cryptoContent.classList.add('hidden');
+            
+            // Reformat visible balances when switching tabs
+            if (!balancesHidden) {
+                setTimeout(formatAllBalances, 50);
+            }
+        });
+    }
     
     // Improved coin icon mapping with multiple sources
     const coinIcons = {
@@ -299,260 +542,7 @@
         'xlm': 'Stellar'
     };
 
-    // Initialize by capturing all original balance values
-    function captureOriginalBalances() {
-        document.querySelectorAll('.balance-value').forEach(item => {
-            const key = item.dataset.valueId || Math.random().toString(36).substring(7);
-            item.dataset.valueId = key;
-            originalBalances[key] = item.textContent;
-        });
-    }
-    
-    // Tab switching functionality
-    if (cryptoTab && accountsTab && cryptoContent && accountsContent) {
-        cryptoTab.addEventListener('click', function() {
-            cryptoTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-            cryptoTab.classList.remove('text-gray-500');
-            accountsTab.classList.add('text-gray-500');
-            accountsTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
-            
-            cryptoContent.classList.remove('hidden');
-            accountsContent.classList.add('hidden');
-        });
-        
-        accountsTab.addEventListener('click', function() {
-            accountsTab.classList.add('text-primary-600', 'border-b-2', 'border-primary-600');
-            accountsTab.classList.remove('text-gray-500');
-            cryptoTab.classList.add('text-gray-500');
-            cryptoTab.classList.remove('text-primary-600', 'border-b-2', 'border-primary-600');
-            
-            accountsContent.classList.remove('hidden');
-            cryptoContent.classList.add('hidden');
-        });
-    }
-    
-    // Toggle hide zero balances
-    if (hideZeroBalances && hideZeroSwitch) {
-        hideZeroBalances.addEventListener('click', function() {
-            hideZero = !hideZero;
-            
-            if (hideZero) {
-                hideZeroSwitch.classList.add('translate-x-4');
-                hideZeroSwitch.parentElement.classList.add('bg-primary-500');
-                
-                // Hide zero balances
-                document.querySelectorAll('.wallet-item').forEach(item => {
-                    const balance = parseFloat(item.dataset.balance || 0);
-                    if (balance === 0) {
-                        item.classList.add('hidden');
-                    }
-                });
-            } else {
-                hideZeroSwitch.classList.remove('translate-x-4');
-                hideZeroSwitch.parentElement.classList.remove('bg-primary-500');
-                
-                // Show all wallets
-                document.querySelectorAll('.wallet-item').forEach(item => {
-                    item.classList.remove('hidden');
-                });
-            }
-            
-            // Apply search filter again if there's a search term
-            if (assetSearch && assetSearch.value) {
-                filterAssets(assetSearch.value);
-            }
-        });
-    }
-    
-    // Toggle hide balances
-    if (hideBalances && hideBalanceSwitch) {
-        // Capture original values first
-        captureOriginalBalances();
-        
-        hideBalances.addEventListener('click', function() {
-            balancesHidden = !balancesHidden;
-            
-            if (balancesHidden) {
-                hideBalanceSwitch.classList.add('translate-x-4');
-                hideBalanceSwitch.parentElement.classList.add('bg-primary-500');
-                
-                // Hide all balance values
-                document.querySelectorAll('.balance-value').forEach(item => {
-                    item.textContent = '******';
-                });
-            } else {
-                hideBalanceSwitch.classList.remove('translate-x-4');
-                hideBalanceSwitch.parentElement.classList.remove('bg-primary-500');
-                
-                // Restore original balance values
-                document.querySelectorAll('.balance-value').forEach(item => {
-                    const key = item.dataset.valueId;
-                    if (key && originalBalances[key]) {
-                        item.textContent = originalBalances[key];
-                    }
-                });
-            }
-        });
-    }
-    
-    // Asset search functionality
-    function filterAssets(searchTerm) {
-        searchTerm = searchTerm.toLowerCase();
-        
-        document.querySelectorAll('.wallet-item').forEach(item => {
-            const symbol = item.dataset.symbol.toLowerCase();
-            const name = item.querySelector('.crypto-name')?.textContent.toLowerCase() || '';
-            
-            // Get visibility based on search term
-            const matchesSearch = symbol.includes(searchTerm) || name.includes(searchTerm);
-            
-            // Also check zero balance filter
-            const balance = parseFloat(item.dataset.balance || 0);
-            const hideForZero = hideZero && balance === 0;
-            
-            // Only show if it matches search and doesn't have zero balance when filtered
-            if (matchesSearch && !hideForZero) {
-                item.classList.remove('hidden');
-            } else {
-                item.classList.add('hidden');
-            }
-        });
-    }
-    
-    if (assetSearch) {
-        assetSearch.addEventListener('input', function() {
-            filterAssets(this.value);
-        });
-    }
-    
-    // Fetch real-time rates and update portfolio
-    function fetchPortfolioData() {
-        const portfolioEndpoint = '/user/api/portfolio';
-        
-        // Show loading state
-        document.getElementById('portfolioLoading')?.classList.remove('hidden');
-        
-        fetch(portfolioEndpoint)
-            .then(response => response.json())
-            .then(data => {
-                // Hide loading state
-                document.getElementById('portfolioLoading')?.classList.add('hidden');
-                
-                if (data.success) {
-                    // Store rates for later use
-                    rates = data.rates || {};
-                    
-                    // Update total values
-                    updateTotalValues(data.portfolio);
-                    
-                    // Update currency names and icons using market info
-                    if (data.market_info) {
-                        updateCurrencyInfo(data.market_info);
-                    }
-                    
-                    // Update individual wallet balances if needed
-                    updateWalletBalances(data.portfolio);
-                } else {
-                    console.error('Error fetching portfolio data:', data.message);
-                }
-            })
-            .catch(error => {
-                // Hide loading state
-                document.getElementById('portfolioLoading')?.classList.add('hidden');
-                console.error('Error fetching portfolio data:', error);
-            });
-    }
-    
-    // Update total portfolio values
-    function updateTotalValues(portfolio) {
-        const totalSpotElement = document.getElementById('totalSpotBalance');
-        const totalFundingElement = document.getElementById('totalFundingBalance');
-        const totalFuturesElement = document.getElementById('totalFuturesBalance');
-        const totalBalanceElement = document.getElementById('totalBalance');
-        
-        if (totalSpotElement && !balancesHidden) {
-            totalSpotElement.textContent = formatCurrency(portfolio.total_spot_value);
-        }
-        
-        if (totalFundingElement && !balancesHidden) {
-            totalFundingElement.textContent = formatCurrency(portfolio.total_funding_value);
-        }
-        
-        if (totalFuturesElement && !balancesHidden) {
-            totalFuturesElement.textContent = formatCurrency(portfolio.total_futures_value);
-        }
-        
-        if (totalBalanceElement && !balancesHidden) {
-            totalBalanceElement.textContent = formatCurrency(portfolio.total_value);
-        }
-    }
-    
-    // Update currency information (names, icons, etc.)
-    function updateCurrencyInfo(marketInfo) {
-        for (const [currency, info] of Object.entries(marketInfo)) {
-            // Update crypto name
-            document.querySelectorAll(`.crypto-name[data-symbol="${currency}"]`).forEach(el => {
-                el.textContent = info.name || currency;
-            });
-            
-            // Update coin icons if image URL is available
-            if (info.image) {
-                document.querySelectorAll(`.coin-icon[data-symbol="${currency}"] img, .coin-icon-small[data-symbol="${currency}"] img`).forEach(img => {
-                    img.src = info.image;
-                    img.classList.remove('hidden');
-                    
-                    // Hide fallback
-                    const fallback = img.parentElement.querySelector('.coin-fallback, .coin-fallback-small');
-                    if (fallback) {
-                        fallback.classList.add('hidden');
-                    }
-                });
-            }
-            
-            // Add price change indicators
-            const priceChange = info.price_change_percentage_24h;
-            if (priceChange !== undefined) {
-                document.querySelectorAll(`.wallet-item[data-symbol="${currency}"]`).forEach(item => {
-                    const changeIndicator = document.createElement('div');
-                    changeIndicator.className = `text-xs ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
-                    changeIndicator.textContent = `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}%`;
-                    
-                    // Insert after the crypto name
-                    const cryptoName = item.querySelector('.crypto-name');
-                    if (cryptoName && !item.querySelector('.price-change-indicator')) {
-                        changeIndicator.classList.add('price-change-indicator');
-                        cryptoName.insertAdjacentElement('afterend', changeIndicator);
-                    }
-                });
-            }
-        }
-    }
-    
-    // Update individual wallet balances
-    function updateWalletBalances(portfolio) {
-        // Only update if balances aren't hidden
-        if (balancesHidden) return;
-        
-        // Update spot wallet balances
-        for (const [currency, data] of Object.entries(portfolio.spot)) {
-            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"] .wallet-balance`).forEach(el => {
-                el.textContent = formatCurrency(data.balance, 8);
-            });
-            
-            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"] .wallet-value`).forEach(el => {
-                el.textContent = formatCurrency(data.value_usdt, 2);
-            });
-            
-            // Update data-balance attribute for filtering
-            document.querySelectorAll(`.wallet-item[data-symbol="${currency}"]`).forEach(item => {
-                item.dataset.balance = data.balance;
-            });
-        }
-        
-        // Similarly update funding and futures balances if displayed
-    }
-    
-    // Load coin icons and full names - Improved approach
+    // Load coin icons and full names
     function loadCoinData() {
         try {
             // Process each coin element
@@ -618,58 +608,26 @@
         }
     }
     
-    // Helper function to format currency values
-    function formatCurrency(value, decimals = 2) {
-        if (value === undefined || value === null) return '0.00';
-        
-        const parsedValue = parseFloat(value);
-        if (isNaN(parsedValue)) return '0.00';
-        
-        return parsedValue.toFixed(decimals).replace(/\.?0+$/, '');
-    }
-    
-    // Initialize
-    captureOriginalBalances();
+    // Load coin data (icons and names)
     loadCoinData();
     
-    // Fetch real-time portfolio data on page load
-    fetchPortfolioData();
-    
-    // Refresh portfolio data periodically
-    const REFRESH_INTERVAL = 60000; // 60 seconds
-    
-    // Set up interval for periodic refresh
-    const refreshInterval = setInterval(fetchPortfolioData, REFRESH_INTERVAL);
-    
-    // Add refresh button functionality
-    const refreshButton = document.getElementById('refreshPortfolio');
-    if (refreshButton) {
-        refreshButton.addEventListener('click', function() {
-            // Show spinner
-            this.querySelector('.refresh-icon').classList.add('hidden');
-            this.querySelector('.refresh-spinner').classList.remove('hidden');
-            
-            // Fetch data
-            fetchPortfolioData()
-                .then(() => {
-                    // Hide spinner when done
-                    setTimeout(() => {
-                        this.querySelector('.refresh-spinner').classList.add('hidden');
-                        this.querySelector('.refresh-icon').classList.remove('hidden');
-                    }, 500);
-                })
-                .catch(() => {
-                    // Hide spinner on error too
-                    this.querySelector('.refresh-spinner').classList.add('hidden');
-                    this.querySelector('.refresh-icon').classList.remove('hidden');
-                });
-        });
+    // Fetch real-time rate updates
+    function fetchRealTimeData() {
+        fetch('/wallet/api/rates')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.rates) {
+                    // Update values with new rates
+                    updatePortfolioWithRates(data.rates);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching rates:', error);
+            });
     }
     
-    // Clean up on page navigation
-    window.addEventListener('beforeunload', function() {
-        clearInterval(refreshInterval);
-    });
+    // Start periodic fetch of real-time data
+    setInterval(fetchRealTimeData, 60000); // Every minute
 });
 </script>
 {% endblock %}

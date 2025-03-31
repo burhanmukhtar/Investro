@@ -8,13 +8,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Crypto Trading Platform{% endblock %}</title>
+    <title>{% block title %}Investro{% endblock %}</title>
 
     <!-- Preload critical assets -->
     <link rel="preload" href="{{ url_for('static', filename='uploads/logo.png') }}" as="image">
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://code.jquery.com">
+    
 
     <!-- Critical inline script for immediate dark mode setting (prevents flash) -->
     <script>
@@ -232,7 +233,7 @@
                     setTimeout(() => {
                         message.remove();
                     }, 300);
-                }, 5000 + (100 * index));
+                }, 3000 + (100 * index));
             });
         });
     </script>

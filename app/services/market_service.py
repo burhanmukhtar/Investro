@@ -78,7 +78,7 @@ def get_current_price_service(currency_pair):
         # Return 0 in case of error
         return 0
 
-def get_popular_coins_service(limit=5):
+def get_popular_coins_service(limit=10):
     """
     Get a list of popular coins.
     
@@ -95,7 +95,7 @@ def get_popular_coins_service(limit=5):
         # Return empty list in case of error
         return []
 
-def get_new_listings_service(limit=5):
+def get_new_listings_service(limit=10):
     """
     Get a list of new cryptocurrency listings.
     
