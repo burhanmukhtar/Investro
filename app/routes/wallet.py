@@ -36,15 +36,26 @@ def verification_required(f):
 def deposit():
     """Get deposit page with address for selected currency and chain"""
     try:
-        # Get available currencies
-        currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'XRP']  # TODO: Get from DB or API
-        
-        # Default currency
+        # Get currency and chain from query parameters
         selected_currency = request.args.get('currency', 'USDT')
-        selected_chain = request.args.get('chain', 'TRC20')
         
-        # Get deposit address for the selected currency and chain
-        deposit_address = generate_blockchain_address(current_user.id, selected_currency, selected_chain)
+        # Set default chain based on currency
+        default_chain = 'TRC20' if selected_currency == 'USDT' else 'BTC'
+        selected_chain = request.args.get('chain', default_chain)
+        
+        # Validate currency is one of the supported options
+        if selected_currency not in ['USDT', 'BTC']:
+            selected_currency = 'USDT'
+            
+        # Validate chain is appropriate for the currency
+        if selected_currency == 'USDT' and selected_chain not in ['TRC20', 'ERC20']:
+            selected_chain = 'TRC20'
+        elif selected_currency == 'BTC' and selected_chain not in ['BTC', 'BSC']:
+            selected_chain = 'BTC'
+        
+        # Get deposit address from our service
+        from app.services.wallet_service import get_deposit_address
+        deposit_address, qr_code_path = get_deposit_address(selected_currency, selected_chain)
         
         # Get recent deposits
         recent_deposits = Transaction.query.filter_by(
@@ -54,13 +65,14 @@ def deposit():
         ).order_by(Transaction.created_at.desc()).limit(5).all()
         
         return render_template('transactions/deposit.html', 
-                            title='Deposit', 
-                            currencies=currencies,
+                            title='Deposit',
                             selected_currency=selected_currency,
                             selected_chain=selected_chain,
                             deposit_address=deposit_address,
+                            qr_code_path=qr_code_path,
                             recent_deposits=recent_deposits)
     except Exception as e:
+        logger.error(f"Error loading deposit page: {str(e)}")
         flash(f'Error loading deposit page: {str(e)}', 'danger')
         return redirect(url_for('user.home'))
 

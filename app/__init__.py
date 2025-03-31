@@ -75,6 +75,7 @@ def create_app(config_class='app.config.Config'):
     from app.routes.trade import trade
     from app.routes.user import user
     from app.routes.wallet import wallet
+    from app.models.deposit_address import DepositAddress
 
     app.register_blueprint(admin, url_prefix='/admin')
     app.register_blueprint(auth, url_prefix='/auth')

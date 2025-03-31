@@ -962,3 +962,124 @@ def download_attachment(filename):
         logger.error(f"Error downloading attachment: {str(e)}")
         flash(f"Error downloading attachment: {str(e)}", "danger")
         return redirect(url_for('admin.support'))
+    
+
+@admin.route('/wallet-addresses')
+@login_required
+@admin_required
+def wallet_addresses():
+    """
+    Admin page for managing deposit wallet addresses
+    """
+    try:
+        # Get all deposit addresses
+        from app.models.deposit_address import DepositAddress
+        
+        # Get BTC addresses
+        btc_addresses = {
+            'BTC': DepositAddress.query.filter_by(currency='BTC', network='BTC').first(),
+            'BSC': DepositAddress.query.filter_by(currency='BTC', network='BSC').first()
+        }
+        
+        # Get USDT addresses
+        usdt_addresses = {
+            'TRC20': DepositAddress.query.filter_by(currency='USDT', network='TRC20').first(),
+            'ERC20': DepositAddress.query.filter_by(currency='USDT', network='ERC20').first()
+        }
+        
+        return render_template('admin/wallet_addresses.html',
+                              title='Wallet Address Management',
+                              btc_addresses=btc_addresses,
+                              usdt_addresses=usdt_addresses)
+    except Exception as e:
+        logger.error(f"Error loading wallet addresses page: {str(e)}")
+        flash(f"Error loading wallet addresses: {str(e)}", "danger")
+        return redirect(url_for('admin.dashboard'))
+
+# Update the update_wallet_address function in app/routes/admin.py
+
+@admin.route('/wallet-addresses/update', methods=['POST'])
+@login_required
+@admin_required
+def update_wallet_address():
+    """
+    Update or create a wallet address for deposits with QR code upload support
+    """
+    try:
+        # Get form data
+        currency = request.form.get('currency')
+        network = request.form.get('network')
+        address = request.form.get('address')
+        qr_file = request.files.get('qr_code')
+        
+        if not currency or not network or not address:
+            flash("Currency, network, and address are required.", "danger")
+            return redirect(url_for('admin.wallet_addresses'))
+        
+        # Validate the address format based on network
+        from app.utils.validators import validate_blockchain_address
+        if not validate_blockchain_address(address, currency, network):
+            flash(f"The address format is not valid for {currency} on {network}.", "danger")
+            return redirect(url_for('admin.wallet_addresses'))
+        
+        # Find existing address or create new one
+        from app.models.deposit_address import DepositAddress
+        
+        deposit_address = DepositAddress.query.filter_by(
+            currency=currency,
+            network=network
+        ).first()
+        
+        qr_code_path = None
+        # Process QR code if provided
+        if qr_file and qr_file.filename:
+            # Validate file type
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'svg'}
+            if '.' in qr_file.filename and qr_file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                # Generate secure filename
+                from werkzeug.utils import secure_filename
+                filename = secure_filename(f"{currency}_{network}_qr_{int(datetime.utcnow().timestamp())}.{qr_file.filename.rsplit('.', 1)[1].lower()}")
+                
+                # Ensure directory exists
+                import os
+                from app.config import Config
+                upload_dir = os.path.join(Config.UPLOAD_FOLDER, 'qr_codes')
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                # Save file
+                filepath = os.path.join(upload_dir, filename)
+                qr_file.save(filepath)
+                
+                qr_code_path = filename
+            else:
+                flash(f"Invalid QR code file format. Allowed formats: PNG, JPG, JPEG, SVG", "danger")
+        
+        if deposit_address:
+            # Update existing address
+            deposit_address.address = address
+            deposit_address.created_by = current_user.id
+            deposit_address.updated_at = datetime.utcnow()
+            # Only update QR code path if a new one was uploaded
+            if qr_code_path:
+                deposit_address.qr_code_path = qr_code_path
+        else:
+            # Create new address
+            deposit_address = DepositAddress(
+                currency=currency,
+                network=network,
+                address=address,
+                qr_code_path=qr_code_path,
+                created_by=current_user.id
+            )
+            db.session.add(deposit_address)
+        
+        db.session.commit()
+        
+        flash(f"Deposit address for {currency} on {network} updated successfully.", "success")
+        return redirect(url_for('admin.wallet_addresses'))
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating wallet address: {str(e)}")
+        flash(f"Error updating wallet address: {str(e)}", "danger")
+        return redirect(url_for('admin.wallet_addresses'))

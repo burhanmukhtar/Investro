@@ -468,30 +468,36 @@ def get_transaction_history(user_id, transaction_type=None, limit=20, offset=0):
     
     return transactions
 
-def get_deposit_address(user_id, currency, chain):
+def get_deposit_address(currency, network):
     """
-    Get a deposit address for a user.
+    Get the deposit address for a specific currency and network.
+    Uses the admin-configured addresses from the database.
     
-    This is a placeholder function. In a real implementation, you would integrate
-    with a cryptocurrency wallet or node to generate or retrieve actual blockchain addresses.
+    Args:
+        currency: Currency code (e.g., 'BTC', 'USDT')
+        network: Network (e.g., 'BTC', 'TRC20', 'ERC20')
     
-    For development, this generates a mock address that is consistent for each user, currency, and chain.
+    Returns:
+        Tuple of (address_string, qr_code_path) or (None, None) if not configured
     """
-    # Generate a consistent mock address based on user_id, currency, and chain
-    seed = f"{user_id}_{currency}_{chain}"
-    random.seed(seed)
-    
-    if chain == 'TRC20':
-        # TRC20 addresses start with T and are 34 characters long
-        address = 'T' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=33))
-    elif chain == 'ERC20':
-        # ERC20 addresses start with 0x and are 42 characters long
-        address = '0x' + ''.join(random.choices('0123456789abcdef', k=40))
-    else:
-        # Generic address
-        address = ''.join(random.choices(string.ascii_uppercase + string.digits, k=34))
-    
-    return address
+    try:
+        from app.models.deposit_address import DepositAddress
+        
+        # Query for the active address for this currency and network
+        address_obj = DepositAddress.query.filter_by(
+            currency=currency,
+            network=network,
+            is_active=True
+        ).first()
+        
+        if address_obj:
+            return address_obj.address, address_obj.qr_code_path
+        
+        # If no address is configured, return None
+        return None, None
+    except Exception as e:
+        logger.error(f"Error getting deposit address for {currency} on {network}: {str(e)}")
+        return None, None
 
 def verify_deposit(transaction_id, admin_notes=None):
     """
