@@ -414,6 +414,14 @@ def verify_otp(user_id, otp):
             db.session.delete(pending_user)
             db.session.commit()
             
+            # Send welcome email to new user
+            try:
+                from app.services.email_notification_service import send_welcome_email
+                send_welcome_email(user)
+                logger.info(f"Welcome email sent to new user {user.id}")
+            except Exception as e:
+                logger.error(f"Error sending welcome email: {str(e)}")
+            
             return True, user
     
     # Then try with regular User (for login OTP verification)

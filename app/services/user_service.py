@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models.user import User, VerificationDocument
 from app.config import Config
+import logging
 
 def get_user_by_id(user_id):
     """Get user by ID."""
@@ -106,6 +107,9 @@ def change_password(user, current_password, new_password):
     Returns:
         Tuple of (success, message)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         if not user.check_password(current_password):
             return False, "Current password is incorrect."
@@ -113,9 +117,33 @@ def change_password(user, current_password, new_password):
         user.set_password(new_password)
         db.session.commit()
         
+        # Send security alert email
+        try:
+            from app.services.email_notification_service import send_security_alert
+            
+            # Get request information if available
+            try:
+                from flask import request
+                ip_address = request.remote_addr or "Unknown"
+                user_agent = request.headers.get('User-Agent', 'Unknown browser')
+            except:
+                ip_address = "Unknown"
+                user_agent = "Unknown browser"
+            
+            send_security_alert(
+                user=user,
+                action="Password Change",
+                ip_address=ip_address,
+                device_info=user_agent
+            )
+            logger.info(f"Password change security alert sent to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error sending password change security alert: {str(e)}")
+        
         return True, "Password changed successfully."
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error changing password: {str(e)}")
         return False, f"Error changing password: {str(e)}"
 
 def set_withdrawal_pin(user, pin):

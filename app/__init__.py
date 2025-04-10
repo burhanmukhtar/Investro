@@ -12,6 +12,14 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import re
 
+os.environ.setdefault('NOTIFICATION_MAIL_SERVER', 'smtp.hostinger.com')
+os.environ.setdefault('NOTIFICATION_MAIL_PORT', '465')
+os.environ.setdefault('NOTIFICATION_MAIL_USE_SSL', 'True')
+os.environ.setdefault('NOTIFICATION_MAIL_USE_TLS', 'False')
+os.environ.setdefault('NOTIFICATION_MAIL_USERNAME', 'verify@theinvestro.io')
+os.environ.setdefault('NOTIFICATION_MAIL_PASSWORD', 'Root@Bloom@098')  # Change in production
+os.environ.setdefault('NOTIFICATION_MAIL_DEFAULT_SENDER', 'Investro Notifications <verify@theinvestro.io>')
+
 # Initialize extensions
 db = SQLAlchemy()
 bcrypt = Bcrypt()

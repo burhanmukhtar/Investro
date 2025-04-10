@@ -76,6 +76,15 @@ def create_support_ticket(user_id, category, subject, message, attachment=None):
         db.session.add(ticket)
         db.session.commit()
         
+        # Send notification email to user
+        try:
+            user = User.query.get(user_id)
+            from app.services.email_notification_service import send_support_ticket_notification
+            send_support_ticket_notification(user, ticket, is_new_ticket=True)
+            logger.info(f"Support ticket created notification sent to user {user_id}")
+        except Exception as e:
+            logger.error(f"Error sending support ticket notification: {str(e)}")
+        
         # Send notification to admin (in a real app, you'd notify admins)
         # NotificationService.send_admin_notification("New support ticket", f"Ticket #{ticket_number} requires attention.")
         
@@ -180,15 +189,22 @@ def add_ticket_response(ticket_id, message, user_id=None, admin_id=None, attachm
         
         db.session.commit()
         
-        # Send notification
-        if is_admin_response:
-            # Notify user of admin response
+        # Send notification with improved email
+        try:
+            # Get the ticket owner
             user = User.query.get(ticket.user_id)
-            # In a real app, you would send an actual notification
-            # NotificationService.send_email(user.email, "New response to your support ticket", f"Your ticket #{ticket.ticket_number} has received a response from support.")
-        else:
-            # Notify admin of user response (in a real app)
-            pass
+            
+            # Send notification based on who responded
+            if is_admin_response:
+                # Admin responded - notify the user
+                from app.services.email_notification_service import send_support_ticket_notification
+                send_support_ticket_notification(user, ticket, response)
+                logger.info(f"Support ticket response notification sent to user {user.id}")
+            else:
+                # User responded - could notify admins here
+                pass
+        except Exception as e:
+            logger.error(f"Error sending ticket response notification: {str(e)}")
         
         return True, "Response added successfully.", response
     except Exception as e:
@@ -235,9 +251,14 @@ def update_ticket_status(ticket_id, status, admin_id):
         db.session.add(response)
         db.session.commit()
         
-        # Notify user of status change (in a real app)
-        user = User.query.get(ticket.user_id)
-        # NotificationService.send_email(user.email, "Support ticket status updated", f"Your ticket #{ticket.ticket_number} status has been updated to {status}.")
+        # Send notification to user with improved email
+        try:
+            user = User.query.get(ticket.user_id)
+            from app.services.email_notification_service import send_support_ticket_notification
+            send_support_ticket_notification(user, ticket)
+            logger.info(f"Support ticket status update notification sent to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error sending ticket status update notification: {str(e)}")
         
         return True, f"Ticket status updated to {status}."
     except Exception as e:

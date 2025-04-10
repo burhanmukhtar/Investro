@@ -120,6 +120,14 @@ def process_referral_reward(user_id):
         
         db.session.commit()
         
+        # Send email notification to referrer
+        try:
+            from app.services.email_notification_service import send_referral_notification
+            send_referral_notification(referrer, reward)
+            logger.info(f"Referral reward email notification sent to user {referrer.id}")
+        except Exception as e:
+            logger.error(f"Error sending referral reward email notification: {str(e)}")
+        
         logger.info(f"Referral reward processed: {referrer.username} received 80 USDT for referring {user.username}")
         return True, "Referral reward processed successfully."
     except Exception as e:

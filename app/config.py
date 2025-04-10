@@ -17,13 +17,22 @@ class Config:
     REMEMBER_COOKIE_SECURE = True
     REMEMBER_COOKIE_HTTPONLY = True
     
-    # Mail settings
+    # Mail settings for OTP and account verification
     MAIL_SERVER = 'smtp.hostinger.com'
     MAIL_PORT = 465
-    MAIL_USE_SSL = True  # Changed from TLS to SSL
+    MAIL_USE_SSL = True
     MAIL_USE_TLS = False
     MAIL_USERNAME = 'verify@theinvestro.io'  
     MAIL_PASSWORD = 'Root@Bloom@098'
+    
+    # New notification mail settings (for all other emails)
+    NOTIFICATION_MAIL_SERVER = os.environ.get('NOTIFICATION_MAIL_SERVER', 'smtp.hostinger.com')
+    NOTIFICATION_MAIL_PORT = int(os.environ.get('NOTIFICATION_MAIL_PORT', 465))
+    NOTIFICATION_MAIL_USE_SSL = os.environ.get('NOTIFICATION_MAIL_USE_SSL', 'True').lower() == 'true'
+    NOTIFICATION_MAIL_USE_TLS = os.environ.get('NOTIFICATION_MAIL_USE_TLS', 'False').lower() == 'true'
+    NOTIFICATION_MAIL_USERNAME = os.environ.get('NOTIFICATION_MAIL_USERNAME', 'verify@theinvestro.io')
+    NOTIFICATION_MAIL_PASSWORD = os.environ.get('NOTIFICATION_MAIL_PASSWORD', 'Root@Bloom@098')
+    NOTIFICATION_MAIL_DEFAULT_SENDER = os.environ.get('NOTIFICATION_MAIL_DEFAULT_SENDER', 'Investro Notifications <notifications@theinvestro.io>')
     
     # File upload settings
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')

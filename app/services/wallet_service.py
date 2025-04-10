@@ -306,6 +306,15 @@ def convert_currency(user_id, from_currency, to_currency, amount, wallet_type='s
         db.session.add(transaction)
         db.session.commit()
         
+        # 5. Send email notification
+        try:
+            user = User.query.get(user_id)
+            from app.services.email_notification_service import send_transaction_notification
+            send_transaction_notification(user, transaction)
+            logger.info(f"Currency conversion notification sent to user {user_id}")
+        except Exception as e:
+            logger.error(f"Error sending currency conversion notification: {str(e)}")
+        
         return True, "Conversion completed successfully.", converted_amount
         
     except Exception as e:
@@ -385,6 +394,15 @@ def create_transfer_transaction(user_id, currency, amount, from_wallet, to_walle
     db.session.add(transaction)
     db.session.commit()
     
+    # Send email notification
+    try:
+        user = User.query.get(user_id)
+        from app.services.email_notification_service import send_transaction_notification
+        send_transaction_notification(user, transaction)
+        logger.info(f"Transfer notification sent to user {user_id}")
+    except Exception as e:
+        logger.error(f"Error sending transfer notification: {str(e)}")
+    
     return transaction
 
 def create_convert_transaction(user_id, from_currency, to_currency, amount, converted_amount, rate):
@@ -450,6 +468,20 @@ def create_payment_transactions(sender_id, recipient_id, currency, amount):
     db.session.add(sender_transaction)
     db.session.add(recipient_transaction)
     db.session.commit()
+    
+    # Send email notifications to both sender and recipient
+    try:
+        from app.services.email_notification_service import send_transaction_notification
+        
+        # Notify sender
+        send_transaction_notification(sender, sender_transaction)
+        logger.info(f"Payment sent notification sent to user {sender_id}")
+        
+        # Notify recipient
+        send_transaction_notification(recipient, recipient_transaction)
+        logger.info(f"Payment received notification sent to user {recipient_id}")
+    except Exception as e:
+        logger.error(f"Error sending payment notifications: {str(e)}")
     
     return sender_transaction, recipient_transaction
 

@@ -125,8 +125,16 @@ def process_verification(document_id, action, admin_notes=None):
         
         db.session.commit()
         
-        # Send notification to user
+        # Send original notification to user
         send_verification_notification(user, document.status, admin_notes)
+        
+        # Send new email notification
+        try:
+            from app.services.email_notification_service import send_verification_status_notification
+            send_verification_status_notification(user, document.status, admin_notes)
+            logger.info(f"Verification {document.status} email notification sent to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error sending verification email notification: {str(e)}")
         
         return True, f"Verification document {document.status}."
     except Exception as e:
@@ -210,9 +218,19 @@ def process_deposit(transaction_id, action, admin_notes=None):
         
         db.session.commit()
         
-        # Send notification to user
+        # Send notification to user using both methods
         user = User.query.get(transaction.user_id)
+        
+        # Original notification method
         send_transaction_notification(user, transaction)
+        
+        # New email notification
+        try:
+            from app.services.email_notification_service import send_transaction_notification as send_email_transaction_notification
+            send_email_transaction_notification(user, transaction)
+            logger.info(f"Deposit {transaction.status} email notification sent to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error sending deposit email notification: {str(e)}")
         
         return True, f"Deposit {transaction.status}."
     except Exception as e:
@@ -259,9 +277,19 @@ def process_withdrawal(transaction_id, action, blockchain_txid=None, admin_notes
         
         db.session.commit()
         
-        # Send notification to user
+        # Send notification to user using both methods
         user = User.query.get(transaction.user_id)
+        
+        # Original notification method
         send_transaction_notification(user, transaction)
+        
+        # New email notification
+        try:
+            from app.services.email_notification_service import send_transaction_notification as send_email_transaction_notification
+            send_email_transaction_notification(user, transaction)
+            logger.info(f"Withdrawal {transaction.status} email notification sent to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error sending withdrawal email notification: {str(e)}")
         
         return True, f"Withdrawal {transaction.status}."
     except Exception as e:
@@ -319,10 +347,25 @@ def create_trade_signal(admin_id, data):
         db.session.add(signal)
         db.session.commit()
         
-        # Send notification to all users (or a subset of users)
+        # Send notification to all verified users
         # In a real implementation, you would filter users who are subscribed to signals
-        users = User.query.filter_by(is_verified=True).all()
-        send_signal_notification(users, signal)
+        try:
+            # Import the notification service
+            from app.services.email_notification_service import send_trade_signal_notification
+            
+            # Get verified users
+            users = User.query.filter_by(is_verified=True).all()
+            
+            # Send notification to each user
+            for user in users:
+                send_trade_signal_notification(user, signal)
+                
+            # Also send the original notification via older method (for backward compatibility)
+            send_signal_notification(users, signal)
+            
+            logger.info(f"Trade signal notifications sent to {len(users)} users")
+        except Exception as e:
+            logger.error(f"Error sending trade signal notifications: {str(e)}")
         
         return True, "Trade signal created successfully.", signal
     except Exception as e:
